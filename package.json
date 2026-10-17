@@ -9,7 +9,7 @@
   "private": true,
   "scripts": {
     "start": "electron .",
-    "build": "electron-builder --win nsis",
+    "build": "electron-builder --win dir && node -e \"require('rcedit')('dist/win-unpacked/Krasilnya.exe',{icon:'build/icon.ico'}).catch(e=>{console.error(e);process.exit(1)})\" && electron-builder --win nsis --prepackaged dist/win-unpacked",
     "build:portable": "electron-builder --win portable"
   },
   "dependencies": {
@@ -18,7 +18,8 @@
   },
   "devDependencies": {
     "electron": "33.2.1",
-    "electron-builder": "25.1.8"
+    "electron-builder": "25.1.8",
+    "rcedit": "^4.0.1"
   },
   "build": {
     "appId": "io.github.ofmakarov.krasilnya",
@@ -44,10 +45,15 @@
       "!**/node_modules/jszip/vendor/**"
     ],
     "extraResources": [
-      { "from": "krasilnya.html", "to": "krasilnya.html" }
+      {
+        "from": "krasilnya.html",
+        "to": "krasilnya.html"
+      }
     ],
     "win": {
-      "target": ["nsis"],
+      "target": [
+        "nsis"
+      ],
       "icon": "build/icon.ico",
       "signAndEditExecutable": false
     },
@@ -65,8 +71,18 @@
       "artifactName": "Krasilnya-Portable-${version}.${ext}"
     },
     "fileAssociations": [
-      { "ext": "glb", "name": "GLB", "description": "3D-модель GLB", "role": "Editor" },
-      { "ext": "obj", "name": "OBJ", "description": "3D-модель OBJ", "role": "Editor" }
+      {
+        "ext": "glb",
+        "name": "GLB",
+        "description": "3D-модель GLB",
+        "role": "Editor"
+      },
+      {
+        "ext": "obj",
+        "name": "OBJ",
+        "description": "3D-модель OBJ",
+        "role": "Editor"
+      }
     ]
   }
 }
