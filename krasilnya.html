@@ -1,0 +1,910 @@
+<title>Красильня</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Manrope:wght@400;500;600;800&family=JetBrains+Mono:wght@400&display=swap">
+<style>
+/* Layout: инструменты слева — холст по центру — панель цвета, градиента и наклеек справа; на телефоне всё стопкой */
+:root{
+  --bg:#16171c; --surface:#1f2128; --surface-2:#272a33; --line:#343845; --fg:#eceaf2; --muted:#9a98a8;
+  --accent:#ff8a3d; --accent-ink:#2a1405; --sel:#3fd0c9; --danger:#ff6b6b;
+  --f-display:"Unbounded","Arial Black",system-ui,sans-serif;
+  --f-body:"Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:14px;overflow:hidden}
+*{box-sizing:border-box}
+button,input,select{font:inherit;color:inherit}
+.app{height:100%;display:grid;grid-template-columns:60px 1fr 320px;grid-template-rows:52px 1fr;
+  padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+header{grid-column:1/-1;display:flex;align-items:center;gap:12px;padding-inline:14px;border-bottom:1px solid var(--line);background:var(--surface);min-width:0}
+.logo{font-family:var(--f-display);font-weight:700;font-size:17px;letter-spacing:.01em;display:flex;align-items:center;gap:9px;white-space:nowrap}
+.logo i{display:inline-block;width:18px;height:18px;border-radius:50%;background:conic-gradient(from 200deg,#ffb000,#ff5d8f,#7a5cff,#2ec4b6,#ffb000)}
+.hgap{flex:1}
+.btn{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:8px;border:1px solid var(--line);background:var(--surface-2);cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:#4a4f60}
+.btn:focus-visible,.tool:focus-visible,.sw:focus-visible,.chip:focus-visible,.dc:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+.btn.icon{width:34px;padding:0;justify-content:center}
+.btn:disabled{opacity:.4;cursor:default}
+.tools{display:flex;flex-direction:column;gap:6px;padding:10px 8px;border-right:1px solid var(--line);background:var(--surface);overflow-y:auto}
+.tool{width:44px;height:44px;flex:0 0 44px;border-radius:10px;border:1px solid transparent;background:transparent;display:grid;place-items:center;cursor:pointer;position:relative;color:var(--muted)}
+.tool svg{width:22px;height:22px}
+.tool:hover{background:var(--surface-2);color:var(--fg)}
+.tool.on{background:var(--surface-2);border-color:var(--accent);color:var(--accent)}
+.tool kbd{position:absolute;right:3px;bottom:2px;font-family:var(--f-mono);font-size:9px;color:var(--muted)}
+.tsep{height:1px;background:var(--line);margin:2px 4px}
+.stage{position:relative;min-width:0;min-height:0;background:radial-gradient(circle at 50% 40%,#23252e,#16171c 70%)}
+.stage canvas{display:block;width:100%;height:100%;touch-action:none}
+#gradSvg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.hud{position:absolute;left:12px;bottom:12px;right:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;pointer-events:none}
+.pill{pointer-events:auto;background:rgba(22,23,28,.82);border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:12.5px;color:var(--muted)}
+.pill b{color:var(--fg);font-weight:600}
+.drop{position:absolute;inset:12px;border:2px dashed var(--accent);border-radius:16px;display:grid;place-items:center;font-family:var(--f-display);font-size:18px;background:rgba(22,23,28,.7);text-align:center;padding:20px}
+.toast{position:absolute;top:12px;left:50%;transform:translateX(-50%);background:var(--surface-2);border:1px solid var(--line);padding:8px 14px;border-radius:10px;font-size:13px;max-width:90%;text-align:center}
+.panel{border-left:1px solid var(--line);background:var(--surface);overflow-y:auto;padding:14px 16px 24px;display:flex;flex-direction:column;gap:18px;min-width:0}
+.sec{display:flex;flex-direction:column;gap:10px}
+.sec h3{margin:0;font-family:var(--f-display);font-weight:500;font-size:11.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.cur{display:flex;gap:10px;align-items:center}
+.cur input[type=color]{width:46px;height:46px;border:none;border-radius:10px;padding:0;background:none;cursor:pointer}
+.cur input[type=color]::-webkit-color-swatch-wrapper{padding:0}
+.cur input[type=color]::-webkit-color-swatch{border:1px solid var(--line);border-radius:10px}
+.hex{width:100px;height:34px;border-radius:8px;border:1px solid var(--line);background:var(--surface-2);padding:0 10px;font-family:var(--f-mono);font-size:13px;text-transform:uppercase}
+.pal{display:flex;flex-direction:column;gap:6px}
+.sws{display:grid;grid-template-columns:repeat(8,1fr);gap:5px}
+.sw{aspect-ratio:1;border-radius:6px;border:1px solid rgba(255,255,255,.08);cursor:pointer;padding:0;max-width:100%}
+.sw:hover{transform:scale(1.08)}
+.palsel{height:34px;border-radius:8px;border:1px solid var(--line);background:var(--surface-2);padding:0 8px;flex:1;min-width:0}
+.gbar{position:relative;height:34px;border-radius:8px;border:1px solid var(--line);cursor:copy}
+.gbar canvas{width:100%;height:100%;display:block;border-radius:7px}
+.stops{position:relative;height:22px;margin-top:-4px}
+.stop{position:absolute;top:0;width:16px;height:20px;margin-left:-8px;cursor:grab;touch-action:none}
+.stop span{position:absolute;inset:4px 1px 0 1px;border-radius:4px;border:2px solid #fff;box-shadow:0 0 0 1px #000}
+.stop::before{content:"";position:absolute;left:4px;top:-1px;border:4px solid transparent;border-bottom:5px solid #fff;border-top:0}
+.stop.on span{border-color:var(--accent)}
+.stop.on::before{border-bottom-color:var(--accent)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{height:30px;padding:0 10px;border-radius:999px;border:1px solid var(--line);background:var(--surface-2);cursor:pointer;font-size:12.5px}
+.chip.on{border-color:var(--accent);color:var(--accent)}
+.gpres{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.gp{height:26px;border-radius:6px;border:1px solid rgba(255,255,255,.08);cursor:pointer;padding:0}
+.sl{display:grid;grid-template-columns:96px 1fr 44px;gap:8px;align-items:center;font-size:13px}
+.sl output{font-family:var(--f-mono);font-size:12px;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
+.sl input{width:100%;accent-color:var(--accent)}
+.hint{font-size:12.5px;color:var(--muted);line-height:1.5;margin:0}
+.chk{display:flex;gap:8px;align-items:center;font-size:13px;cursor:pointer}
+.chk input{accent-color:var(--accent)}
+.decals{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.dc{aspect-ratio:1;border-radius:8px;border:1px solid var(--line);cursor:pointer;padding:4px;max-width:100%;
+  background-color:#2b2e38;background-image:linear-gradient(45deg,#343845 25%,transparent 25%,transparent 75%,#343845 75%),linear-gradient(45deg,#343845 25%,transparent 25%,transparent 75%,#343845 75%);background-size:12px 12px;background-position:0 0,6px 6px;display:grid;place-items:center}
+.dc img{max-width:100%;max-height:100%;display:block}
+.dc.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.dc.add{background:var(--surface-2);color:var(--muted);font-size:22px}
+input[type=file]{display:none}
+@media (max-width:820px){
+  body{overflow:auto}
+  .app{height:auto;grid-template-columns:1fr;grid-template-rows:auto auto 58svh auto;padding-left:0;padding-right:0}
+  header{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));height:52px;gap:8px}
+  .logo span{display:none}
+  .btn .lbl{display:none}
+  .tools{flex-direction:row;border-right:0;border-bottom:1px solid var(--line);overflow-x:auto;overflow-y:hidden;padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px))}
+  .tsep{width:1px;height:auto;margin:4px 2px}
+  .panel{border-left:0;border-top:1px solid var(--line);overflow:visible;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+}
+@media (prefers-reduced-motion:reduce){.sw:hover{transform:none}}
+</style>
+
+<div class="app">
+  <header>
+    <div class="logo"><i></i><span>Красильня</span></div>
+    <div class="hgap"></div>
+    <button class="btn icon" id="undoBtn" title="Отменить (Ctrl+Z)" aria-label="Отменить"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
+    <button class="btn icon" id="redoBtn" title="Повторить (Ctrl+Shift+Z)" aria-label="Повторить"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg></button>
+    <label class="btn" for="fileIn" title="Открыть GLB, GLTF или OBJ"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 8 5-5 5 5"/><path d="M5 21h14"/></svg><span class="lbl">Открыть модель</span></label>
+    <input type="file" id="fileIn" accept=".glb,.gltf,.obj">
+    <button class="btn primary" id="exportBtn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg><span class="lbl">Экспорт GLB</span></button>
+  </header>
+
+  <nav class="tools" aria-label="Инструменты">
+    <button class="tool on" data-tool="brush" title="Кисть (B)" aria-label="Кисть"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18.4 2.6a2 2 0 0 1 3 3L13 14l-3-3z"/><path d="M10 11c-3 0-5 2-5 5 0 1.5-1 3-3 3 2 2 9 2 11-1 1-1.3 1-3 0-4z"/></svg><kbd>B</kbd></button>
+    <button class="tool" data-tool="fill" title="Заливка области (F)" aria-label="Заливка"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m19 11-8-8-8.6 8.6a2 2 0 0 0 0 2.8l5.2 5.2a2 2 0 0 0 2.8 0z"/><path d="m5 2 5 5"/><path d="M2 13h15"/><path d="M22 20a2 2 0 1 1-4 0c0-1.6 1.7-2.4 2-4 .3 1.6 2 2.4 2 4"/></svg><kbd>F</kbd></button>
+    <button class="tool" data-tool="gradient" title="Градиент (G)" aria-label="Градиент"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M7 17 17 7"/><circle cx="7" cy="17" r="1.6" fill="currentColor"/><circle cx="17" cy="7" r="1.6"/></svg><kbd>G</kbd></button>
+    <button class="tool" data-tool="decal" title="Наклейка (D)" aria-label="Наклейка"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15.5 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9.5L21 14.5V5a2 2 0 0 0-2-2z"/><path d="M14 21v-5a2 2 0 0 1 2-2h5"/><circle cx="9" cy="9" r="1.5"/></svg><kbd>D</kbd></button>
+    <button class="tool" data-tool="erase" title="Ластик наклеек (E)" aria-label="Ластик наклеек"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3a1 1 0 0 1 0-1.4l10-10a1 1 0 0 1 1.4 0l5.6 5.6a1 1 0 0 1 0 1.4L11 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg><kbd>E</kbd></button>
+    <div class="tsep"></div>
+    <button class="tool" data-tool="select" title="Выделить области (S)" aria-label="Выделение"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="3 2.5"><path d="M4 7 12 3l8 4v10l-8 4-8-4z"/></svg><kbd>S</kbd></button>
+    <button class="tool" data-tool="pick" title="Пипетка (I)" aria-label="Пипетка"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m2 22 1-1h3l9-9"/><path d="M3 21v-3l9-9"/><path d="m15 6 3.4-3.4a2.1 2.1 0 1 1 3 3L18 9l.4.4a2.1 2.1 0 1 1-3 3l-3.8-3.8a2.1 2.1 0 1 1 3-3z"/></svg><kbd>I</kbd></button>
+    <button class="tool" data-tool="camera" title="Камера (V, или удерживай пробел)" aria-label="Камера"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6a2 2 0 0 0-4 0"/><path d="M14 10V4a2 2 0 0 0-4 0v2"/><path d="M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.9-6-2.4L2.4 16a2 2 0 0 1 2.8-2.8L7 15"/></svg><kbd>V</kbd></button>
+  </nav>
+
+  <main class="stage" id="stage">
+    <canvas id="cv"></canvas>
+    <svg id="gradSvg"></svg>
+    <div class="hud">
+      <div class="pill" id="statPill">Загрузка…</div>
+      <div class="pill" id="hintPill"></div>
+    </div>
+    <div class="drop" id="drop" hidden>Отпусти: модель откроется, а картинка PNG станет наклейкой</div>
+    <div class="toast" id="toast" hidden></div>
+  </main>
+
+  <aside class="panel">
+    <section class="sec">
+      <h3>Цвет</h3>
+      <div class="cur">
+        <input type="color" id="colorIn" value="#ffd23f" aria-label="Текущий цвет">
+        <input class="hex" id="hexIn" value="#FFD23F" aria-label="HEX">
+        <div class="sws" id="recent" style="grid-template-columns:repeat(4,22px);gap:4px"></div>
+      </div>
+      <div class="pal">
+        <div class="row"><select class="palsel" id="palSel" aria-label="Палитра"></select></div>
+        <div class="sws" id="palSws"></div>
+      </div>
+    </section>
+
+    <section class="sec">
+      <h3>Наклейки</h3>
+      <div class="decals" id="decals"></div>
+      <input type="file" id="decalIn" accept="image/png,image/webp,image/gif,image/jpeg,image/svg+xml" multiple>
+      <div class="sl"><label for="dSize">Размер</label><input type="range" id="dSize" min="2" max="90" value="22"><output id="dSizeO">22%</output></div>
+      <div class="sl"><label for="dRot">Поворот</label><input type="range" id="dRot" min="-180" max="180" value="0"><output id="dRotO">0°</output></div>
+      <div class="sl"><label for="dOp">Непрозрачн.</label><input type="range" id="dOp" min="5" max="100" value="100"><output id="dOpO">100</output></div>
+      <div class="row">
+        <label class="chk"><input type="checkbox" id="dFlip"> Отразить</label>
+        <label class="chk"><input type="checkbox" id="dWrap" checked> Загибать на боковые грани</label>
+      </div>
+      <div class="row"><button class="btn" id="dClear">Убрать все наклейки</button></div>
+      <p class="hint">Выбери наклейку и веди по модели: она едет за пальцем и приклеивается, когда отпускаешь. Свои PNG с прозрачным фоном добавляй через «+» или перетаскиванием.</p>
+    </section>
+
+    <section class="sec">
+      <h3>Градиент</h3>
+      <div>
+        <div class="gbar" id="gbar" title="Нажми на полосу, чтобы добавить точку"><canvas id="gcv" width="560" height="60"></canvas></div>
+        <div class="stops" id="stops"></div>
+      </div>
+      <div class="row">
+        <input type="color" id="stopColor" aria-label="Цвет выбранной точки" style="width:34px;height:34px;border:none;padding:0;background:none;cursor:pointer">
+        <button class="btn" id="stopDel">Удалить точку</button>
+        <button class="btn icon" id="gradRev" title="Развернуть градиент" aria-label="Развернуть градиент"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg></button>
+      </div>
+      <div class="chips" id="gType">
+        <button class="chip on" data-g="linear">Линейный</button>
+        <button class="chip" data-g="radial">Радиальный</button>
+        <button class="chip" data-g="mirror">Зеркальный</button>
+      </div>
+      <div class="gpres" id="gPresets"></div>
+      <p class="hint">Проведи линию по модели: от первой точки градиента ко второй. Красится выделение, а если его нет — область под началом линии.</p>
+    </section>
+
+    <section class="sec">
+      <h3>Кисть и области</h3>
+      <div class="sl"><label for="radius">Размер кисти</label><input type="range" id="radius" min="1" max="40" value="8"><output id="radiusO">8%</output></div>
+      <div class="sl"><label for="hard">Жёсткость</label><input type="range" id="hard" min="0" max="100" value="60"><output id="hardO">60</output></div>
+      <div class="sl"><label for="strength">Сила</label><input type="range" id="strength" min="5" max="100" value="100"><output id="strengthO">100</output></div>
+      <div class="sl"><label for="angle">Граница области</label><input type="range" id="angle" min="0" max="180" value="30"><output id="angleO">30°</output></div>
+      <p class="hint">Граница области — насколько сильно может загибаться поверхность, чтобы считаться одной областью. 0° — одна грань, 180° — вся деталь.</p>
+    </section>
+
+    <section class="sec">
+      <h3>Выделение</h3>
+      <div class="row">
+        <button class="btn" id="selAll">Выделить всё</button>
+        <button class="btn" id="selInv">Инвертировать</button>
+        <button class="btn" id="selNone">Снять</button>
+      </div>
+      <p class="hint">Инструментом «Выделение» нажимай по областям, чтобы добавить или убрать их. Кисть, заливка, градиент и наклейки работают только внутри выделения.</p>
+    </section>
+
+    <section class="sec">
+      <h3>Модель и экспорт</h3>
+      <label class="chk"><input type="checkbox" id="litChk" checked> Свет и тени</label>
+      <label class="chk"><input type="checkbox" id="wireChk"> Сетка полигонов</label>
+      <label class="chk"><input type="checkbox" id="bakeChk"> Экспорт текстурой (цвета + наклейки)</label>
+      <div class="row">
+        <button class="btn" id="subBtn" title="Каждый треугольник делится на 4: градиенты станут плавнее">Подразбить ×4</button>
+        <button class="btn" id="texBtn">Текстура PNG</button>
+        <button class="btn" id="shotBtn">Снимок PNG</button>
+      </div>
+      <p class="hint" id="uvNote">Без наклеек экспорт хранит цвета в вершинах (COLOR_0). С наклейками всё запекается в одну текстуру — её читают Blender и Unreal как обычный Base Color.</p>
+    </section>
+  </aside>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/loaders/OBJLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/exporters/GLTFExporter.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+(function(){
+"use strict";
+const $=id=>document.getElementById(id);
+
+/* ---------- color math ---------- */
+const s2l=c=>c<=0.04045?c/12.92:Math.pow((c+0.055)/1.055,2.4);
+const l2s=c=>c<=0.0031308?c*12.92:1.055*Math.pow(c,1/2.4)-0.055;
+const clamp01=v=>v<0?0:v>1?1:v;
+function hexToRgb(h){h=h.replace('#','');if(h.length===3)h=h.split('').map(c=>c+c).join('');const n=parseInt(h,16);return [(n>>16&255)/255,(n>>8&255)/255,(n&255)/255];}
+function rgbToHex(c){return '#'+c.map(v=>Math.round(clamp01(v)*255).toString(16).padStart(2,'0')).join('').toUpperCase();}
+function toOk(c){const r=s2l(c[0]),g=s2l(c[1]),b=s2l(c[2]);
+  const l=Math.cbrt(0.4122214708*r+0.5363325363*g+0.0514459929*b),m=Math.cbrt(0.2119034982*r+0.6806995451*g+0.1073969566*b),s=Math.cbrt(0.0883024619*r+0.2817188376*g+0.6299787005*b);
+  return [0.2104542553*l+0.7936177850*m-0.0040720468*s,1.9779984951*l-2.4285922050*m+0.4505937099*s,0.0259040371*l+0.7827717662*m-0.8086757660*s];}
+function fromOk(o){const l_=o[0]+0.3963377774*o[1]+0.2158037573*o[2],m_=o[0]-0.1055613458*o[1]-0.0638541728*o[2],s_=o[0]-0.0894841775*o[1]-1.2914855480*o[2];
+  const l=l_*l_*l_,m=m_*m_*m_,s=s_*s_*s_;
+  return [l2s(clamp01(4.0767416621*l-3.3077115913*m+0.2309699292*s)),l2s(clamp01(-1.2684380046*l+2.6097574011*m-0.3413193965*s)),l2s(clamp01(-0.0041960863*l-0.7034186147*m+1.7076147010*s))];}
+
+/* ---------- palettes ---------- */
+const PALETTES={
+  'Мультик':['#FFD23F','#3B82F6','#E63946','#2EC4B6','#FF8C42','#1D3557','#F1FAEE','#8D6E63'],
+  'Закат':['#2B1B3D','#5C2A6B','#A23B72','#E8505B','#F9A15A','#FFD48A','#FFF1D6','#1B1029'],
+  'Болото':['#1F2A1E','#2F4A2B','#4F6D3A','#7C9A57','#A8B97A','#6B5B3E','#3E3226','#2E5A55'],
+  'Пастель':['#FFD6E0','#FFEFB5','#C1F0DC','#BDE0FE','#CDB4DB','#FFC8A2','#F7F7F2','#A0C4FF'],
+  'Ночной город':['#0B0F2A','#1E1B4B','#3A0CA3','#7209B7','#F72585','#4CC9F0','#FFB703','#E0E1FF'],
+  'Земля и камень':['#3B3533','#5E5450','#8A7F78','#B9AFA6','#C58B5A','#8C5A3C','#D9C7A7','#6E7B5B'],
+  'Металл':['#1C1E22','#3A3F47','#6B7380','#A3ABB8','#D6DCE4','#B08D57','#D4AF6A','#7A4E2D']
+};
+const GPRESETS=[
+  ['#FF7E5F','#FEB47B'],['#0F4C75','#3282B8','#BBE1FA'],['#2B1B3D','#A23B72','#F9A15A','#FFE29A'],['#1F2A1E','#4F6D3A','#A8B97A'],
+  ['#FF9F00','#FFE45E','#FFF8C9'],['#3A0CA3','#F72585'],['#2E2A28','#8A7F78','#D6CEC6'],['#134E5E','#71B280']
+];
+
+/* ---------- state ---------- */
+const st={tool:'brush',color:[1,0.824,0.247],grad:{type:'linear',stops:[{p:0,c:'#FF7E5F'},{p:1,c:'#FEB47B'}],sel:0},
+  radius:0.08,hard:0.6,strength:1,angle:30,recent:[],lit:true,wire:false,
+  decal:{list:[],cur:0,size:0.22,rot:0,op:1,flip:false,wrap:true},bake:false};
+const LUT=new Float32Array(256*3);
+
+/* ---------- three setup ---------- */
+const canvas=$('cv'),stage=$('stage');
+if(typeof THREE==='undefined'){ $('statPill').textContent='Не удалось загрузить 3D-движок. Проверь интернет и обнови страницу.'; return; }
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,preserveDrawingBuffer:true,alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(40,1,0.01,1000);
+const controls=new THREE.OrbitControls(camera,canvas);
+controls.enableDamping=true;controls.dampingFactor=0.12;
+scene.add(new THREE.HemisphereLight(0xffffff,0x5a5560,0.85));
+const sun=new THREE.DirectionalLight(0xffffff,0.75);sun.position.set(2,4,3);scene.add(sun);
+const sun2=new THREE.DirectionalLight(0xffffff,0.25);sun2.position.set(-3,1,-2);scene.add(sun2);
+const root=new THREE.Group();scene.add(root);
+let grid=null;
+const wireMat=new THREE.MeshBasicMaterial({color:0x000000,wireframe:true,transparent:true,opacity:0.18});
+const selMat=new THREE.MeshBasicMaterial({color:0x3fd0c9,transparent:true,opacity:0.38,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2,side:THREE.DoubleSide});
+const ring=new THREE.Mesh(new THREE.RingGeometry(0.92,1,64),new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0.9,depthTest:false,side:THREE.DoubleSide}));
+ring.renderOrder=999;ring.visible=false;scene.add(ring);
+const ringIn=new THREE.Mesh(new THREE.RingGeometry(0.97,1,64),new THREE.MeshBasicMaterial({color:0xff8a3d,transparent:true,opacity:0.9,depthTest:false,side:THREE.DoubleSide}));
+ringIn.renderOrder=999;ringIn.visible=false;scene.add(ringIn);
+
+/* vertex colors + decal layer: final = mix(vertexColor, decal.rgb, decal.a) */
+function patchMat(mat){
+  mat.onBeforeCompile=sh=>{
+    sh.fragmentShader=sh.fragmentShader.replace('#include <map_fragment>','').replace('#include <color_fragment>',
+`vec3 kBase=vec3(1.0);
+#ifdef USE_COLOR
+kBase=vColor.rgb;
+#endif
+#ifdef USE_MAP
+vec4 kD=texture2D(map,vUv);
+kBase=mix(kBase,kD.rgb,kD.a);
+#endif
+diffuseColor.rgb*=kBase;`);};
+  mat.customProgramCacheKey=()=>'kr-decal';
+  return mat;
+}
+
+let meshes=[];   // {mesh,n,tris,world,tn,adj,sel,selMesh,wire}  + mesh.userData.kr = {W,data,tex,mLit,mFlat,uvGen}
+let modelSize=1, modelName='model';
+
+function resize(){const r=stage.getBoundingClientRect();renderer.setSize(r.width,r.height,false);camera.aspect=r.width/Math.max(1,r.height);camera.updateProjectionMatrix();}
+new ResizeObserver(resize).observe(stage);
+
+/* ---------- UV helpers ---------- */
+function triPx(uvA,t,W,H){const i=t*6;return [uvA[i]*W,uvA[i+1]*H,uvA[i+2]*W,uvA[i+3]*H,uvA[i+4]*W,uvA[i+5]*H];}
+/* rasterize triangle t in UV space; fn(pixelIndex,w0,w1,w2). Row 0 = v 0 (DataTexture layout). pad = edge bleed in px */
+function rasterTri(uvA,t,W,H,pad,fn){
+  const p=triPx(uvA,t,W,H),x0=p[0],y0=p[1],x1=p[2],y1=p[3],x2=p[4],y2=p[5];
+  const area=(x1-x0)*(y2-y0)-(x2-x0)*(y1-y0);if(Math.abs(area)<1e-9)return;
+  const inv=1/area,A2=Math.abs(area);
+  const t0=pad*Math.hypot(x2-x1,y2-y1)/A2,t1=pad*Math.hypot(x0-x2,y0-y2)/A2,t2=pad*Math.hypot(x1-x0,y1-y0)/A2;
+  const minX=Math.max(0,Math.floor(Math.min(x0,x1,x2)-pad)),maxX=Math.min(W-1,Math.ceil(Math.max(x0,x1,x2)+pad));
+  const minY=Math.max(0,Math.floor(Math.min(y0,y1,y2)-pad)),maxY=Math.min(H-1,Math.ceil(Math.max(y0,y1,y2)+pad));
+  for(let py=minY;py<=maxY;py++){const cy=py+0.5;
+    for(let px=minX;px<=maxX;px++){const cx=px+0.5;
+      const w0=((x1-cx)*(y2-cy)-(x2-cx)*(y1-cy))*inv,w1=((x2-cx)*(y0-cy)-(x0-cx)*(y2-cy))*inv,w2=1-w0-w1;
+      if(w0<-t0||w1<-t1||w2<-t2)continue;fn(py*W+px,w0,w1,w2);}}
+}
+function uvBad(uv,T){
+  const a=uv.array,is=uv.itemSize;for(let i=0;i<uv.count;i++){const u=a[i*is],v=a[i*is+1];if(!(u>=-0.001&&u<=1.001&&v>=-0.001&&v<=1.001))return true;}
+  const N=256,cnt=new Uint8Array(N*N);let cov=0,over=0;
+  const flat=new Float32Array(uv.count*2);for(let i=0;i<uv.count;i++){flat[i*2]=a[i*is];flat[i*2+1]=a[i*is+1];}
+  for(let t=0;t<T;t++)rasterTri(flat,t,N,N,0,o=>{if(cnt[o])over++;else cov++;if(cnt[o]<255)cnt[o]++;});
+  return cov===0||over>cov*0.06;
+}
+function atlasUV(T){
+  const cells=Math.max(1,Math.ceil(Math.sqrt(Math.ceil(T/2)))),s=1/cells,p=s*0.08,out=new Float32Array(T*6);
+  for(let t=0;t<T;t++){const c=t>>1,cx=(c%cells)*s,cy=Math.floor(c/cells)*s,o=t*6;
+    if(t&1){out.set([cx+s-p,cy+s-p,cx+2*p,cy+s-p,cx+s-p,cy+2*p],o);}else{out.set([cx+p,cy+p,cx+s-2*p,cy+p,cx+p,cy+s-2*p],o);}}
+  return out;
+}
+function uvArray(g){const uv=g.attributes.uv,a=new Float32Array(uv.count*2);for(let i=0;i<uv.count;i++){a[i*2]=uv.getX(i);a[i*2+1]=uv.getY(i);}return a;}
+
+/* ---------- mesh prep ---------- */
+function sampleTexture(mat){
+  try{const img=mat.map&&mat.map.image;if(!img||!img.width)return null;
+    const c=document.createElement('canvas');const w=Math.min(img.width,1024),h=Math.min(img.height,1024);c.width=w;c.height=h;
+    const x=c.getContext('2d');x.drawImage(img,0,0,w,h);return {d:x.getImageData(0,0,w,h).data,w,h,flipY:mat.map.flipY};}catch(e){return null;}
+}
+function prepMesh(m){
+  let g=m.geometry;
+  if(g.index)g=g.toNonIndexed();
+  const n=g.attributes.position.count,T=Math.floor(n/3);
+  const col=new Float32Array(n*3),old=g.attributes.color;
+  const mat=Array.isArray(m.material)?m.material[0]:m.material;
+  let base=[0.85,0.85,0.85];
+  if(mat&&mat.color){const c=mat.color.clone();c.convertLinearToSRGB();base=[c.r,c.g,c.b];}
+  const tex=mat?sampleTexture(mat):null,uv=g.attributes.uv;
+  for(let i=0;i<n;i++){
+    let r=base[0],gg=base[1],b=base[2];
+    if(old){r=l2s(clamp01(old.getX(i)));gg=l2s(clamp01(old.getY(i)));b=l2s(clamp01(old.getZ(i)));}
+    else if(tex&&uv){let u=uv.getX(i)%1,v=uv.getY(i)%1;if(u<0)u+=1;if(v<0)v+=1;const px=Math.min(tex.w-1,Math.floor(u*tex.w)),py=Math.min(tex.h-1,Math.floor((tex.flipY?1-v:v)*tex.h));const o=(py*tex.w+px)*4;
+      r=tex.d[o]/255*base[0];gg=tex.d[o+1]/255*base[1];b=tex.d[o+2]/255*base[2];}
+    col[i*3]=r;col[i*3+1]=gg;col[i*3+2]=b;
+  }
+  g.setAttribute('color',new THREE.BufferAttribute(col,3));
+  if(!g.attributes.normal)g.computeVertexNormals();
+  let uvGen=false;
+  if(!uv||uvBad(uv,T)){g.setAttribute('uv',new THREE.BufferAttribute(atlasUV(T),2));uvGen=true;}
+  else if(uv.itemSize!==2||!(uv.array instanceof Float32Array)){g.setAttribute('uv',new THREE.BufferAttribute(uvArray(g),2));}
+  m.geometry=g;
+  const W=Math.min(2048,Math.max(512,Math.pow(2,Math.ceil(Math.log2(Math.sqrt(T)*26)))));
+  const data=new Uint8Array(W*W*4);
+  const dt=new THREE.DataTexture(data,W,W,THREE.RGBAFormat);dt.magFilter=THREE.LinearFilter;dt.minFilter=THREE.LinearFilter;dt.generateMipmaps=false;dt.needsUpdate=true;
+  const mLit=patchMat(new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.85,metalness:0,side:THREE.DoubleSide,map:dt}));
+  const mFlat=patchMat(new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.DoubleSide,map:dt}));
+  m.userData.kr={W,data,tex:dt,mLit,mFlat,uvGen,uv:null,has:false};
+  m.material=st.lit?mLit:mFlat;
+}
+function buildData(m){
+  m.updateMatrixWorld(true);
+  const g=m.geometry,pa=g.attributes.position,n=pa.count,tris=Math.floor(n/3);
+  m.userData.kr.uv=uvArray(g);
+  const world=new Float32Array(n*3),v=new THREE.Vector3();
+  for(let i=0;i<n;i++){v.fromBufferAttribute(pa,i).applyMatrix4(m.matrixWorld);world[i*3]=v.x;world[i*3+1]=v.y;world[i*3+2]=v.z;}
+  const tn=new Float32Array(tris*3),bb=new Float32Array(tris*6);
+  for(let t=0;t<tris;t++){const a=t*9;
+    const ux=world[a+3]-world[a],uy=world[a+4]-world[a+1],uz=world[a+5]-world[a+2],wx=world[a+6]-world[a],wy=world[a+7]-world[a+1],wz=world[a+8]-world[a+2];
+    let nx=uy*wz-uz*wy,ny=uz*wx-ux*wz,nz=ux*wy-uy*wx;const L=Math.hypot(nx,ny,nz)||1;tn[t*3]=nx/L;tn[t*3+1]=ny/L;tn[t*3+2]=nz/L;
+    for(let k=0;k<3;k++){bb[t*6+k]=Math.min(world[a+k],world[a+3+k],world[a+6+k]);bb[t*6+3+k]=Math.max(world[a+k],world[a+3+k],world[a+6+k]);}}
+  const eps=modelSize*1e-5;const vid=new Int32Array(n);const pm=new Map();let ids=0;
+  for(let i=0;i<n;i++){const k=Math.round(world[i*3]/eps)+','+Math.round(world[i*3+1]/eps)+','+Math.round(world[i*3+2]/eps);let id=pm.get(k);if(id===undefined){id=ids++;pm.set(k,id);}vid[i]=id;}
+  const em=new Map();const adj=new Array(tris);for(let t=0;t<tris;t++)adj[t]=[];
+  for(let t=0;t<tris;t++){for(let e=0;e<3;e++){let a=vid[t*3+e],b=vid[t*3+(e+1)%3];if(a===b)continue;if(a>b){const s=a;a=b;b=s;}const key=a*4194304+b;
+    const lst=em.get(key);if(lst){for(const o of lst){adj[t].push(o);adj[o].push(t);}lst.push(t);}else em.set(key,[t]);}}
+  return {mesh:m,n,tris,world,tn,bb,adj,sel:new Uint8Array(tris),selMesh:null,wire:null};
+}
+function addWire(d){const w=new THREE.Mesh(d.mesh.geometry,wireMat);w.visible=st.wire;w.raycast=()=>{};d.mesh.add(w);d.wire=w;}
+function setModel(obj,name){
+  while(root.children.length)root.remove(root.children[0]);
+  meshes=[];modelName=(name||'model').replace(/\.[^.]+$/,'');
+  root.add(obj);root.updateMatrixWorld(true);
+  const list=[];obj.traverse(o=>{if(o.isMesh)list.push(o);});
+  if(!list.length){toast('В файле нет мешей');return;}
+  list.forEach(prepMesh);
+  root.updateMatrixWorld(true);
+  const box=new THREE.Box3().setFromObject(obj);const size=box.getSize(new THREE.Vector3());modelSize=Math.max(size.x,size.y,size.z)||1;
+  meshes=list.map(buildData);meshes.forEach(addWire);
+  const c=box.getCenter(new THREE.Vector3());
+  controls.target.copy(c);
+  camera.near=modelSize/200;camera.far=modelSize*200;camera.updateProjectionMatrix();
+  camera.position.copy(c).add(new THREE.Vector3(0.9,0.55,1.6).normalize().multiplyScalar(modelSize*2.1));
+  controls.update();
+  if(grid)scene.remove(grid);
+  grid=new THREE.GridHelper(modelSize*4,16,0x3a3d4a,0x2a2c35);grid.position.set(c.x,box.min.y,c.z);scene.add(grid);
+  undo.length=0;redo.length=0;updUndo();updStats();st.bake=false;$('bakeChk').checked=false;
+  const gen=meshes.some(d=>d.mesh.userData.kr.uvGen&&!/^Пример/.test(name||''));
+  if(gen)toast('У модели не было подходящей UV-развёртки — Красильня построила свою для наклеек');
+}
+function updStats(){let t=0;meshes.forEach(d=>{t+=d.tris;});
+  $('statPill').innerHTML='<b>'+escapeHtml(modelName)+'</b> · '+t.toLocaleString('ru-RU')+' треуг. · '+meshes.length+' дет.';}
+function escapeHtml(s){return s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+/* ---------- undo (vertex colors or touched decal layers) ---------- */
+const undo=[],redo=[];
+function snapCols(){return meshes.map(d=>d.mesh.geometry.attributes.color.array.slice());}
+function restoreCols(s){meshes.forEach((d,i)=>{const a=d.mesh.geometry.attributes.color;if(s[i]&&s[i].length===a.array.length){a.array.set(s[i]);a.needsUpdate=true;}});}
+function snapTexLike(map){const m=new Map();map.forEach((_,i)=>{if(meshes[i])m.set(i,meshes[i].mesh.userData.kr.data.slice());});return m;}
+function restoreTex(map){map.forEach((arr,i)=>{const d=meshes[i];if(!d)return;const kr=d.mesh.userData.kr;if(arr.length===kr.data.length){kr.data.set(arr);kr.tex.needsUpdate=true;}});}
+function entryBytes(e){let b=0;if(e.cols)e.cols.forEach(a=>b+=a.byteLength);if(e.tex)e.tex.forEach(a=>b+=a.byteLength);return b;}
+function pushUndo(e){undo.push(e);redo.length=0;
+  let total=undo.reduce((s,x)=>s+entryBytes(x),0);while(undo.length>1&&(undo.length>40||total>220e6)){total-=entryBytes(undo.shift());}updUndo();}
+function apply(e){if(e.cols)restoreCols(e.cols);if(e.tex)restoreTex(e.tex);}
+function mirror(e){const o={};if(e.cols)o.cols=snapCols();if(e.tex)o.tex=snapTexLike(e.tex);return o;}
+function doUndo(){if(!undo.length)return;const e=undo.pop();redo.push(mirror(e));apply(e);updUndo();}
+function doRedo(){if(!redo.length)return;const e=redo.pop();undo.push(mirror(e));apply(e);updUndo();}
+function updUndo(){$('undoBtn').disabled=!undo.length;$('redoBtn').disabled=!redo.length;}
+let texOp=null; /* Map meshIndex -> data before this operation */
+function touchTex(i){if(texOp&&!texOp.has(i))texOp.set(i,meshes[i].mesh.userData.kr.data.slice());}
+
+/* ---------- selection ---------- */
+function hasSel(){return meshes.some(d=>d.sel.some(v=>v));}
+function region(d,tri){
+  const mask=new Uint8Array(d.tris);const cosT=Math.cos(st.angle*Math.PI/180);const all=st.angle>=179.5;
+  const q=[tri];mask[tri]=1;const tn=d.tn;
+  while(q.length){const t=q.pop();for(const o of d.adj[t]){if(mask[o])continue;
+    if(!all){const dot=tn[t*3]*tn[o*3]+tn[t*3+1]*tn[o*3+1]+tn[t*3+2]*tn[o*3+2];if(dot<cosT)continue;}
+    mask[o]=1;q.push(o);}}
+  return mask;
+}
+function rebuildSel(d){
+  if(d.selMesh){d.mesh.remove(d.selMesh);d.selMesh.geometry.dispose();d.selMesh=null;}
+  let c=0;for(let t=0;t<d.tris;t++)if(d.sel[t])c++;
+  if(!c)return;
+  const src=d.mesh.geometry.attributes.position.array,arr=new Float32Array(c*9);let k=0;
+  for(let t=0;t<d.tris;t++)if(d.sel[t]){arr.set(src.subarray(t*9,t*9+9),k);k+=9;}
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(arr,3));
+  const sm=new THREE.Mesh(g,selMat);sm.raycast=()=>{};sm.renderOrder=5;d.mesh.add(sm);d.selMesh=sm;
+}
+function selectAll(v){meshes.forEach(d=>{d.sel.fill(v?1:0);rebuildSel(d);});}
+function selectInv(){meshes.forEach(d=>{for(let t=0;t<d.tris;t++)d.sel[t]=d.sel[t]?0:1;rebuildSel(d);});}
+function targets(hit){
+  if(hasSel())return meshes.map(d=>({d,mask:d.sel}));
+  if(hit)return [{d:hit.d,mask:region(hit.d,hit.tri)}];
+  return meshes.map(d=>({d,mask:null}));
+}
+
+/* ---------- picking ---------- */
+const ray=new THREE.Raycaster(),ndc=new THREE.Vector2();
+function pick(cx,cy){
+  const r=canvas.getBoundingClientRect();ndc.set(((cx-r.left)/r.width)*2-1,-((cy-r.top)/r.height)*2+1);
+  ray.setFromCamera(ndc,camera);
+  const hits=ray.intersectObjects(meshes.map(d=>d.mesh),false);
+  if(!hits.length)return null;const h=hits[0];const d=meshes.find(x=>x.mesh===h.object);
+  return {d,tri:h.faceIndex,point:h.point,normal:new THREE.Vector3(d.tn[h.faceIndex*3],d.tn[h.faceIndex*3+1],d.tn[h.faceIndex*3+2])};
+}
+
+/* ---------- vertex painting ---------- */
+function brushAt(hit){
+  const R=st.radius*modelSize,R2=R*R,h=st.hard,s=st.strength,c=st.color,any=hasSel();
+  const P=hit.point,N=hit.normal;
+  meshes.forEach(d=>{
+    const ca=d.mesh.geometry.attributes.color,col=ca.array,w=d.world;let ch=false;
+    for(let i=0;i<d.n;i++){
+      const dx=w[i*3]-P.x,dy=w[i*3+1]-P.y,dz=w[i*3+2]-P.z,dd=dx*dx+dy*dy+dz*dz;if(dd>R2)continue;
+      const t=(i/3)|0;if(any&&!d.sel[t])continue;
+      if(d.tn[t*3]*N.x+d.tn[t*3+1]*N.y+d.tn[t*3+2]*N.z<-0.2)continue;
+      const dist=Math.sqrt(dd)/R;let f=dist<=h?1:1-(dist-h)/Math.max(1e-4,1-h);f=f*f*(3-2*f);f*=s;
+      col[i*3]+=(c[0]-col[i*3])*f;col[i*3+1]+=(c[1]-col[i*3+1])*f;col[i*3+2]+=(c[2]-col[i*3+2])*f;ch=true;}
+    if(ch)ca.needsUpdate=true;});
+}
+function fillAt(hit){
+  const ts=targets(hit),c=st.color,s=st.strength;
+  ts.forEach(({d,mask})=>{const ca=d.mesh.geometry.attributes.color,col=ca.array;
+    for(let t=0;t<d.tris;t++){if(mask&&!mask[t])continue;for(let k=0;k<3;k++){const i=(t*3+k)*3;col[i]+=(c[0]-col[i])*s;col[i+1]+=(c[1]-col[i+1])*s;col[i+2]+=(c[2]-col[i+2])*s;}}
+    ca.needsUpdate=true;});
+}
+function buildLUT(){
+  const S=st.grad.stops.slice().sort((a,b)=>a.p-b.p).map(x=>({p:x.p,o:toOk(hexToRgb(x.c))}));
+  for(let i=0;i<256;i++){const t=i/255;let a=S[0],b=S[S.length-1],f;
+    if(t<=S[0].p){a=b=S[0];f=0;}else if(t>=S[S.length-1].p){a=b=S[S.length-1];f=0;}
+    else{for(let k=0;k<S.length-1;k++){if(t>=S[k].p&&t<=S[k+1].p){a=S[k];b=S[k+1];break;}}f=(t-a.p)/Math.max(1e-6,b.p-a.p);}
+    const rgb=fromOk([a.o[0]+(b.o[0]-a.o[0])*f,a.o[1]+(b.o[1]-a.o[1])*f,a.o[2]+(b.o[2]-a.o[2])*f]);
+    LUT[i*3]=rgb[0];LUT[i*3+1]=rgb[1];LUT[i*3+2]=rgb[2];}
+}
+let gdrag=null;
+function gradStart(cx,cy){
+  const hit=pick(cx,cy);const r=canvas.getBoundingClientRect();
+  const ts=targets(hit);const base=snapCols();
+  const v=new THREE.Vector3();
+  const parts=ts.map(({d,mask})=>{const idx=[];for(let t=0;t<d.tris;t++){if(mask&&!mask[t])continue;idx.push(t*3,t*3+1,t*3+2);}
+    const sx=new Float32Array(idx.length),sy=new Float32Array(idx.length);
+    idx.forEach((i,k)=>{v.set(d.world[i*3],d.world[i*3+1],d.world[i*3+2]).project(camera);sx[k]=(v.x+1)/2*r.width;sy[k]=(1-v.y)/2*r.height;});
+    return {d,idx,sx,sy,bi:meshes.indexOf(d)};});
+  gdrag={ax:cx-r.left,ay:cy-r.top,bx:cx-r.left,by:cy-r.top,parts,base,moved:false};
+}
+function gradMove(cx,cy){
+  if(!gdrag)return;const r=canvas.getBoundingClientRect();gdrag.bx=cx-r.left;gdrag.by=cy-r.top;
+  const dx=gdrag.bx-gdrag.ax,dy=gdrag.by-gdrag.ay,L2=dx*dx+dy*dy;drawGradLine();
+  if(L2<36)return;gdrag.moved=true;
+  const s=st.strength,type=st.grad.type,L=Math.sqrt(L2);
+  gdrag.parts.forEach(p=>{const ca=p.d.mesh.geometry.attributes.color,col=ca.array,base=gdrag.base[p.bi];
+    for(let k=0;k<p.idx.length;k++){const i=p.idx[k],px=p.sx[k]-gdrag.ax,py=p.sy[k]-gdrag.ay;let t;
+      if(type==='radial')t=Math.sqrt(px*px+py*py)/L;else{t=(px*dx+py*dy)/L2;if(type==='mirror')t=Math.abs(t);}
+      t=clamp01(t);const li=Math.round(t*255)*3,o=i*3;
+      col[o]=base[o]+(LUT[li]-base[o])*s;col[o+1]=base[o+1]+(LUT[li+1]-base[o+1])*s;col[o+2]=base[o+2]+(LUT[li+2]-base[o+2])*s;}
+    ca.needsUpdate=true;});
+}
+function gradEnd(){if(!gdrag)return;if(gdrag.moved)pushUndo({cols:gdrag.base});else restoreCols(gdrag.base);gdrag=null;$('gradSvg').innerHTML='';}
+function drawGradLine(){const g=gdrag;if(!g)return;
+  const a=st.grad.stops.slice().sort((x,y)=>x.p-y.p);const c0=a[0].c,c1=a[a.length-1].c;
+  let extra='';if(st.grad.type==='radial'){const R=Math.hypot(g.bx-g.ax,g.by-g.ay);extra=`<circle cx="${g.ax}" cy="${g.ay}" r="${R}" fill="none" stroke="#fff" stroke-opacity=".5" stroke-dasharray="5 5"/>`;}
+  $('gradSvg').innerHTML=extra+`<line x1="${g.ax}" y1="${g.ay}" x2="${g.bx}" y2="${g.by}" stroke="#000" stroke-opacity=".5" stroke-width="4"/><line x1="${g.ax}" y1="${g.ay}" x2="${g.bx}" y2="${g.by}" stroke="#fff" stroke-width="2"/>`+
+  `<circle cx="${g.ax}" cy="${g.ay}" r="8" fill="${c0}" stroke="#fff" stroke-width="2.5"/><circle cx="${g.bx}" cy="${g.by}" r="8" fill="${c1}" stroke="#fff" stroke-width="2.5"/>`;}
+
+/* ---------- decals ---------- */
+function curDecal(){return st.decal.list[st.decal.cur];}
+/* frame: X,Y in-plane axes (unit), N normal */
+function frameFromCamera(N){
+  const camRight=new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld,0);
+  const camUp=new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld,1);
+  let X=camRight.clone().addScaledVector(N,-camRight.dot(N));
+  if(X.lengthSq()<1e-6)X=camUp.clone().cross(N);
+  X.normalize();const Y=new THREE.Vector3().crossVectors(N,X).normalize();
+  const a=st.decal.rot*Math.PI/180,c=Math.cos(a),s=Math.sin(a);
+  return {X:X.clone().multiplyScalar(c).addScaledVector(Y,s),Y:Y.clone().multiplyScalar(c).addScaledVector(X,-s)};
+}
+function stampDecal(P,N,fr,dec,opts){
+  opts=opts||{};const size=(opts.size||st.decal.size)*modelSize,op=opts.op!=null?opts.op:st.decal.op,flip=opts.flip!=null?opts.flip:st.decal.flip;
+  const asp=dec.h/dec.w,hw=size/2,hh=size*asp/2,R=Math.hypot(hw,hh),depthLim=size*0.6,minDot=st.decal.wrap?0.05:0.55;
+  const X=fr.X,Y=fr.Y,any=hasSel(),img=dec.data,iw=dec.w,ih=dec.h;
+  meshes.forEach((d,mi)=>{
+    const kr=d.mesh.userData.kr,W=kr.W,out=kr.data,uvA=kr.uv,w=d.world,bb=d.bb;let ch=false;
+    for(let t=0;t<d.tris;t++){
+      if(any&&!d.sel[t])continue;
+      if(bb[t*6]>P.x+R||bb[t*6+3]<P.x-R||bb[t*6+1]>P.y+R||bb[t*6+4]<P.y-R||bb[t*6+2]>P.z+R||bb[t*6+5]<P.z-R)continue;
+      if(d.tn[t*3]*N.x+d.tn[t*3+1]*N.y+d.tn[t*3+2]*N.z<minDot)continue;
+      const a=t*9;
+      if(!ch){touchTex(mi);ch=true;}
+      rasterTri(uvA,t,W,W,1.2,(o,w0,w1,w2)=>{
+        const rx=w0*w[a]+w1*w[a+3]+w2*w[a+6]-P.x,ry=w0*w[a+1]+w1*w[a+4]+w2*w[a+7]-P.y,rz=w0*w[a+2]+w1*w[a+5]+w2*w[a+8]-P.z;
+        const lx=(rx*X.x+ry*X.y+rz*X.z)/hw,ly=(rx*Y.x+ry*Y.y+rz*Y.z)/hh;if(lx<-1||lx>1||ly<-1||ly>1)return;
+        if(Math.abs(rx*N.x+ry*N.y+rz*N.z)>depthLim)return;
+        const ix=Math.min(iw-1,Math.max(0,Math.floor(((flip?-lx:lx)+1)/2*iw))),iy=Math.min(ih-1,Math.max(0,Math.floor((1-ly)/2*ih)));
+        const s4=(iy*iw+ix)*4,sa=img[s4+3]/255*op;if(sa<=0.002)return;
+        const o4=o*4,da=out[o4+3]/255,oa=sa+da*(1-sa),k1=sa/oa,k2=da*(1-sa)/oa;
+        out[o4]=img[s4]*k1+out[o4]*k2;out[o4+1]=img[s4+1]*k1+out[o4+1]*k2;out[o4+2]=img[s4+2]*k1+out[o4+2]*k2;out[o4+3]=oa*255;});
+    }
+    if(ch){kr.tex.needsUpdate=true;kr.has=true;}
+  });
+}
+function eraseAt(hit){
+  const R=st.radius*modelSize,R2=R*R,h=st.hard,s=st.strength,P=hit.point,any=hasSel();
+  meshes.forEach((d,mi)=>{const kr=d.mesh.userData.kr,W=kr.W,out=kr.data,w=d.world,bb=d.bb;let ch=false;
+    for(let t=0;t<d.tris;t++){
+      if(any&&!d.sel[t])continue;
+      if(bb[t*6]>P.x+R||bb[t*6+3]<P.x-R||bb[t*6+1]>P.y+R||bb[t*6+4]<P.y-R||bb[t*6+2]>P.z+R||bb[t*6+5]<P.z-R)continue;
+      const a=t*9;if(!ch){touchTex(mi);ch=true;}
+      rasterTri(kr.uv,t,W,W,1.2,(o,w0,w1,w2)=>{
+        const rx=w0*w[a]+w1*w[a+3]+w2*w[a+6]-P.x,ry=w0*w[a+1]+w1*w[a+4]+w2*w[a+7]-P.y,rz=w0*w[a+2]+w1*w[a+5]+w2*w[a+8]-P.z,dd=rx*rx+ry*ry+rz*rz;if(dd>R2)return;
+        const dist=Math.sqrt(dd)/R;let f=dist<=h?1:1-(dist-h)/Math.max(1e-4,1-h);f=f*f*(3-2*f)*s;out[o*4+3]*=(1-f);});}
+    if(ch)kr.tex.needsUpdate=true;});
+}
+let ddrag=null,pendingMove=null;
+function decalPlace(cx,cy){
+  const dec=curDecal();if(!dec||!ddrag)return;
+  const hit=pick(cx,cy);
+  ddrag.before.forEach((arr,i)=>{const kr=meshes[i].mesh.userData.kr;kr.data.set(arr);kr.tex.needsUpdate=true;});
+  if(!hit)return;
+  stampDecal(hit.point,hit.normal,frameFromCamera(hit.normal),dec);ddrag.placed=true;
+}
+
+/* ---------- built-in decals ---------- */
+function mkCanvas(w,h){const c=document.createElement('canvas');c.width=w;c.height=h;return [c,c.getContext('2d')];}
+function rnd(seed){let s=seed>>>0;return()=>{s=(s*1664525+1013904223)>>>0;return s/4294967296;};}
+function builtinDecals(){
+  const out=[];
+  {const [c,x]=mkCanvas(256,256);x.translate(128,132);x.beginPath();for(let i=0;i<10;i++){const r=i%2?50:112,a=-Math.PI/2+i*Math.PI/5;x.lineTo(Math.cos(a)*r,Math.sin(a)*r);}x.closePath();
+    x.lineJoin='round';x.lineWidth=18;x.strokeStyle='#1d1b26';x.stroke();x.fillStyle='#ffd23f';x.fill();x.lineWidth=6;x.strokeStyle='#fff6c9';x.beginPath();x.moveTo(-30,-50);x.lineTo(-8,-70);x.stroke();out.push({name:'Звезда',c});}
+  {const [c,x]=mkCanvas(256,256);const R=rnd(7);x.strokeStyle='rgba(25,20,22,0.92)';x.lineCap='round';
+    const br=(px,py,a,len,w,depth)=>{x.lineWidth=w;x.beginPath();x.moveTo(px,py);let ax=px,ay=py;for(let i=0;i<len;i++){a+=(R()-0.5)*0.9;ax+=Math.cos(a)*9;ay+=Math.sin(a)*9;x.lineTo(ax,ay);
+      if(depth<3&&R()<0.12)br(ax,ay,a+(R()<0.5?1:-1)*(0.5+R()*0.6),len*0.5|0,w*0.6,depth+1);}x.stroke();};
+    for(let k=0;k<5;k++)br(128,128,k*1.25+R()*0.5,13,4.5,0);out.push({name:'Трещина',c});}
+  {const [c,x]=mkCanvas(256,256);const R=rnd(3);for(let i=0;i<26;i++){const px=128+(R()-0.5)*150,py=128+(R()-0.5)*130,r=12+R()*40;
+      const g=x.createRadialGradient(px,py,0,px,py,r);g.addColorStop(0,'rgba(74,52,30,0.55)');g.addColorStop(1,'rgba(74,52,30,0)');x.fillStyle=g;x.beginPath();x.arc(px,py,r,0,7);x.fill();}
+    for(let i=0;i<40;i++){x.fillStyle='rgba(50,34,20,0.6)';x.beginPath();x.arc(128+(R()-0.5)*200,128+(R()-0.5)*190,1+R()*3.5,0,7);x.fill();}out.push({name:'Грязь',c});}
+  {const [c,x]=mkCanvas(320,160);x.fillStyle='#1d1b26';x.beginPath();x.roundRect?x.roundRect(8,8,304,144,26):x.rect(8,8,304,144);x.fill();
+    x.fillStyle='#f1efe6';x.beginPath();x.roundRect?x.roundRect(18,18,284,124,18):x.rect(18,18,284,124);x.fill();
+    x.fillStyle='#1d1b26';x.font='800 84px Manrope, Arial Black, sans-serif';x.textAlign='center';x.textBaseline='middle';x.fillText('115B',160,84);out.push({name:'Номер',c});}
+  {const [c,x]=mkCanvas(256,256);x.fillStyle='#1d1b26';x.beginPath();x.arc(128,128,112,0,7);x.fill();x.fillStyle='#ff8a3d';x.beginPath();x.arc(128,128,100,0,7);x.fill();
+    x.fillStyle='#1d1b26';x.beginPath();x.ellipse(92,104,13,20,0,0,7);x.ellipse(164,104,13,20,0,0,7);x.fill();
+    x.lineWidth=14;x.lineCap='round';x.strokeStyle='#1d1b26';x.beginPath();x.arc(128,132,52,0.25*Math.PI,0.75*Math.PI);x.stroke();out.push({name:'Смайл',c});}
+  {const [c,x]=mkCanvas(256,256);x.translate(128,128);x.rotate(-0.5);const R=rnd(11);for(let i=-6;i<7;i++){x.fillStyle=i%2?'#1d1b26':'#ffcc00';x.beginPath();x.moveTo(i*26-20,-140);x.lineTo(i*26+6,-140);x.lineTo(i*26+6,140);x.lineTo(i*26-20,140);x.fill();}
+    x.setTransform(1,0,0,1,0,0);x.globalCompositeOperation='destination-in';x.fillStyle='#000';x.fillRect(16,80,224,96);x.globalCompositeOperation='destination-out';
+    for(let i=0;i<60;i++){x.beginPath();x.arc(16+R()*224,80+R()*96,R()*5,0,7);x.fill();}out.push({name:'Осторожно',c});}
+  return out;
+}
+function decalFromCanvas(name,c){
+  const max=512;let w=c.width,h=c.height;const k=Math.min(1,max/Math.max(w,h));w=Math.max(1,Math.round(w*k));h=Math.max(1,Math.round(h*k));
+  const [cc,x]=mkCanvas(w,h);x.drawImage(c,0,0,w,h);return {name,w,h,data:x.getImageData(0,0,w,h).data,url:cc.toDataURL('image/png')};
+}
+function renderDecals(){
+  const box=$('decals');box.innerHTML='';
+  st.decal.list.forEach((d,i)=>{const b=document.createElement('button');b.className='dc'+(i===st.decal.cur?' on':'');b.title=d.name;b.setAttribute('aria-label','Наклейка '+d.name);
+    const im=new Image();im.src=d.url;im.alt='';b.appendChild(im);b.addEventListener('click',()=>{st.decal.cur=i;renderDecals();setTool('decal');});box.appendChild(b);});
+  const add=document.createElement('label');add.className='dc add';add.htmlFor='decalIn';add.title='Добавить свою картинку';add.setAttribute('aria-label','Добавить свою наклейку');add.tabIndex=0;add.textContent='+';
+  add.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('decalIn').click();}});box.appendChild(add);
+}
+function loadDecalFile(f){
+  const url=URL.createObjectURL(f);const im=new Image();
+  im.onload=()=>{const [c,x]=mkCanvas(im.naturalWidth||256,im.naturalHeight||256);x.drawImage(im,0,0,c.width,c.height);
+    st.decal.list.push(decalFromCanvas(f.name.replace(/\.[^.]+$/,''),c));st.decal.cur=st.decal.list.length-1;renderDecals();setTool('decal');URL.revokeObjectURL(url);toast('Наклейка добавлена: '+f.name);};
+  im.onerror=()=>{URL.revokeObjectURL(url);toast('Картинка не открылась: '+f.name);};im.src=url;
+}
+
+/* ---------- pointer handling ---------- */
+let spaceHeld=false,activePtr=null,stroke=null;const ptrs=new Set();
+function effTool(){return spaceHeld?'camera':st.tool;}
+function applyControlMode(){
+  const cam=effTool()==='camera';
+  controls.mouseButtons={LEFT:cam?THREE.MOUSE.ROTATE:-1,MIDDLE:THREE.MOUSE.PAN,RIGHT:THREE.MOUSE.ROTATE};
+  controls.touches={ONE:cam?THREE.TOUCH.ROTATE:-1,TWO:THREE.TOUCH.DOLLY_PAN};
+  canvas.style.cursor=cam?'grab':(st.tool==='gradient'||st.tool==='decal'?'crosshair':(st.tool==='pick'?'copy':'default'));
+}
+function cancelOps(){
+  if(stroke){if(stroke.cols)restoreCols(stroke.cols);if(stroke.tex)restoreTex(stroke.tex);stroke=null;texOp=null;}
+  if(gdrag){restoreCols(gdrag.base);gdrag=null;$('gradSvg').innerHTML='';}
+  if(ddrag){restoreTex(ddrag.before);ddrag=null;texOp=null;}
+  activePtr=null;
+}
+canvas.addEventListener('contextmenu',e=>e.preventDefault());
+canvas.addEventListener('pointerdown',e=>{
+  ptrs.add(e.pointerId);
+  if(ptrs.size>1){cancelOps();return;}
+  if(e.button!==0||effTool()==='camera')return;
+  activePtr=e.pointerId;try{canvas.setPointerCapture(e.pointerId);}catch(_){}
+  const tool=st.tool,hit=pick(e.clientX,e.clientY);
+  if(tool==='brush'){if(!hit){activePtr=null;return;}stroke={cols:snapCols()};brushAt(hit);}
+  else if(tool==='erase'){if(!hit){activePtr=null;return;}texOp=new Map();stroke={tex:texOp};eraseAt(hit);}
+  else if(tool==='fill'){if(hit){pushUndo({cols:snapCols()});fillAt(hit);addRecent();}activePtr=null;}
+  else if(tool==='select'){if(hit){const m=region(hit.d,hit.tri);const add=!hit.d.sel[hit.tri];for(let t=0;t<hit.d.tris;t++)if(m[t])hit.d.sel[t]=add?1:0;rebuildSel(hit.d);}else if(!e.shiftKey){selectAll(false);}activePtr=null;}
+  else if(tool==='pick'){if(hit){const col=hit.d.mesh.geometry.attributes.color.array,o=hit.tri*9;setColor([(col[o]+col[o+3]+col[o+6])/3,(col[o+1]+col[o+4]+col[o+7])/3,(col[o+2]+col[o+5]+col[o+8])/3]);toast('Цвет взят: '+rgbToHex(st.color));}activePtr=null;}
+  else if(tool==='gradient'){gradStart(e.clientX,e.clientY);}
+  else if(tool==='decal'){if(!curDecal()){activePtr=null;toast('Сначала выбери наклейку');return;}texOp=new Map();ddrag={before:texOp,placed:false};decalPlace(e.clientX,e.clientY);}
+});
+canvas.addEventListener('pointermove',e=>{
+  const tool=effTool();
+  if(((tool==='brush'||tool==='erase')&&e.pointerType!=='touch')||stroke){const hit=pick(e.clientX,e.clientY);updRing(hit);
+    if(stroke&&e.pointerId===activePtr&&hit){if(stroke.cols)brushAt(hit);else eraseAt(hit);}}
+  else {ring.visible=ringIn.visible=false;}
+  if(gdrag&&e.pointerId===activePtr)gradMove(e.clientX,e.clientY);
+  if(ddrag&&e.pointerId===activePtr)pendingMove=[e.clientX,e.clientY];
+});
+function endPtr(e){ptrs.delete(e.pointerId);if(e.pointerId!==activePtr)return;activePtr=null;
+  if(stroke){if(stroke.cols){pushUndo({cols:stroke.cols});addRecent();}else if(stroke.tex.size)pushUndo({tex:stroke.tex});stroke=null;texOp=null;}
+  if(gdrag)gradEnd();
+  if(ddrag){if(pendingMove){decalPlace(pendingMove[0],pendingMove[1]);pendingMove=null;}
+    if(ddrag.placed&&ddrag.before.size){pushUndo({tex:ddrag.before});if(!st.bake){st.bake=true;$('bakeChk').checked=true;}}else restoreTex(ddrag.before);ddrag=null;texOp=null;}
+  if(e.pointerType==='touch')ring.visible=ringIn.visible=false;}
+canvas.addEventListener('pointerup',endPtr);canvas.addEventListener('pointercancel',e=>{ptrs.delete(e.pointerId);if(e.pointerId===activePtr)cancelOps();});
+canvas.addEventListener('pointerleave',()=>{if(!stroke){ring.visible=ringIn.visible=false;}});
+function updRing(hit){
+  const t=effTool();
+  if(!hit||(t!=='brush'&&t!=='erase')){ring.visible=ringIn.visible=false;return;}
+  const R=st.radius*modelSize;ring.visible=ringIn.visible=true;ringIn.material.color.set(t==='erase'?0xff6b6b:0xff8a3d);
+  [ring,ringIn].forEach((r,i)=>{r.position.copy(hit.point).addScaledVector(hit.normal,modelSize*0.002);r.lookAt(hit.point.clone().add(hit.normal));r.scale.setScalar(i?R*Math.max(0.05,st.hard):R);});
+}
+
+/* ---------- UI: tools ---------- */
+const HINTS={brush:'Рисуй по модели. Правая кнопка или два пальца — вращать камеру.',fill:'Нажми на область — она зальётся цветом. Границу области задаёт ползунок.',
+  gradient:'Проведи линию по модели. Начало линии — левая точка градиента.',decal:'Нажми и веди по модели — наклейка едет следом и приклеивается, когда отпускаешь.',
+  erase:'Стирает только наклейки. Цвета вершин не трогает.',select:'Нажимай по областям, чтобы выделить. Пустое место — снять выделение.',
+  pick:'Нажми на модель, чтобы взять цвет.',camera:'Тяни, чтобы вращать. Колесо — приближение, средняя кнопка — сдвиг.'};
+function setTool(t){st.tool=t;document.querySelectorAll('.tool').forEach(b=>b.classList.toggle('on',b.dataset.tool===t));$('hintPill').textContent=HINTS[t];ring.visible=ringIn.visible=false;applyControlMode();}
+document.querySelectorAll('.tool').forEach(b=>b.addEventListener('click',()=>setTool(b.dataset.tool)));
+
+/* ---------- UI: colors ---------- */
+function setColor(c,fromInput){st.color=c.map(clamp01);const h=rgbToHex(st.color);if(!fromInput)$('colorIn').value=h.toLowerCase();$('hexIn').value=h;
+  if(st.tool==='gradient'&&st.grad.stops[st.grad.sel]){st.grad.stops[st.grad.sel].c=h;renderGrad();}}
+$('colorIn').addEventListener('input',e=>setColor(hexToRgb(e.target.value),true));
+$('hexIn').addEventListener('change',e=>{const v=e.target.value.trim();if(/^#?[0-9a-f]{6}$/i.test(v)||/^#?[0-9a-f]{3}$/i.test(v))setColor(hexToRgb(v));else{e.target.value=rgbToHex(st.color);toast('Нужен HEX вида #FFAA00');}});
+function swatch(h,cb){const b=document.createElement('button');b.className='sw';b.style.background=h;b.title=h;b.setAttribute('aria-label','Цвет '+h);b.addEventListener('click',()=>cb(h));return b;}
+const palSel=$('palSel');Object.keys(PALETTES).forEach(k=>{const o=document.createElement('option');o.value=k;o.textContent=k;palSel.appendChild(o);});
+function renderPal(){const box=$('palSws');box.innerHTML='';PALETTES[palSel.value].forEach(h=>box.appendChild(swatch(h,x=>setColor(hexToRgb(x)))));try{localStorage.setItem('kr_pal',palSel.value);}catch(e){}}
+palSel.addEventListener('change',renderPal);
+try{const p=localStorage.getItem('kr_pal');if(p&&PALETTES[p])palSel.value=p;}catch(e){}
+renderPal();
+function addRecent(){const h=rgbToHex(st.color);st.recent=[h,...st.recent.filter(x=>x!==h)].slice(0,8);const box=$('recent');box.innerHTML='';st.recent.forEach(x=>box.appendChild(swatch(x,y=>setColor(hexToRgb(y)))));}
+
+/* ---------- UI: gradient editor ---------- */
+const gcv=$('gcv'),gctx=gcv.getContext('2d');
+function redrawBar(){const w=gcv.width,h=gcv.height;const img=gctx.createImageData(w,h);
+  for(let x=0;x<w;x++){const li=Math.round(x/(w-1)*255)*3;for(let y=0;y<h;y++){const o=(y*w+x)*4;img.data[o]=LUT[li]*255;img.data[o+1]=LUT[li+1]*255;img.data[o+2]=LUT[li+2]*255;img.data[o+3]=255;}}gctx.putImageData(img,0,0);}
+function renderGrad(){
+  buildLUT();redrawBar();
+  const box=$('stops');box.innerHTML='';
+  st.grad.stops.forEach((s,i)=>{const d=document.createElement('div');d.className='stop'+(i===st.grad.sel?' on':'');d.style.left=(s.p*100)+'%';
+    d.innerHTML='<span style="background:'+s.c+'"></span>';d.title='Точка '+Math.round(s.p*100)+'%';
+    d.addEventListener('pointerdown',ev=>{ev.preventDefault();ev.stopPropagation();st.grad.sel=i;$('stopColor').value=s.c.toLowerCase();box.querySelectorAll('.stop').forEach((el,j)=>el.classList.toggle('on',j===i));dragStop(ev,i);});
+    box.appendChild(d);});
+  const cur=st.grad.stops[st.grad.sel];if(cur)$('stopColor').value=cur.c.toLowerCase();
+  $('stopDel').disabled=st.grad.stops.length<=2;
+}
+function dragStop(ev,i){
+  const box=$('stops').getBoundingClientRect();const startY=ev.clientY;
+  const mv=e=>{const s=st.grad.stops[i];if(!s)return;s.p=clamp01((e.clientX-box.left)/box.width);
+    const el=$('stops').children[i];if(el){el.style.left=(s.p*100)+'%';el.style.opacity=(e.clientY-startY>40&&st.grad.stops.length>2)?.3:1;}buildLUT();redrawBar();};
+  const up=e=>{window.removeEventListener('pointermove',mv);window.removeEventListener('pointerup',up);
+    if(e.clientY-startY>40&&st.grad.stops.length>2){st.grad.stops.splice(i,1);st.grad.sel=0;}renderGrad();};
+  window.addEventListener('pointermove',mv);window.addEventListener('pointerup',up);
+}
+$('gbar').addEventListener('pointerdown',e=>{const r=$('gbar').getBoundingClientRect();const p=clamp01((e.clientX-r.left)/r.width);const li=Math.round(p*255)*3;
+  st.grad.stops.push({p,c:rgbToHex([LUT[li],LUT[li+1],LUT[li+2]])});st.grad.sel=st.grad.stops.length-1;renderGrad();});
+$('stopColor').addEventListener('input',e=>{const s=st.grad.stops[st.grad.sel];if(s){s.c=e.target.value.toUpperCase();renderGrad();}});
+$('stopDel').addEventListener('click',()=>{if(st.grad.stops.length<=2)return;st.grad.stops.splice(st.grad.sel,1);st.grad.sel=0;renderGrad();});
+$('gradRev').addEventListener('click',()=>{st.grad.stops.forEach(s=>s.p=1-s.p);renderGrad();});
+document.querySelectorAll('#gType .chip').forEach(b=>b.addEventListener('click',()=>{st.grad.type=b.dataset.g;document.querySelectorAll('#gType .chip').forEach(x=>x.classList.toggle('on',x===b));}));
+GPRESETS.forEach(p=>{const b=document.createElement('button');b.className='gp';b.style.background='linear-gradient(90deg,'+p.join(',')+')';b.setAttribute('aria-label','Градиент '+p.join(' — '));
+  b.addEventListener('click',()=>{st.grad.stops=p.map((c,i)=>({p:i/(p.length-1),c}));st.grad.sel=0;renderGrad();setTool('gradient');});$('gPresets').appendChild(b);});
+
+/* ---------- UI: sliders & toggles ---------- */
+function bindSlider(id,fn,fmt){const el=$(id),o=$(id+'O');const f=()=>{fn(+el.value);o.textContent=fmt(+el.value);};el.addEventListener('input',f);f();}
+bindSlider('radius',v=>st.radius=v/100,v=>v+'%');
+bindSlider('hard',v=>st.hard=v/100,v=>v);
+bindSlider('strength',v=>st.strength=v/100,v=>v);
+bindSlider('angle',v=>st.angle=v,v=>v+'°');
+bindSlider('dSize',v=>st.decal.size=v/100,v=>v+'%');
+bindSlider('dRot',v=>st.decal.rot=v,v=>v+'°');
+bindSlider('dOp',v=>st.decal.op=v/100,v=>v);
+$('dFlip').addEventListener('change',e=>st.decal.flip=e.target.checked);
+$('dWrap').addEventListener('change',e=>st.decal.wrap=e.target.checked);
+$('decalIn').addEventListener('change',e=>{[...e.target.files].forEach(loadDecalFile);e.target.value='';});
+$('dClear').addEventListener('click',()=>{const m=new Map();meshes.forEach((d,i)=>{const kr=d.mesh.userData.kr;if(kr.has){m.set(i,kr.data.slice());kr.data.fill(0);kr.tex.needsUpdate=true;kr.has=false;}});
+  if(m.size){pushUndo({tex:m});toast('Наклейки убраны');}else toast('Наклеек пока нет');});
+$('litChk').addEventListener('change',e=>{st.lit=e.target.checked;meshes.forEach(d=>{const kr=d.mesh.userData.kr;d.mesh.material=st.lit?kr.mLit:kr.mFlat;});});
+$('wireChk').addEventListener('change',e=>{st.wire=e.target.checked;meshes.forEach(d=>{if(d.wire)d.wire.visible=st.wire;});});
+$('bakeChk').addEventListener('change',e=>st.bake=e.target.checked);
+$('selAll').addEventListener('click',()=>selectAll(true));
+$('selNone').addEventListener('click',()=>selectAll(false));
+$('selInv').addEventListener('click',selectInv);
+$('undoBtn').addEventListener('click',doUndo);$('redoBtn').addEventListener('click',doRedo);
+
+/* ---------- subdivide ---------- */
+$('subBtn').addEventListener('click',()=>{
+  let total=0;meshes.forEach(d=>total+=d.tris*4);
+  if(total>600000){toast('Модель станет слишком тяжёлой (больше 600 тыс. треугольников)');return;}
+  meshes.forEach((d,mi)=>{
+    const g=d.mesh.geometry,tris=d.tris,ng=new THREE.BufferGeometry();
+    for(const name in g.attributes){const a=g.attributes[name],is=a.itemSize,src=a.array;const out=new (src.constructor)(tris*12*is);
+      const intAttr=name==='skinIndex'||!(src instanceof Float32Array);
+      let w=0;
+      const V=[[0,0],[1,1],[2,2],[0,1],[1,2],[2,0]],faces=[[0,3,5],[3,1,4],[5,4,2],[3,4,5]];
+      for(let t=0;t<tris;t++){const b0=t*3;
+        for(const f of faces)for(const vi of f){const i=b0+V[vi][0],j=b0+V[vi][1];for(let k=0;k<is;k++)out[w++]=intAttr?src[i*is+k]:(src[i*is+k]+src[j*is+k])/2;}}
+      ng.setAttribute(name,new THREE.BufferAttribute(out,is,a.normalized));}
+    if(ng.attributes.normal){const nn=ng.attributes.normal;for(let i=0;i<nn.count;i++){const x=nn.getX(i),y=nn.getY(i),z=nn.getZ(i),L=Math.hypot(x,y,z)||1;nn.setXYZ(i,x/L,y/L,z/L);}}
+    const oldSel=d.sel;d.mesh.geometry=ng;g.dispose();
+    if(d.selMesh){d.mesh.remove(d.selMesh);d.selMesh=null;}
+    if(d.wire)d.mesh.remove(d.wire);
+    const nd=buildData(d.mesh);for(let t=0;t<tris;t++)if(oldSel[t])nd.sel.fill(1,t*4,t*4+4);
+    addWire(nd);meshes[mi]=nd;rebuildSel(nd);});
+  undo.length=0;redo.length=0;updUndo();updStats();toast('Готово: треугольников стало в 4 раза больше. История отмен очищена.');
+});
+
+/* ---------- bake ---------- */
+function bakeCanvas(d){
+  const kr=d.mesh.userData.kr,W=kr.W,col=d.mesh.geometry.attributes.color.array,dec=kr.data;
+  const buf=new Uint8ClampedArray(W*W*4);
+  for(let t=0;t<d.tris;t++){const a=t*9;
+    rasterTri(kr.uv,t,W,W,1.5,(o,w0,w1,w2)=>{const o4=o*4;
+      buf[o4]=(w0*col[a]+w1*col[a+3]+w2*col[a+6])*255;buf[o4+1]=(w0*col[a+1]+w1*col[a+4]+w2*col[a+7])*255;buf[o4+2]=(w0*col[a+2]+w1*col[a+5]+w2*col[a+8])*255;buf[o4+3]=255;});}
+  for(let o4=0;o4<buf.length;o4+=4){const al=dec[o4+3]/255;if(al>0){buf[o4]+= (dec[o4]-buf[o4])*al;buf[o4+1]+=(dec[o4+1]-buf[o4+1])*al;buf[o4+2]+=(dec[o4+2]-buf[o4+2])*al;}}
+  const [c,x]=mkCanvas(W,W);const img=x.createImageData(W,W);
+  for(let y=0;y<W;y++)img.data.set(buf.subarray(y*W*4,(y+1)*W*4),(W-1-y)*W*4); /* row 0 (v=0) goes to the bottom of the image */
+  x.putImageData(img,0,0);return c;
+}
+
+/* ---------- files ---------- */
+let dlNs=null;
+if(window.claude&&typeof window.claude.use==='function'){window.claude.use('downloads').then(x=>{dlNs=x;}).catch(()=>{});}
+const inArtifact=!!(window.claude&&window.claude.use);
+async function saveBlob(name,blob){
+  if(dlNs){try{await dlNs.save({filename:name,data:blob});toast('Сохранено: '+name);}catch(err){if(err&&err.code==='declined')return;toast('Не получилось сохранить: '+(err&&err.message||'ошибка'));}return;}
+  if(inArtifact){toast('Сохранение недоступно в этом окне. Открой страницу в claude.ai или скачай HTML-версию.');return;}
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},120000);
+}
+function canvasBlob(c){return new Promise(r=>c.toBlob(r,'image/png'));}
+function loadFile(f){
+  if(!f)return;const ext=f.name.split('.').pop().toLowerCase();
+  if(/^(png|webp|gif|jpe?g|svg)$/.test(ext)){loadDecalFile(f);return;}
+  const rd=new FileReader();rd.onerror=()=>toast('Не удалось прочитать файл');
+  if(ext==='obj'){rd.onload=()=>{try{setModel(new THREE.OBJLoader().parse(rd.result),f.name);toast('Открыто: '+f.name);}catch(e){toast('OBJ не прочитался: '+e.message);}};rd.readAsText(f);}
+  else if(ext==='glb'||ext==='gltf'){rd.onload=()=>{new THREE.GLTFLoader().parse(rd.result,'',g=>{setModel(g.scene,f.name);},()=>toast('Файл не открылся. Если это .gltf с отдельными файлами — сохрани модель как .glb.'));};rd.readAsArrayBuffer(f);}
+  else toast('Поддерживаются модели .glb, .gltf, .obj и картинки для наклеек');
+}
+$('fileIn').addEventListener('change',e=>{loadFile(e.target.files[0]);e.target.value='';});
+let dragDepth=0;
+stage.addEventListener('dragenter',e=>{e.preventDefault();dragDepth++;$('drop').hidden=false;});
+stage.addEventListener('dragover',e=>e.preventDefault());
+stage.addEventListener('dragleave',()=>{if(--dragDepth<=0){dragDepth=0;$('drop').hidden=true;}});
+stage.addEventListener('drop',e=>{e.preventDefault();dragDepth=0;$('drop').hidden=true;[...e.dataTransfer.files].forEach(loadFile);});
+
+let exporting=false;
+$('exportBtn').addEventListener('click',async()=>{
+  if(!meshes.length||exporting)return;exporting=true;
+  const bake=st.bake;
+  toast(bake?'Запекаю текстуру и собираю GLB…':'Собираю GLB…');
+  await new Promise(r=>setTimeout(r,30));
+  const ex=new THREE.GLTFExporter();
+  meshes.forEach(d=>{if(d.selMesh)d.selMesh.visible=false;if(d.wire)d.wire.visible=false;});ring.visible=ringIn.visible=false;
+  const prevMats=meshes.map(d=>d.mesh.material),savedCols=meshes.map(d=>d.mesh.geometry.attributes.color);
+  meshes.forEach(d=>{const g=d.mesh.geometry;
+    if(bake){const ct=new THREE.CanvasTexture(bakeCanvas(d));ct.encoding=THREE.sRGBEncoding;g.deleteAttribute('color');
+      d.mesh.material=new THREE.MeshStandardMaterial({map:ct,roughness:0.85,metalness:0,name:'Krasilnya'});}
+    else{const a=g.attributes.color,lin=new Float32Array(a.array.length);for(let i=0;i<lin.length;i++)lin[i]=s2l(a.array[i]);g.setAttribute('color',new THREE.BufferAttribute(lin,3));
+      d.mesh.material=new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.85,metalness:0,name:'Krasilnya'});}});
+  const done=()=>{meshes.forEach((d,i)=>{const m=d.mesh.material;if(m.map)m.map.dispose();m.dispose();d.mesh.material=prevMats[i];d.mesh.geometry.setAttribute('color',savedCols[i]);
+    if(d.selMesh)d.selMesh.visible=true;if(d.wire)d.wire.visible=st.wire;});};
+  try{
+    const res=await new Promise((ok,bad)=>{const opts={binary:true,onlyVisible:true};
+      if(ex.parseAsync)ex.parseAsync(root,opts).then(ok,bad);else ex.parse(root,ok,bad,opts);});
+    done();
+    const glb=new Blob([res],{type:'model/gltf-binary'});const name=(modelName||'model')+'_painted';
+    if(dlNs||inArtifact){if(typeof JSZip==='undefined'){toast('Не загрузился архиватор для экспорта');exporting=false;return;}
+      const z=new JSZip();z.file(name+'.glb',glb);await saveBlob(name+'.zip',await z.generateAsync({type:'blob'}));}
+    else await saveBlob(name+'.glb',glb);
+  }catch(e){done();toast('Экспорт не удался: '+(e&&e.message||e));}
+  exporting=false;
+});
+$('texBtn').addEventListener('click',async()=>{
+  if(!meshes.length)return;toast('Запекаю текстуру…');await new Promise(r=>setTimeout(r,30));
+  const base=modelName||'model';
+  if(meshes.length===1){await saveBlob(base+'_basecolor.png',await canvasBlob(bakeCanvas(meshes[0])));return;}
+  if(typeof JSZip==='undefined'){toast('Не загрузился архиватор');return;}
+  const z=new JSZip();for(let i=0;i<meshes.length;i++){const nm=(meshes[i].mesh.name||('part'+(i+1))).replace(/[\\/:*?"<>|]/g,'_');z.file(base+'_'+nm+'_basecolor.png',await canvasBlob(bakeCanvas(meshes[i])));}
+  await saveBlob(base+'_textures.zip',await z.generateAsync({type:'blob'}));
+});
+$('shotBtn').addEventListener('click',()=>{
+  meshes.forEach(d=>{if(d.selMesh)d.selMesh.visible=false;});ring.visible=ringIn.visible=false;if(grid)grid.visible=false;
+  renderer.render(scene,camera);canvas.toBlob(b=>{meshes.forEach(d=>{if(d.selMesh)d.selMesh.visible=true;});if(grid)grid.visible=true;if(b)saveBlob((modelName||'model')+'.png',b);},'image/png');
+});
+
+/* ---------- keyboard ---------- */
+window.addEventListener('keydown',e=>{
+  if(e.target.matches('input,select,textarea'))return;
+  const k=e.key.toLowerCase();
+  if((e.ctrlKey||e.metaKey)&&k==='z'){e.preventDefault();e.shiftKey?doRedo():doUndo();return;}
+  if((e.ctrlKey||e.metaKey)&&k==='y'){e.preventDefault();doRedo();return;}
+  if(e.code==='Space'&&!spaceHeld){e.preventDefault();spaceHeld=true;applyControlMode();return;}
+  const map={b:'brush',f:'fill',g:'gradient',d:'decal',e:'erase',s:'select',i:'pick',v:'camera'};
+  if(map[k]&&!e.ctrlKey&&!e.metaKey){setTool(map[k]);return;}
+  if(e.key==='['||e.key===']'){const id=st.tool==='decal'?'dSize':'radius';const el=$(id);el.value=+el.value+(e.key===']'?1:-1);el.dispatchEvent(new Event('input'));}
+  if(e.key==='Escape')selectAll(false);
+});
+window.addEventListener('keyup',e=>{if(e.code==='Space'){spaceHeld=false;applyControlMode();}});
+
+let toastT=null;function toast(t){const el=$('toast');el.textContent=t;el.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>el.hidden=true,3400);}
+
+/* ---------- sample model ---------- */
+function sampleModel(){
+  const grp=new THREE.Group();
+  const mk=(geo,x,y,z,hex,name)=>{const m=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:new THREE.Color(hex).convertSRGBToLinear()}));m.position.set(x,y,z);m.name=name;grp.add(m);return m;};
+  mk(new THREE.CylinderGeometry(0.42,0.5,0.95,24,8),0,0.85,0,'#3B82F6','Тело');
+  mk(new THREE.IcosahedronGeometry(0.42,3),0,1.68,0,'#FFD23F','Голова');
+  mk(new THREE.SphereGeometry(0.12,12,8),0.42,1.7,0,'#FFD23F','Ухо Л');
+  mk(new THREE.SphereGeometry(0.12,12,8),-0.42,1.7,0,'#FFD23F','Ухо П');
+  mk(new THREE.BoxGeometry(0.3,0.36,0.44,3,3,3),0.2,0.18,0.03,'#E63946','Сапог Л');
+  mk(new THREE.BoxGeometry(0.3,0.36,0.44,3,3,3),-0.2,0.18,0.03,'#E63946','Сапог П');
+  return grp;
+}
+function paintSample(){
+  const grads={'Тело':['#1D3557','#3B82F6'],'Голова':['#FF9F00','#FFE45E'],'Сапог Л':['#8E1B24','#FF5A5F'],'Сапог П':['#8E1B24','#FF5A5F']};
+  meshes.forEach(d=>{const gr=grads[d.mesh.name];if(!gr)return;
+    let lo=Infinity,hi=-Infinity;for(let i=0;i<d.n;i++){const y=d.world[i*3+1];if(y<lo)lo=y;if(y>hi)hi=y;}
+    const a=toOk(hexToRgb(gr[0])),b=toOk(hexToRgb(gr[1]));const col=d.mesh.geometry.attributes.color.array;
+    for(let i=0;i<d.n;i++){const t=(d.world[i*3+1]-lo)/Math.max(1e-6,hi-lo);const c=fromOk([a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t]);col[i*3]=c[0];col[i*3+1]=c[1];col[i*3+2]=c[2];}
+    d.mesh.geometry.attributes.color.needsUpdate=true;});
+  /* a sticker on the chest and a crack on the head, so the decal layer is visible from the start */
+  const N=new THREE.Vector3(0,0.08,1).normalize();
+  const plate=st.decal.list.find(x=>x.name==='Номер'),crack=st.decal.list.find(x=>x.name==='Трещина');
+  if(plate)stampDecal(new THREE.Vector3(0,0.95,0.47),N,{X:new THREE.Vector3(1,0,0),Y:new THREE.Vector3(0,1,0)},plate,{size:0.2,op:1,flip:false});
+  const N2=new THREE.Vector3(0.45,0.35,0.82).normalize();const X2=new THREE.Vector3(0,1,0).cross(N2).normalize().negate();
+  if(crack)stampDecal(new THREE.Vector3(0,1.68,0).addScaledVector(N2,0.42),N2,{X:X2,Y:new THREE.Vector3().crossVectors(N2,X2)},crack,{size:0.22,op:0.9,flip:false});
+}
+
+/* ---------- boot ---------- */
+builtinDecals().forEach(d=>st.decal.list.push(decalFromCanvas(d.name,d.c)));renderDecals();
+renderGrad();resize();setModel(sampleModel(),'Пример');paintSample();setTool('brush');updUndo();
+st.bake=true;$('bakeChk').checked=true;
+/* desktop app (Electron): open files passed by double-click or "Open with" */
+if(window.krDesktop&&typeof window.krDesktop.onOpenFile==='function'){
+  window.krDesktop.onOpenFile((name,bytes)=>{try{loadFile(new File([bytes],name));}catch(e){toast('Не удалось открыть '+name);}});
+  window.krDesktop.ready&&window.krDesktop.ready();
+}
+(function loop(){requestAnimationFrame(loop);
+  if(pendingMove&&ddrag){const p=pendingMove;pendingMove=null;decalPlace(p[0],p[1]);}
+  controls.update();renderer.render(scene,camera);})();
+})();
+</script>

@@ -1,0 +1,71 @@
+{
+  "name": "krasilnya",
+  "productName": "Krasilnya",
+  "version": "1.0.0",
+  "description": "Красильня — покраска 3D-моделей: кисть, градиенты, наклейки",
+  "main": "main.js",
+  "author": "OfMakarov",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win nsis",
+    "build:portable": "electron-builder --win portable"
+  },
+  "dependencies": {
+    "jszip": "3.10.1",
+    "three": "0.147.0"
+  },
+  "devDependencies": {
+    "electron": "33.2.1",
+    "electron-builder": "25.1.8"
+  },
+  "build": {
+    "appId": "io.github.ofmakarov.krasilnya",
+    "productName": "Krasilnya",
+    "copyright": "OfMakarov",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "config.json",
+      "build/icon.png",
+      "package.json",
+      "!**/node_modules/three/src/**",
+      "!**/node_modules/three/examples/jsm/**",
+      "!**/node_modules/three/examples/fonts/**",
+      "!**/node_modules/three/build/three.module.js",
+      "!**/node_modules/three/build/three.cjs",
+      "!**/node_modules/three/build/three.js",
+      "!**/node_modules/jszip/lib/**",
+      "!**/node_modules/jszip/vendor/**"
+    ],
+    "extraResources": [
+      { "from": "krasilnya.html", "to": "krasilnya.html" }
+    ],
+    "win": {
+      "target": ["nsis"],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Красильня",
+      "uninstallDisplayName": "Красильня",
+      "artifactName": "Krasilnya-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "Krasilnya-Portable-${version}.${ext}"
+    },
+    "fileAssociations": [
+      { "ext": "glb", "name": "GLB", "description": "3D-модель GLB", "role": "Editor" },
+      { "ext": "obj", "name": "OBJ", "description": "3D-модель OBJ", "role": "Editor" }
+    ]
+  }
+}
