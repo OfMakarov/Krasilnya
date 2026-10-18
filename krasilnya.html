@@ -90,6 +90,9 @@ header{grid-column:1/-1;display:flex;align-items:center;gap:12px;padding-inline:
 .pat{display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px 2px;border-radius:6px;border:1px solid var(--line);background:transparent;color:inherit;font:inherit;font-size:11px;cursor:pointer}
 .pat canvas{width:100%;height:22px;border-radius:3px;display:block}
 .pat.on{border-color:var(--accent);background:var(--surface-2)}
+.brushes{grid-template-columns:repeat(3,1fr)}
+.brushes canvas{height:30px}
+.symrow{display:flex;align-items:center;gap:10px;font-size:13px}
 .gsel{display:flex;gap:6px;align-items:center;font-size:13px}
 .gsel span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
 .gp{height:26px;border-radius:6px;border:1px solid var(--sw-line);cursor:pointer;padding:0}
@@ -228,7 +231,7 @@ body{font-size:13px}
         <div class="sws" id="recent" style="grid-template-columns:repeat(4,22px);gap:4px"></div>
       </div>
       <div class="pal">
-        <div class="row"><select class="palsel" id="palSel" aria-label="Палитра"></select></div>
+        <div class="row"><select class="palsel" id="palSel" aria-label="Палитра"></select><button class="btn" id="palImgBtn" title="Собрать палитру из картинки">Из картинки</button><input type="file" id="palImg" accept="image/*" hidden></div>
         <div class="sws" id="palSws"></div>
       </div>
     </section>
@@ -257,8 +260,9 @@ body{font-size:13px}
         <button class="btn icon" id="layUp" title="Выше" aria-label="Выше"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 11 5-5 5 5"/><path d="M12 6v13"/></svg></button>
         <button class="btn icon" id="layDown" title="Ниже" aria-label="Ниже"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 13 5 5 5-5"/><path d="M12 18V5"/></svg></button>
         <button class="btn icon" id="layBottom" title="В самый низ" aria-label="В самый низ"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20h14"/><path d="m7 10 5 5 5-5"/><path d="M12 15V4"/></svg></button>
+          <button class="btn icon" id="layDel" title="Удалить выбранный слой (Delete)" aria-label="Удалить выбранный слой"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M6 7l1 13h10l1-13"/><path d="M9 7V4h6v3"/></svg></button>
       </div>
-      <p class="hint">Верхние слои перекрывают нижние: царапины вниз, пластырь наверх. Наклейки и градиенты лежат в одном списке. Чтобы заменить картинку у выбранной наклейки, нажми на другую картинку в библиотеке (в режиме «Правка наклеек»).</p>
+      <p class="hint">Верхние слои перекрывают нижние: царапины вниз, пластырь наверх. Наклейки и градиенты лежат в одном списке. Выбери слой и нажми корзину или Delete, чтобы удалить его. Чтобы заменить картинку у выбранной наклейки, нажми на другую картинку в библиотеке (в режиме «Правка наклеек»).</p>
     </section>
     <section class="sec" data-tab="paint" data-tools="gradient">
       <h3>Градиент</h3>
@@ -292,9 +296,13 @@ body{font-size:13px}
 
     <section class="sec" data-tab="paint">
       <h3>Параметры</h3>
+      <div data-tools="brush">
+      <div class="pats brushes" id="brushes" role="group" aria-label="Форма кисти"></div>
+      </div>
       <div data-tools="brush erase">
       <div class="sl"><label for="radius">Размер кисти</label><input type="range" id="radius" min="1" max="40" value="8"><output id="radiusO">8%</output></div>
       <div class="sl"><label for="hard">Жёсткость</label><input type="range" id="hard" min="0" max="100" value="60"><output id="hardO">60</output></div>
+      <div class="symrow"><span>Симметрия</span><div class="chips" id="symChips"><button class="chip on" data-s="-1">Нет</button><button class="chip" data-s="0" title="Зеркально слева направо">X</button><button class="chip" data-s="1" title="Зеркально сверху вниз">Y</button><button class="chip" data-s="2" title="Зеркально спереди назад">Z</button></div></div>
       </div>
       <div data-tools="brush erase fill gradient">
       <div class="sl"><label for="strength">Сила</label><input type="range" id="strength" min="5" max="100" value="100"><output id="strengthO">100</output></div>
@@ -382,7 +390,7 @@ const GPRESETS=[
 
 /* ---------- state ---------- */
 const st={tool:'brush',color:[1,0.824,0.247],grad:{type:'linear',stops:[{p:0,c:'#FF7E5F',a:1},{p:1,c:'#FEB47B',a:1}],sel:0,mode:'smooth',steps:3,pat:'dots',scale:0.03},
-  radius:0.08,hard:0.6,strength:1,angle:30,recent:[],lit:true,wire:false,
+  radius:0.08,hard:0.6,brush:'round',sym:-1,strength:1,angle:30,recent:[],lit:true,wire:false,
   decal:{list:[],cur:0,size:0.22,rot:0,op:1,flip:false,wrap:true},bake:false};
 let LUT=new Float32Array(256*4);
 
@@ -410,6 +418,7 @@ const ring=new THREE.Mesh(new THREE.RingGeometry(0.92,1,64),new THREE.MeshBasicM
 ring.renderOrder=999;ring.visible=false;scene.add(ring);
 const ringIn=new THREE.Mesh(new THREE.RingGeometry(0.97,1,64),new THREE.MeshBasicMaterial({color:0x4c8dff,transparent:true,opacity:0.9,depthTest:false,side:THREE.DoubleSide}));
 ringIn.renderOrder=999;ringIn.visible=false;scene.add(ringIn);
+const ring2=ring.clone(),ringIn2=ringIn.clone();scene.add(ring2,ringIn2);
 
 /* vertex colors + decal layer: final = mix(vertexColor, decal.rgb, decal.a) */
 function patchMat(mat){
@@ -429,7 +438,7 @@ diffuseColor.rgb*=kBase;`);};
 }
 
 let meshes=[];   // {mesh,n,tris,world,tn,adj,sel,selMesh,wire}  + mesh.userData.kr = {W,data,tex,mLit,mFlat,uvGen}
-let modelSize=1, modelName='model';
+let modelSize=1, modelName='model', modelCenter=new THREE.Vector3();
 
 function resize(){const r=stage.getBoundingClientRect();renderer.setSize(r.width,r.height,false);camera.aspect=r.width/Math.max(1,r.height);camera.updateProjectionMatrix();}
 new ResizeObserver(resize).observe(stage);
@@ -530,7 +539,7 @@ function setModel(obj,name){
   const box=new THREE.Box3().setFromObject(obj);const size=box.getSize(new THREE.Vector3());modelSize=Math.max(size.x,size.y,size.z)||1;
   meshes=list.map(buildData);meshes.forEach(addWire);
   const c=box.getCenter(new THREE.Vector3());
-  controls.target.copy(c);
+  controls.target.copy(c);modelCenter.copy(c);
   camera.near=modelSize/200;camera.far=modelSize*200;camera.updateProjectionMatrix();
   camera.position.copy(c).add(new THREE.Vector3(0.9,0.55,1.6).normalize().multiplyScalar(modelSize*2.1));
   controls.update();
@@ -609,7 +618,7 @@ function renderParts(){
     row.append(cb,lb,only);box.appendChild(row);});
 }
 function setPartsVis(fn){
-  cancelOps();meshes.forEach(d=>{d.mesh.visible=!!fn(d);});ring.visible=ringIn.visible=false;renderParts();
+  cancelOps();meshes.forEach(d=>{d.mesh.visible=!!fn(d);});ring.visible=ringIn.visible=ring2.visible=ringIn2.visible=false;renderParts();
   if(meshes.length&&!meshes.some(shown))toast('Все детали скрыты — нажми «Показать все»');
 }
 function escapeHtml(s){return s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
@@ -669,9 +678,9 @@ function pick(cx,cy){
 }
 
 /* ---------- vertex painting ---------- */
-function brushAt(hit){
+function brushAt(hit){brushDab(hit.point,hit.normal);if(st.sym>=0){const m={sym:st.sym,mc:modelCenter.toArray()};brushDab(mirrorV(hit.point,m),mirrorN(hit.normal,m));}}
+function brushDab(P,N){
   const R=st.radius*modelSize,R2=R*R,h=st.hard,s=st.strength,c=st.color,any=hasSel();
-  const P=hit.point,N=hit.normal;
   meshes.forEach(d=>{if(!shown(d))return;
     const ca=d.mesh.geometry.attributes.color,col=ca.array,w=d.world;let ch=false;
     for(let i=0;i<d.n;i++){
@@ -849,9 +858,91 @@ function eraseDab(P,o){
         const dist=Math.sqrt(dd)/R;let f=dist<=h?1:1-(dist-h)/Math.max(1e-4,1-h);f=f*f*(3-2*f)*s;out[o*4+3]*=(1-f);});}
     if(ch)kr.tex.needsUpdate=true;});
 }
-function eraseAt(hit){if(!stroke||!stroke.op)return;const P=hit.point.clone();stroke.op.pts.push(P);eraseDab(P,stroke.op);}
+function eraseAt(hit){if(!stroke||!stroke.op)return;const o=stroke.op,P=hit.point.clone();o.pts.push(P);eraseDab(P,o);if(o.sym>=0)eraseDab(mirrorV(P,o),o);}
+/* ---------- textured brushes: each stroke is a layer op painted into the decal texture ---------- */
+const BRUSHES={round:'Круглая',water:'Акварель',blot:'Клякса',dry:'Сухая',chalk:'Мел',spray:'Брызги'};
+/* value noise in world space, so a stroke stays seamless across UV islands */
+function hash3(x,y,z,s){let h=(Math.imul(x,374761393)+Math.imul(y,668265263)+Math.imul(z,1440662683)+Math.imul(s,951274213))|0;h=Math.imul(h^(h>>>13),1274126177);h^=h>>>16;return (h>>>0)/4294967296;}
+function vnoise(x,y,z,s){const xi=Math.floor(x),yi=Math.floor(y),zi=Math.floor(z),xf=x-xi,yf=y-yi,zf=z-zi,u=xf*xf*(3-2*xf),v=yf*yf*(3-2*yf),w=zf*zf*(3-2*zf);
+  const h=(i,j,k)=>hash3(xi+i,yi+j,zi+k,s),l=(a,b,t)=>a+(b-a)*t;
+  return l(l(l(h(0,0,0),h(1,0,0),u),l(h(0,1,0),h(1,1,0),u),v),l(l(h(0,0,1),h(1,0,1),u),l(h(0,1,1),h(1,1,1),u),v),w);}
+function fbm(x,y,z,s){return vnoise(x,y,z,s)*0.55+vnoise(x*2.1,y*2.1,z*2.1,s+7)*0.3+vnoise(x*4.3,y*4.3,z*4.3,s+13)*0.15;}
+const smooth=(a,b,x)=>{const t=clamp01((x-a)/(b-a));return t*t*(3-2*t);};
+const softDisc=(d,h)=>d>=1?0:d<=h?1:smooth(0,1,1-(d-h)/Math.max(1e-4,1-h));
+/* droplets around a dab (blot splashes, spray dots), in brush-radius units; fixed by the stroke seed */
+function dabDrops(o,di){const r=rnd(o.seed*7919+di*104729+1),out=[];
+  if(o.shape==='blot'){if(r()<0.3){const n=1+(r()<0.4);for(let k=0;k<n;k++){const a=r()*6.283,d=1.1+r()*0.8;out.push([Math.cos(a)*d,Math.sin(a)*d,0.06+r()*0.14]);}}}
+  else if(o.shape==='spray'){for(let k=0;k<9;k++){const a=r()*6.283,d=Math.sqrt(r());out.push([Math.cos(a)*d,Math.sin(a)*d,0.03+r()*0.06]);}}
+  return out;}
+const dropCov=(drops,lx,ly,c)=>{for(const q of drops)c=Math.max(c,clamp01((q[2]-Math.hypot(lx-q[0],ly-q[1]))*30+0.5));return c;};
+/* coverage of one dab at a texel; lx,ly in brush radii (X along the stroke), n* = world position in brush radii */
+function dabCov(o,lx,ly,nx,ny,nz,drops){const d=Math.hypot(lx,ly);
+  switch(o.shape){
+    case 'water':return 1-d+(fbm(nx*1.5,ny*1.5,nz*1.5,o.seed)-0.5)*0.6;
+    case 'blot':return dropCov(drops,lx,ly,clamp01((0.72+(fbm(nx*1.3,ny*1.3,nz*1.3,o.seed)-0.5)*1.0-d)*10+0.5));
+    case 'dry':{const disc=softDisc(d,o.h);if(!disc)return 0;return disc*smooth(0.4,0.6,vnoise(ly*6,0.5,0.5,o.seed))*(0.55+0.45*smooth(0.25,0.6,fbm(nx*2,ny*2,nz*2,o.seed+3)));}
+    case 'chalk':{const disc=softDisc(d,o.h);if(!disc)return 0;return smooth(0.55,0.72,vnoise(nx*7,ny*7,nz*7,o.seed)+disc*0.35)*Math.min(1,disc*3);}
+    case 'spray':return dropCov(drops,lx,ly,0);}
+  return softDisc(d,o.h);}
+/* coverage -> paint opacity; watercolour gets darker rims and pigment granulation */
+function paintAlpha(o,c,g){if(c<=0)return 0;
+  if(o.shape==='water')return Math.min(1,smooth(0,0.12,c)*(0.4+0.45*(1-smooth(0.08,0.4,c)))*(0.75+0.5*g))*o.s;
+  return Math.min(1,c)*o.s;}
+function mirrorV(v,o){const a=v.toArray();a[o.sym]=2*o.mc[o.sym]-a[o.sym];return new THREE.Vector3().fromArray(a);}
+function mirrorN(v,o){const a=v.toArray();a[o.sym]=-a[o.sym];return new THREE.Vector3().fromArray(a);}
+/* paint dabs i0.. of a stroke (and their mirror twins); ss keeps the stroke's coverage and the texture under it,
+   so each new dab only re-composites the texels it touches */
+function paintDabs(o,ss,i0){
+  const R=o.R,lim=o.lim,list=[];
+  for(let i=i0;i<o.pts.length;i++){const q=o.pts[i];list.push([q.P,q.N,q.X,i]);if(o.sym>=0)list.push([mirrorV(q.P,o),mirrorN(q.N,o),mirrorN(q.X,o),i+1e6]);}
+  const ext=R*(o.shape==='blot'?2:1.05),ext2=(ext/R)*(ext/R),Y=new THREE.Vector3(),invR=1/R;
+  meshes.forEach((d,mi)=>{if(!lim.shown[mi])return;const sel=lim.sel&&lim.sel[mi];const kr=d.mesh.userData.kr,W=kr.W,out=kr.data,w=d.world,bb=d.bb;const changed=[];
+    for(const [P,N,X,di] of list){Y.crossVectors(N,X);const drops=dabDrops(o,di);
+      for(let t=0;t<d.tris;t++){
+        if(lim.sel&&!(sel&&sel[t]))continue;
+        if(bb[t*6]>P.x+ext||bb[t*6+3]<P.x-ext||bb[t*6+1]>P.y+ext||bb[t*6+4]<P.y-ext||bb[t*6+2]>P.z+ext||bb[t*6+5]<P.z-ext)continue;
+        if(d.tn[t*3]*N.x+d.tn[t*3+1]*N.y+d.tn[t*3+2]*N.z<-0.2)continue;
+        if(!ss.cov[mi]){touchTex(mi);ss.cov[mi]=new Float32Array(W*W);ss.aux[mi]=new Float32Array(W*W).fill(-1);ss.base[mi]=out.slice();}
+        const cov=ss.cov[mi],aux=ss.aux[mi],a=t*9;
+        rasterTri(kr.uv,t,W,W,1.2,(p,w0,w1,w2)=>{
+          const wx=w0*w[a]+w1*w[a+3]+w2*w[a+6],wy=w0*w[a+1]+w1*w[a+4]+w2*w[a+7],wz=w0*w[a+2]+w1*w[a+5]+w2*w[a+8],rx=wx-P.x,ry=wy-P.y,rz=wz-P.z;
+          if(Math.abs(rx*N.x+ry*N.y+rz*N.z)>R*0.8)return;
+          const lx=(rx*X.x+ry*X.y+rz*X.z)*invR,ly=(rx*Y.x+ry*Y.y+rz*Y.z)*invR;if(lx*lx+ly*ly>ext2)return;
+          if(aux[p]<0)aux[p]=o.shape==='water'?fbm(wx*invR*6,wy*invR*6,wz*invR*6,o.seed+29):0;
+          const c=dabCov(o,lx,ly,wx*invR,wy*invR,wz*invR,drops);if(c>cov[p]){cov[p]=c;changed.push(p);}});}}
+    if(!changed.length)return;
+    const base=ss.base[mi],cov=ss.cov[mi],aux=ss.aux[mi],cr=o.c[0]*255,cg=o.c[1]*255,cb=o.c[2]*255;
+    for(const p of changed){const o4=p*4,sa=paintAlpha(o,cov[p],aux[p]);
+      out[o4]=base[o4];out[o4+1]=base[o4+1];out[o4+2]=base[o4+2];out[o4+3]=base[o4+3];if(sa<=0.002)continue;
+      const da=base[o4+3]/255,oa=sa+da*(1-sa),k1=sa/oa,k2=da*(1-sa)/oa;
+      out[o4]=cr*k1+base[o4]*k2;out[o4+1]=cg*k1+base[o4+1]*k2;out[o4+2]=cb*k1+base[o4+2]*k2;out[o4+3]=oa*255;}
+    kr.tex.needsUpdate=true;kr.has=true;});
+}
+const strokeState=()=>({cov:[],aux:[],base:[]});
+function paintAt(hit){
+  const o=stroke.op,P=hit.point.clone(),N=hit.normal.clone(),last=o.pts[o.pts.length-1],gap=o.R*(o.shape==='spray'?0.5:0.25),i0=o.pts.length;
+  if(!last)o.pts.push({P,N,X:baseFrame(N).X});
+  else{const dist=P.distanceTo(last.P);if(dist<gap)return;const n=Math.min(64,Math.ceil(dist/gap));
+    for(let k=1;k<=n;k++){const Pk=last.P.clone().lerp(P,k/n),Nk=last.N.clone().lerp(N,k/n).normalize(),X=P.clone().sub(last.P);
+      X.addScaledVector(Nk,-X.dot(Nk));o.pts.push({P:Pk,N:Nk,X:X.lengthSq()<1e-12?baseFrame(Nk).X:X.normalize()});}}
+  paintDabs(o,stroke.ss,i0);
+}
+/* small stroke previews for the brush buttons, drawn with the same dab code on a flat strip */
+function brushPreview(c,shape){
+  const x=c.getContext('2d'),w=c.width,h=c.height,img=x.createImageData(w,h),R=h*0.32,o={shape,seed:7,h:st.hard,s:1},pts=[];
+  for(let i=0;i<=24;i++){const t=i/24,px=R*1.1+t*(w-R*2.2),py=h/2+Math.sin(t*5)*h*0.12;pts.push([px,py]);}
+  const drops=pts.map((_,i)=>dabDrops(o,i)),col=st.color;
+  for(let yy=0;yy<h;yy++)for(let xx=0;xx<w;xx++){let cv=0;
+    for(let i=0;i<pts.length;i++){const q=pts[i],nq=pts[Math.min(i+1,pts.length-1)],pq=pts[Math.max(i-1,0)];let dx=nq[0]-pq[0],dy=nq[1]-pq[1];const L=Math.hypot(dx,dy)||1;dx/=L;dy/=L;
+      const rx=xx+0.5-q[0],ry=yy+0.5-q[1],lx=(rx*dx+ry*dy)/R,ly=(-rx*dy+ry*dx)/R;if(lx*lx+ly*ly>4)continue;
+      cv=Math.max(cv,dabCov(o,lx,ly,(xx+0.5)/R,(yy+0.5)/R,0,drops[i]));}
+    const a=paintAlpha(o,cv,shape==='water'?fbm((xx+0.5)/R*6,(yy+0.5)/R*6,0,36):0),k=(yy*w+xx)*4;
+    img.data[k]=col[0]*255;img.data[k+1]=col[1]*255;img.data[k+2]=col[2]*255;img.data[k+3]=a*255;}
+  x.putImageData(img,0,0);
+}
+
 function snapAllTex(){const m=new Map();meshes.forEach((d,i)=>m.set(i,d.mesh.userData.kr.data.slice()));return m;}
-function stampOp(o){if(o.k==='decal')stampDecal(o);else if(o.k==='grad')stampGrad(o);else o.pts.forEach(P=>eraseDab(P,o));}
+function stampOp(o){if(o.k==='decal')stampDecal(o);else if(o.k==='grad')stampGrad(o);else if(o.k==='paint')paintDabs(o,strokeState(),0);else o.pts.forEach(P=>{eraseDab(P,o);if(o.sym>=0)eraseDab(mirrorV(P,o),o);});}
 function replay(list){
   meshes.forEach((d,i)=>{const kr=d.mesh.userData.kr;if(bakedBase&&bakedBase[i])kr.data.set(bakedBase[i]);else kr.data.fill(0);kr.has=!!bakedBase;kr.tex.needsUpdate=true;});
   const keep=texOp;texOp=null;
@@ -880,7 +971,7 @@ function moveLayer(dir){
   commitEdit();const sel=curLayer();
   if(!sel||!decalOps.includes(sel)){toast('Сначала выбери слой: наклейку или градиент');return;}
   const ops=decalOps.slice(),i=ops.indexOf(sel);let j=i;
-  if(dir==='up'||dir==='down'){const st_=dir==='up'?1:-1;for(let k=i+st_;k>=0&&k<ops.length;k+=st_)if(ops[k].k!=='erase'){j=k;break;}}
+  if(dir==='up'||dir==='down'){const st_=dir==='up'?1:-1;for(let k=i+st_;k>=0&&k<ops.length;k+=st_)if(ops[k].k==='decal'||ops[k].k==='grad'){j=k;break;}}
   else j=dir==='top'?ops.length-1:0;
   if(j===i)return;
   pushUndo({tex:snapAllTex(),decals:decalOps.slice(),baked:bakedBase});
@@ -888,7 +979,7 @@ function moveLayer(dir){
 }
 let layKey='';
 function renderLayers(){
-  const list=decalOps.filter(o=>o.k!=='erase'),sel=curLayer();
+  const list=decalOps.filter(o=>o.k==='decal'||o.k==='grad'),sel=curLayer();
   const key=list.map(o=>o.k==='grad'?o.name+gradKey(o):o.dec.name).join('|')+'#'+list.indexOf(sel);if(key===layKey)return;layKey=key;
   const box=$('layers');box.innerHTML='';$('layersEmpty').hidden=!!list.length;
   list.slice().reverse().forEach((o,k)=>{const row=document.createElement('button');row.className='layer'+(o===sel?' on':'');const g=o.k==='grad',name=g?o.name:o.dec.name;
@@ -1000,9 +1091,13 @@ canvas.addEventListener('pointerdown',e=>{
   if(e.button!==0||effTool()==='camera')return;
   activePtr=e.pointerId;try{canvas.setPointerCapture(e.pointerId);}catch(_){}
   const tool=st.tool,hit=pick(e.clientX,e.clientY);
-  if(tool==='brush'){if(!hit){activePtr=null;return;}stroke={cols:snapCols()};brushAt(hit);}
+  if(tool==='brush'){if(!hit){activePtr=null;return;}
+    if(st.brush==='round'){stroke={cols:snapCols()};brushAt(hit);}
+    else{commitEdit();selDec=null;texOp=new Map();
+      const o={k:'paint',shape:st.brush,c:st.color.slice(),R:st.radius*modelSize,s:st.strength,h:st.hard,seed:(Math.random()*1e9)|0,sym:st.sym,mc:modelCenter.toArray(),pts:[],lim:curLim()};
+      stroke={tex:texOp,decals:decalOps.slice(),op:o,ss:strokeState()};decalOps.push(o);paintAt(hit);}}
   else if(tool==='erase'){if(!hit){activePtr=null;return;}commitEdit();selDec=null;texOp=new Map();
-    stroke={tex:texOp,decals:decalOps.slice(),op:{k:'erase',pts:[],R:st.radius*modelSize,h:st.hard,s:st.strength,lim:curLim()}};decalOps.push(stroke.op);eraseAt(hit);}
+    stroke={tex:texOp,decals:decalOps.slice(),op:{k:'erase',pts:[],R:st.radius*modelSize,h:st.hard,s:st.strength,sym:st.sym,mc:modelCenter.toArray(),lim:curLim()}};decalOps.push(stroke.op);eraseAt(hit);}
   else if(tool==='fill'){if(hit){pushUndo({cols:snapCols()});fillAt(hit);addRecent();}activePtr=null;}
   else if(tool==='select'){if(hit){const m=region(hit.d,hit.tri);const add=!hit.d.sel[hit.tri];for(let t=0;t<hit.d.tris;t++)if(m[t])hit.d.sel[t]=add?1:0;rebuildSel(hit.d);}else if(!e.shiftKey){selectAll(false);}activePtr=null;}
   else if(tool==='pick'){if(hit){const col=hit.d.mesh.geometry.attributes.color.array,o=hit.tri*9;setColor([(col[o]+col[o+3]+col[o+6])/3,(col[o+1]+col[o+4]+col[o+7])/3,(col[o+2]+col[o+5]+col[o+8])/3]);toast('Цвет взят: '+rgbToHex(st.color));}activePtr=null;}
@@ -1021,31 +1116,33 @@ canvas.addEventListener('pointermove',e=>{
   lastPtr=[e.clientX,e.clientY];const tool=effTool();
   if(e.pointerType==='mouse'&&meshes.length>1&&$('panel').dataset.tab==='parts'){const h=pick(e.clientX,e.clientY);markRow(h?meshes.indexOf(h.d):-1);}
   if(((tool==='brush'||tool==='erase')&&e.pointerType!=='touch')||stroke){const hit=pick(e.clientX,e.clientY);updRing(hit);
-    if(stroke&&e.pointerId===activePtr&&hit){if(stroke.cols)brushAt(hit);else eraseAt(hit);}}
-  else {ring.visible=ringIn.visible=false;}
+    if(stroke&&e.pointerId===activePtr&&hit){if(stroke.cols)brushAt(hit);else if(stroke.op.k==='paint')paintAt(hit);else eraseAt(hit);}}
+  else {ring.visible=ringIn.visible=ring2.visible=ringIn2.visible=false;}
   if(gdrag&&e.pointerId===activePtr)gradMove(e.clientX,e.clientY);
   else if(tool==='gradient'&&e.pointerType==='mouse')canvas.style.cursor=gradHandleAt(e.clientX,e.clientY)?'grab':'crosshair';
   if(ddrag&&e.pointerId===activePtr)pendingMove=[e.clientX,e.clientY];
   else if((tool==='decal'&&selDec)||tool==='dedit'){if(e.pointerType==='mouse'){const o=decalHitTest(pick(e.clientX,e.clientY));canvas.style.cursor=o&&(tool==='dedit'||o===selDec)?'grab':(tool==='decal'?'crosshair':'default');}}
 });
 function endPtr(e){ptrs.delete(e.pointerId);if(e.pointerId!==activePtr)return;activePtr=null;
-  if(stroke){if(stroke.cols){pushUndo({cols:stroke.cols});addRecent();}else if(stroke.tex.size)pushUndo({tex:stroke.tex,decals:stroke.decals});else decalOps=stroke.decals;stroke=null;texOp=null;}
+  if(stroke){if(stroke.cols){pushUndo({cols:stroke.cols});addRecent();}else if(stroke.tex.size){pushUndo({tex:stroke.tex,decals:stroke.decals});if(stroke.op.k==='paint')addRecent();}else decalOps=stroke.decals;stroke=null;texOp=null;}
   if(gdrag)gradEnd(e.clientX,e.clientY);
   if(ddrag){if(pendingMove){decalPlace(pendingMove[0],pendingMove[1]);pendingMove=null;}
     if(ddrag.placed)commitEdit();else if(!ddrag.move){editSnap=null;editBase=null;edOp=null;selDec=null;}
     ddrag=null;applyControlMode();}
-  if(e.pointerType==='touch')ring.visible=ringIn.visible=false;}
+  if(e.pointerType==='touch')ring.visible=ringIn.visible=ring2.visible=ringIn2.visible=false;}
 canvas.addEventListener('pointerup',endPtr);canvas.addEventListener('pointercancel',e=>{ptrs.delete(e.pointerId);if(e.pointerId===activePtr)cancelOps();});
-canvas.addEventListener('pointerleave',()=>{lastPtr=null;markRow(-1);if(!stroke){ring.visible=ringIn.visible=false;}});
+canvas.addEventListener('pointerleave',()=>{lastPtr=null;markRow(-1);if(!stroke){ring.visible=ringIn.visible=ring2.visible=ringIn2.visible=false;}});
 function updRing(hit){
   const t=effTool();
-  if(!hit||(t!=='brush'&&t!=='erase')){ring.visible=ringIn.visible=false;return;}
+  if(!hit||(t!=='brush'&&t!=='erase')){ring.visible=ringIn.visible=ring2.visible=ringIn2.visible=false;return;}
   const R=st.radius*modelSize;ring.visible=ringIn.visible=true;ringIn.material.color.set(t==='erase'?0xff6b6b:0x4c8dff);
-  [ring,ringIn].forEach((r,i)=>{r.position.copy(hit.point).addScaledVector(hit.normal,modelSize*0.002);r.lookAt(hit.point.clone().add(hit.normal));r.scale.setScalar(i?R*Math.max(0.05,st.hard):R);});
+  const place=(rs,P,N)=>rs.forEach((r,i)=>{r.position.copy(P).addScaledVector(N,modelSize*0.002);r.lookAt(P.clone().add(N));r.scale.setScalar(i?R*Math.max(0.05,st.hard):R);});
+  place([ring,ringIn],hit.point,hit.normal);ring2.visible=ringIn2.visible=st.sym>=0;
+  if(st.sym>=0){const m={sym:st.sym,mc:modelCenter.toArray()};place([ring2,ringIn2],mirrorV(hit.point,m),mirrorN(hit.normal,m));}
 }
 
 /* ---------- UI: tools ---------- */
-const HINTS={dedit:'Нажми на наклейку на модели и тяни, чтобы двигать. Колесо над ней — размер, Shift+колесо — поворот, Delete — удалить.',brush:'Рисуй по модели. Правая кнопка или два пальца — вращать камеру.',fill:'Нажми на область — она зальётся цветом. Границу области задаёт ползунок.',
+const HINTS={dedit:'Нажми на наклейку на модели и тяни, чтобы двигать. Колесо над ней — размер, Shift+колесо — поворот, Delete — удалить.',brush:'Рисуй по модели. Акварель, клякса и другие фигурные кисти кладут краску слоем поверх цвета, ластик её стирает. Правая кнопка или два пальца — вращать камеру.',fill:'Нажми на область — она зальётся цветом. Границу области задаёт ползунок.',
   gradient:'Проведи линию — появится новый слой градиента. Кружки на концах выбранного градиента можно двигать.',decal:'Нажми и веди по модели — наклейка едет следом и приклеивается, когда отпускаешь.',
   erase:'Стирает наклейки и градиенты. Цвета вершин не трогает.',select:'Нажимай по областям, чтобы выделить. Пустое место — снять выделение.',
   pick:'Нажми на модель, чтобы взять цвет.',camera:'Тяни, чтобы вращать. Колесо — приближение, средняя кнопка — сдвиг.'};
@@ -1058,18 +1155,52 @@ function setTab(t){$('panel').dataset.tab=t;document.querySelectorAll('.tab').fo
   if(t!=='parts')markRow(-1);try{localStorage.setItem('kr_tab',t);}catch(e){}}
 document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.tab)));
 try{const t=localStorage.getItem('kr_tab');if(t==='parts'||t==='model')setTab(t);}catch(e){}
-function setTool(t){commitEdit();st.tool=t;$('dDel').hidden=t!=='dedit';showPanel(t);document.querySelectorAll('.tool').forEach(b=>b.classList.toggle('on',b.dataset.tool===t));$('hintPill').textContent=HINTS[t];ring.visible=ringIn.visible=false;applyControlMode();}
+function setTool(t){commitEdit();st.tool=t;$('dDel').hidden=t!=='dedit';showPanel(t);document.querySelectorAll('.tool').forEach(b=>b.classList.toggle('on',b.dataset.tool===t));$('hintPill').textContent=HINTS[t];ring.visible=ringIn.visible=ring2.visible=ringIn2.visible=false;applyControlMode();}
 document.querySelectorAll('.tool').forEach(b=>b.addEventListener('click',()=>setTool(b.dataset.tool)));
 
 /* ---------- UI: colors ---------- */
-function setColor(c,fromInput){st.color=c.map(clamp01);const h=rgbToHex(st.color);if(!fromInput)$('colorIn').value=h.toLowerCase();$('hexIn').value=h;
+function setColor(c,fromInput){st.color=c.map(clamp01);renderBrushes();const h=rgbToHex(st.color);if(!fromInput)$('colorIn').value=h.toLowerCase();$('hexIn').value=h;
   if(st.tool==='gradient'&&st.grad.stops[st.grad.sel]){st.grad.stops[st.grad.sel].c=h;renderGrad();}}
 $('colorIn').addEventListener('input',e=>setColor(hexToRgb(e.target.value),true));
 $('hexIn').addEventListener('change',e=>{const v=e.target.value.trim();if(/^#?[0-9a-f]{6}$/i.test(v)||/^#?[0-9a-f]{3}$/i.test(v))setColor(hexToRgb(v));else{e.target.value=rgbToHex(st.color);toast('Нужен HEX вида #FFAA00');}});
 function swatch(h,cb){const b=document.createElement('button');b.className='sw';b.style.background=h;b.title=h;b.setAttribute('aria-label','Цвет '+h);b.addEventListener('click',()=>cb(h));return b;}
+try{Object.assign(PALETTES,JSON.parse(localStorage.getItem('kr_pals')||'{}'));}catch(e){}
 const palSel=$('palSel');Object.keys(PALETTES).forEach(k=>{const o=document.createElement('option');o.value=k;o.textContent=k;palSel.appendChild(o);});
 function renderPal(){const box=$('palSws');box.innerHTML='';PALETTES[palSel.value].forEach(h=>box.appendChild(swatch(h,x=>setColor(hexToRgb(x)))));try{localStorage.setItem('kr_pal',palSel.value);}catch(e){}}
 palSel.addEventListener('change',renderPal);
+/* palette from a picture: k-means in OkLab over a downscaled copy, darkest to lightest */
+function paletteFromImage(img,k){
+  const sc=Math.min(1,96/Math.max(img.width,img.height)),w=Math.max(1,Math.round(img.width*sc)),h=Math.max(1,Math.round(img.height*sc)),[,x]=mkCanvas(w,h);
+  x.drawImage(img,0,0,w,h);const d=x.getImageData(0,0,w,h).data,px=[];
+  for(let i=0;i<d.length;i+=4)if(d[i+3]>128)px.push(toOk([d[i]/255,d[i+1]/255,d[i+2]/255]));
+  if(!px.length)return [];k=Math.min(k,px.length);
+  const dist=(a,b)=>(a[0]-b[0])**2+(a[1]-b[1])**2+(a[2]-b[2])**2,r=rnd(12345),C=[px[Math.floor(r()*px.length)].slice()];
+  while(C.length<k){let sum=0;const dd=px.map(p=>{let m=Infinity;for(const q of C)m=Math.min(m,dist(p,q));sum+=m;return m;});
+    if(!sum)break;let t=r()*sum,i=0;for(;i<px.length-1;i++){t-=dd[i];if(t<=0)break;}C.push(px[i].slice());}
+  for(let it=0;it<15;it++){const acc=C.map(()=>[0,0,0,0]);
+    px.forEach(p=>{let b=0,bm=Infinity;C.forEach((q,j)=>{const m=dist(p,q);if(m<bm){bm=m;b=j;}});const A=acc[b];A[0]+=p[0];A[1]+=p[1];A[2]+=p[2];A[3]++;});
+    acc.forEach((A,j)=>{if(A[3])C[j]=[A[0]/A[3],A[1]/A[3],A[2]/A[3]];});}
+  return [...new Set(C.sort((a,b)=>a[0]-b[0]).map(q=>rgbToHex(fromOk(q))))];
+}
+$('palImgBtn').addEventListener('click',()=>$('palImg').click());
+$('palImg').addEventListener('change',e=>{const f=e.target.files[0];e.target.value='';if(!f)return;
+  const url=URL.createObjectURL(f),im=new Image();
+  im.onload=()=>{URL.revokeObjectURL(url);const list=paletteFromImage(im,8);if(!list.length){toast('В картинке нет непрозрачных пикселей');return;}
+    const name='Из картинки: '+f.name.replace(/\.[^.]+$/,'').slice(0,24);
+    if(!PALETTES[name]){const o=document.createElement('option');o.value=o.textContent=name;palSel.appendChild(o);}
+    PALETTES[name]=list;palSel.value=name;renderPal();
+    try{const cp=JSON.parse(localStorage.getItem('kr_pals')||'{}');delete cp[name];cp[name]=list;const ks=Object.keys(cp);while(ks.length>8)delete cp[ks.shift()];localStorage.setItem('kr_pals',JSON.stringify(cp));}catch(_){}
+    toast('Палитра собрана: '+list.length+' цветов');};
+  im.onerror=()=>{URL.revokeObjectURL(url);toast('Не удалось открыть картинку');};im.src=url;});
+/* brush shapes */
+var brushCv={},brushT=0;
+Object.keys(BRUSHES).forEach(k=>{const b=document.createElement('button');b.className='pat'+(k===st.brush?' on':'');b.dataset.b=k;b.title='Кисть: '+BRUSHES[k];
+  const c=document.createElement('canvas');c.width=90;c.height=30;const sp=document.createElement('span');sp.textContent=BRUSHES[k];b.append(c,sp);
+  b.addEventListener('click',()=>{st.brush=k;document.querySelectorAll('#brushes .pat').forEach(x=>x.classList.toggle('on',x===b));});$('brushes').appendChild(b);brushCv[k]=c;});
+function renderBrushes(){if(!brushCv)return;clearTimeout(brushT);brushT=setTimeout(()=>Object.keys(brushCv).forEach(k=>brushPreview(brushCv[k],k)),60);}
+renderBrushes();
+document.querySelectorAll('#symChips .chip').forEach(b=>b.addEventListener('click',()=>{st.sym=+b.dataset.s;document.querySelectorAll('#symChips .chip').forEach(x=>x.classList.toggle('on',x===b));}));
+
 try{const p=localStorage.getItem('kr_pal');if(p&&PALETTES[p])palSel.value=p;}catch(e){}
 renderPal();
 function addRecent(){const h=rgbToHex(st.color);st.recent=[h,...st.recent.filter(x=>x!==h)].slice(0,8);const box=$('recent');box.innerHTML='';st.recent.forEach(x=>box.appendChild(swatch(x,y=>setColor(hexToRgb(y)))));}
@@ -1151,7 +1282,7 @@ GPRESETS.forEach(p=>{const b=document.createElement('button');b.className='gp';b
 /* ---------- UI: sliders & toggles ---------- */
 function bindSlider(id,fn,fmt){const el=$(id),o=$(id+'O');const f=()=>{fn(+el.value);o.textContent=fmt(+el.value);};el.addEventListener('input',f);f();}
 bindSlider('radius',v=>st.radius=v/100,v=>v+'%');
-bindSlider('hard',v=>st.hard=v/100,v=>v);
+bindSlider('hard',v=>{st.hard=v/100;renderBrushes();},v=>v);
 bindSlider('strength',v=>{st.strength=v/100;gradLive();},v=>v);
 bindSlider('angle',v=>st.angle=v,v=>v+'°');
 function liveSet(k,v){st.decal[k]=v;if(selDec&&decalOps.includes(selDec)&&(st.tool==='decal'||st.tool==='dedit')&&!ddrag){beginEdit();selDec[k==='op'?'alpha':k]=v;redrawEdit();}}
@@ -1171,12 +1302,13 @@ bindSlider('dRot',v=>liveSet('rot',v),v=>v+'°');
 bindSlider('dOp',v=>liveSet('op',v/100),v=>v);
 $('dFlip').addEventListener('change',e=>{liveSet('flip',e.target.checked);commitEdit();});
 $('dWrap').addEventListener('change',e=>{liveSet('wrap',e.target.checked);commitEdit();});
+$('layDel').addEventListener('click',()=>{const o=curLayer();if(!o||!decalOps.includes(o)){toast('Сначала выбери слой в списке');return;}if(o.k==='grad')deleteGrad();else deleteDecal();});
 [['layTop','top'],['layUp','up'],['layDown','down'],['layBottom','bottom']].forEach(([id,d])=>$(id).addEventListener('click',()=>moveLayer(d)));
 $('dDel').addEventListener('click',()=>{if(selDec)deleteDecal();else toast('Сначала выбери наклейку на модели');});
 $('decalIn').addEventListener('change',e=>{[...e.target.files].forEach(loadDecalFile);e.target.value='';});
 $('dClear').addEventListener('click',()=>{commitEdit();if(!bakedBase&&!decalOps.some(o=>o.k==='decal')){toast('Наклеек пока нет');return;}
-  pushUndo({tex:snapAllTex(),decals:decalOps.slice(),baked:bakedBase});decalOps=decalOps.filter(o=>o.k==='grad');bakedBase=null;selDec=null;replay(decalOps);
-  toast(decalOps.length?'Наклейки убраны, градиенты остались':'Наклейки убраны');});
+  pushUndo({tex:snapAllTex(),decals:decalOps.slice(),baked:bakedBase});decalOps=decalOps.filter(o=>o.k!=='decal');bakedBase=null;selDec=null;replay(decalOps);
+  toast(decalOps.length?'Наклейки убраны, градиенты и мазки остались':'Наклейки убраны');});
 $('litChk').addEventListener('change',e=>{st.lit=e.target.checked;meshes.forEach(d=>{const kr=d.mesh.userData.kr;d.mesh.material=st.lit?kr.mLit:kr.mFlat;});});
 $('wireChk').addEventListener('change',e=>{st.wire=e.target.checked;meshes.forEach(d=>{if(d.wire)d.wire.visible=st.wire;});});
 $('bakeChk').addEventListener('change',e=>st.bake=e.target.checked);
@@ -1287,7 +1419,8 @@ async function saveProject(){
     const lim={shown:o.lim.shown,sel:!!o.lim.sel};if(o.lim.sel)o.lim.sel.forEach((a,mi)=>{if(a)z.file('sel/'+oi+'_'+mi+'.bin',a);});
     if(o.k==='grad')return {k:'grad',A:v3a(o.A),B:v3a(o.B),V:v3a(o.V),stops:o.stops,type:o.type,mode:o.mode,steps:o.steps,pat:o.pat,scale:o.scale,alpha:o.alpha,name:o.name,lim};
     if(o.k==='decal')return {k:'decal',P:v3a(o.P),N:v3a(o.N),X:v3a(o.base.X),Y:v3a(o.base.Y),rot:o.rot,size:o.size,alpha:o.alpha,flip:o.flip,wrap:o.wrap,dec:decId(o.dec),lim};
-    return {k:'erase',pts:o.pts.map(v3a),R:o.R,h:o.h,s:o.s,lim};});
+    if(o.k==='paint')return {k:'paint',shape:o.shape,c:o.c,R:o.R,s:o.s,h:o.h,seed:o.seed,sym:o.sym,mc:o.mc,pts:o.pts.map(q=>v3a(q.P).concat(v3a(q.N),v3a(q.X))),lim};
+    return {k:'erase',pts:o.pts.map(v3a),R:o.R,h:o.h,s:o.s,sym:o.sym,mc:o.mc,lim};});
   meshes.forEach((d,i)=>{const kr=d.mesh.userData.kr;
     z.file('parts/'+i+'/colors.bin',new Uint8Array(d.mesh.geometry.attributes.color.array.buffer.slice(0)));
     if(kr.has)z.file('parts/'+i+'/decals.bin',kr.data);
@@ -1327,7 +1460,8 @@ async function loadProject(buf,fname){
       if(o.lim.sel){lim.sel=[];for(let mi=0;mi<meshes.length;mi++){const m=await bin('sel/'+oi+'_'+mi+'.bin',Uint8Array);lim.sel[mi]=m||(o.k==='grad'?null:new Uint8Array(meshes[mi].tris));}}
       if(o.k==='grad'){ops.push({k:'grad',A:a3v(o.A),B:a3v(o.B),V:a3v(o.V),stops:o.stops,type:o.type,mode:o.mode,steps:o.steps,pat:o.pat,scale:o.scale,alpha:o.alpha,name:o.name,lim});gradNo=Math.max(gradNo,+(/\d+$/.exec(o.name)||[0])[0]);continue;}
       if(o.k==='decal')ops.push({k:'decal',P:a3v(o.P),N:a3v(o.N),base:{X:a3v(o.X),Y:a3v(o.Y)},rot:o.rot,size:o.size,alpha:o.alpha,flip:o.flip,wrap:o.wrap,dec:stickers[o.dec],lim});
-      else ops.push({k:'erase',pts:o.pts.map(a3v),R:o.R,h:o.h,s:o.s,lim});}
+      else if(o.k==='paint')ops.push({k:'paint',shape:o.shape,c:o.c,R:o.R,s:o.s,h:o.h,seed:o.seed,sym:o.sym,mc:o.mc,pts:o.pts.map(a=>({P:a3v(a.slice(0,3)),N:a3v(a.slice(3,6)),X:a3v(a.slice(6,9))})),lim});
+      else ops.push({k:'erase',pts:o.pts.map(a3v),R:o.R,h:o.h,s:o.s,sym:o.sym==null?-1:o.sym,mc:o.mc,lim});}
     decalOps=ops;st.bake=!!P.bake;$('bakeChk').checked=st.bake;
     renderParts();layKey='';toast('Проект открыт: '+fname);
   }catch(e){toast('Проект не открылся: '+(e&&e.message||e));}
@@ -1356,7 +1490,7 @@ $('exportBtn').addEventListener('click',async()=>{
   toast(bake?'Запекаю текстуру и собираю GLB…':'Собираю GLB…');
   await new Promise(r=>setTimeout(r,30));
   const ex=new THREE.GLTFExporter();
-  meshes.forEach(d=>{if(d.selMesh)d.selMesh.visible=false;if(d.wire)d.wire.visible=false;});ring.visible=ringIn.visible=false;
+  meshes.forEach(d=>{if(d.selMesh)d.selMesh.visible=false;if(d.wire)d.wire.visible=false;});ring.visible=ringIn.visible=ring2.visible=ringIn2.visible=false;
   const prevVis=meshes.map(shown);meshes.forEach(d=>{d.mesh.visible=true;});
   const prevMats=meshes.map(d=>d.mesh.material),savedCols=meshes.map(d=>d.mesh.geometry.attributes.color);
   meshes.forEach(d=>{const g=d.mesh.geometry;
@@ -1386,7 +1520,7 @@ $('texBtn').addEventListener('click',async()=>{
   await saveBlob(base+'_textures.zip',await z.generateAsync({type:'blob'}));
 });
 $('shotBtn').addEventListener('click',()=>{
-  meshes.forEach(d=>{if(d.selMesh)d.selMesh.visible=false;});ring.visible=ringIn.visible=false;if(grid)grid.visible=false;
+  meshes.forEach(d=>{if(d.selMesh)d.selMesh.visible=false;});ring.visible=ringIn.visible=ring2.visible=ringIn2.visible=false;if(grid)grid.visible=false;
   renderer.render(scene,camera);canvas.toBlob(b=>{meshes.forEach(d=>{if(d.selMesh)d.selMesh.visible=true;});if(grid)grid.visible=true;if(b)saveBlob((modelName||'model')+'.png',b);},'image/png');
 });
 
