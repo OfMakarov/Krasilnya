@@ -86,6 +86,12 @@ header{grid-column:1/-1;display:flex;align-items:center;gap:12px;padding-inline:
 .chip{height:30px;padding:0 10px;border-radius:999px;border:1px solid var(--line);background:var(--surface-2);cursor:pointer;font-size:12.5px}
 .chip.on{border-color:var(--accent);color:var(--accent)}
 .gpres{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.pats{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.pat{display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px 2px;border-radius:6px;border:1px solid var(--line);background:transparent;color:inherit;font:inherit;font-size:11px;cursor:pointer}
+.pat canvas{width:100%;height:22px;border-radius:3px;display:block}
+.pat.on{border-color:var(--accent);background:var(--surface-2)}
+.gsel{display:flex;gap:6px;align-items:center;font-size:13px}
+.gsel span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
 .gp{height:26px;border-radius:6px;border:1px solid var(--sw-line);cursor:pointer;padding:0}
 .sl{display:grid;grid-template-columns:96px 1fr 44px;gap:8px;align-items:center;font-size:13px}
 .sl output{font-family:var(--f-mono);font-size:12px;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
@@ -239,21 +245,21 @@ body{font-size:13px}
         <label class="chk"><input type="checkbox" id="dWrap" checked> Загибать на боковые грани</label>
       </div>
       <div class="row"><button class="btn" id="dDel" hidden>Удалить выбранную</button><button class="btn" id="dClear">Убрать все наклейки</button></div>
-      <div class="laysec">
-        <h3>Слои наклеек</h3>
-        <p class="hint" id="layersEmpty">Наклеек пока нет.</p>
-        <div class="layers" id="layers"></div>
-        <div class="row">
-          <button class="btn icon" id="layTop" title="На самый верх" aria-label="На самый верх"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h14"/><path d="m7 14 5-5 5 5"/><path d="M12 9v11"/></svg></button>
-          <button class="btn icon" id="layUp" title="Выше" aria-label="Выше"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 11 5-5 5 5"/><path d="M12 6v13"/></svg></button>
-          <button class="btn icon" id="layDown" title="Ниже" aria-label="Ниже"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 13 5 5 5-5"/><path d="M12 18V5"/></svg></button>
-          <button class="btn icon" id="layBottom" title="В самый низ" aria-label="В самый низ"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20h14"/><path d="m7 10 5 5 5-5"/><path d="M12 15V4"/></svg></button>
-        </div>
-        <p class="hint">Верхние слои перекрывают нижние: царапины вниз, пластырь наверх. Чтобы заменить картинку у выбранной наклейки, нажми на другую картинку в библиотеке выше (в режиме «Правка наклеек»).</p>
-      </div>
       <p class="hint">Выбери наклейку и веди по модели: она едет за пальцем и приклеивается, когда отпускаешь. Только что поставленную наклейку можно сразу двигать и менять ползунками. Любую другую — инструментом «Правка наклеек» (T). Свои PNG с прозрачным фоном добавляй через «+» или перетаскиванием.</p>
     </section>
 
+    <section class="sec" data-tab="paint" data-tools="decal dedit gradient">
+      <h3>Слои</h3>
+      <p class="hint" id="layersEmpty">Слоёв пока нет: их создают наклейки и градиенты.</p>
+      <div class="layers" id="layers"></div>
+      <div class="row">
+        <button class="btn icon" id="layTop" title="На самый верх" aria-label="На самый верх"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h14"/><path d="m7 14 5-5 5 5"/><path d="M12 9v11"/></svg></button>
+        <button class="btn icon" id="layUp" title="Выше" aria-label="Выше"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 11 5-5 5 5"/><path d="M12 6v13"/></svg></button>
+        <button class="btn icon" id="layDown" title="Ниже" aria-label="Ниже"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 13 5 5 5-5"/><path d="M12 18V5"/></svg></button>
+        <button class="btn icon" id="layBottom" title="В самый низ" aria-label="В самый низ"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20h14"/><path d="m7 10 5 5 5-5"/><path d="M12 15V4"/></svg></button>
+      </div>
+      <p class="hint">Верхние слои перекрывают нижние: царапины вниз, пластырь наверх. Наклейки и градиенты лежат в одном списке. Чтобы заменить картинку у выбранной наклейки, нажми на другую картинку в библиотеке (в режиме «Правка наклеек»).</p>
+    </section>
     <section class="sec" data-tab="paint" data-tools="gradient">
       <h3>Градиент</h3>
       <div>
@@ -270,8 +276,18 @@ body{font-size:13px}
         <button class="chip" data-g="radial">Радиальный</button>
         <button class="chip" data-g="mirror">Зеркальный</button>
       </div>
+      <div class="sl"><label for="stopA">Непрозрачн. точки</label><input type="range" id="stopA" min="0" max="100" value="100"><output id="stopAO">100</output></div>
+      <div class="chips" id="gMode" aria-label="Переход">
+        <button class="chip on" data-m="smooth">Плавный</button>
+        <button class="chip" data-m="steps">Ступени</button>
+        <button class="chip" data-m="pattern">Узор</button>
+      </div>
+      <div class="sl" id="gStepsRow" hidden><label for="gSteps">Тонов</label><input type="range" id="gSteps" min="2" max="8" value="3"><output id="gStepsO">3</output></div>
+      <div class="pats" id="gPats" hidden></div>
+      <div class="sl" id="gScaleRow" hidden><label for="gScale">Размер узора</label><input type="range" id="gScale" min="1" max="15" value="3"><output id="gScaleO">3%</output></div>
       <div class="gpres" id="gPresets"></div>
-      <p class="hint">Проведи линию по модели: от первой точки градиента ко второй. Красится выделение, а если его нет — область под началом линии.</p>
+      <div class="gsel" id="gSelRow" hidden><span id="gSelName"></span><button class="btn" id="gNew">Новый</button><button class="btn" id="gDel">Удалить</button></div>
+      <p class="hint">Проведи линию по модели: получится новый слой градиента, их может быть сколько угодно. Пока градиент выбран, всё, что меняешь здесь, меняет его, а кружки на концах линии можно перетаскивать. Клик по модели выбирает градиент под курсором, «Новый» или Esc снимает выбор. Красится выделение; если его нет — область под началом линии, а если начать с пустого места — все видимые детали.</p>
     </section>
 
     <section class="sec" data-tab="paint">
@@ -365,10 +381,10 @@ const GPRESETS=[
 ];
 
 /* ---------- state ---------- */
-const st={tool:'brush',color:[1,0.824,0.247],grad:{type:'linear',stops:[{p:0,c:'#FF7E5F'},{p:1,c:'#FEB47B'}],sel:0},
+const st={tool:'brush',color:[1,0.824,0.247],grad:{type:'linear',stops:[{p:0,c:'#FF7E5F',a:1},{p:1,c:'#FEB47B',a:1}],sel:0,mode:'smooth',steps:3,pat:'dots',scale:0.03},
   radius:0.08,hard:0.6,strength:1,angle:30,recent:[],lit:true,wire:false,
   decal:{list:[],cur:0,size:0.22,rot:0,op:1,flip:false,wrap:true},bake:false};
-const LUT=new Float32Array(256*3);
+let LUT=new Float32Array(256*4);
 
 /* ---------- three setup ---------- */
 const canvas=$('cv'),stage=$('stage');
@@ -505,7 +521,7 @@ function buildData(m){
 function addWire(d){const w=new THREE.Mesh(d.mesh.geometry,wireMat);w.visible=st.wire;w.raycast=()=>{};d.mesh.add(w);d.wire=w;}
 function setModel(obj,name){
   while(root.children.length)root.remove(root.children[0]);
-  meshes=[];decalOps=[];bakedBase=null;selDec=null;editSnap=null;modelName=(name||'model').replace(/\.[^.]+$/,'');
+  meshes=[];decalOps=[];bakedBase=null;selDec=null;selGrad=null;edOp=null;editSnap=null;gradNo=0;modelName=(name||'model').replace(/\.[^.]+$/,'');
   root.add(obj);root.updateMatrixWorld(true);
   const list=[];obj.traverse(o=>{if(o.isMesh)list.push(o);});
   if(!list.length){toast('В файле нет мешей');return;}
@@ -607,7 +623,7 @@ function restoreTex(map){map.forEach((arr,i)=>{const d=meshes[i];if(!d)return;co
 function entryBytes(e){let b=0;if(e.cols)e.cols.forEach(a=>b+=a.byteLength);if(e.tex)e.tex.forEach(a=>b+=a.byteLength);return b;}
 function pushUndo(e){undo.push(e);redo.length=0;
   let total=undo.reduce((s,x)=>s+entryBytes(x),0);while(undo.length>1&&(undo.length>40||total>220e6)){total-=entryBytes(undo.shift());}updUndo();}
-function apply(e){if(e.cols)restoreCols(e.cols);if(e.tex)restoreTex(e.tex);if(e.decals){decalOps=e.decals.slice();selDec=null;}if('baked' in e)bakedBase=e.baked;}
+function apply(e){if(e.cols)restoreCols(e.cols);if(e.tex)restoreTex(e.tex);if(e.decals){decalOps=e.decals.slice();selDec=null;selGrad=null;updGradSel();}if('baked' in e)bakedBase=e.baked;}
 function mirror(e){const o={};if(e.cols)o.cols=snapCols();if(e.tex)o.tex=snapTexLike(e.tex);if(e.decals)o.decals=decalOps.slice();if('baked' in e)o.baked=bakedBase;return o;}
 function doUndo(){commitEdit();if(!undo.length)return;const e=undo.pop();redo.push(mirror(e));apply(e);updUndo();}
 function doRedo(){commitEdit();if(!redo.length)return;const e=redo.pop();undo.push(mirror(e));apply(e);updUndo();}
@@ -672,43 +688,112 @@ function fillAt(hit){
     for(let t=0;t<d.tris;t++){if(mask&&!mask[t])continue;for(let k=0;k<3;k++){const i=(t*3+k)*3;col[i]+=(c[0]-col[i])*s;col[i+1]+=(c[1]-col[i+1])*s;col[i+2]+=(c[2]-col[i+2])*s;}}
     ca.needsUpdate=true;});
 }
-function buildLUT(){
-  const S=st.grad.stops.slice().sort((a,b)=>a.p-b.p).map(x=>({p:x.p,o:toOk(hexToRgb(x.c))}));
+/* gradient colours: 256 RGBA steps, colours mixed in OkLab, alpha linearly */
+function gradLUT(stops){
+  const S=stops.slice().sort((a,b)=>a.p-b.p).map(x=>({p:x.p,o:toOk(hexToRgb(x.c)),a:x.a==null?1:x.a})),L=new Float32Array(256*4);
   for(let i=0;i<256;i++){const t=i/255;let a=S[0],b=S[S.length-1],f;
     if(t<=S[0].p){a=b=S[0];f=0;}else if(t>=S[S.length-1].p){a=b=S[S.length-1];f=0;}
     else{for(let k=0;k<S.length-1;k++){if(t>=S[k].p&&t<=S[k+1].p){a=S[k];b=S[k+1];break;}}f=(t-a.p)/Math.max(1e-6,b.p-a.p);}
     const rgb=fromOk([a.o[0]+(b.o[0]-a.o[0])*f,a.o[1]+(b.o[1]-a.o[1])*f,a.o[2]+(b.o[2]-a.o[2])*f]);
-    LUT[i*3]=rgb[0];LUT[i*3+1]=rgb[1];LUT[i*3+2]=rgb[2];}
+    L[i*4]=rgb[0];L[i*4+1]=rgb[1];L[i*4+2]=rgb[2];L[i*4+3]=a.a+(b.a-a.a)*f;}
+  return L;
 }
-let gdrag=null;
-function gradStart(cx,cy){
-  const hit=pick(cx,cy);const r=canvas.getBoundingClientRect();
-  const ts=targets(hit);const base=snapCols();
-  const v=new THREE.Vector3();
-  const parts=ts.map(({d,mask})=>{const idx=[];for(let t=0;t<d.tris;t++){if(mask&&!mask[t])continue;idx.push(t*3,t*3+1,t*3+2);}
-    const sx=new Float32Array(idx.length),sy=new Float32Array(idx.length);
-    idx.forEach((i,k)=>{v.set(d.world[i*3],d.world[i*3+1],d.world[i*3+2]).project(camera);sx[k]=(v.x+1)/2*r.width;sy[k]=(1-v.y)/2*r.height;});
-    return {d,idx,sx,sy,bi:meshes.indexOf(d)};});
-  gdrag={ax:cx-r.left,ay:cy-r.top,bx:cx-r.left,by:cy-r.top,parts,base,moved:false};
+function buildLUT(){LUT=gradLUT(st.grad.stops);}
+const cloneStops=a=>a.map(s=>({p:s.p,c:s.c,a:s.a==null?1:s.a}));
+/* halftone patterns: a 32×32 threshold tile per shape, ranked so that coverage f fills exactly f of the cell */
+const PAT_N=32,PAT=(()=>{const N=PAT_N,mk=f=>{const v=[];for(let y=0;y<N;y++)for(let x=0;x<N;x++){const a=(x+0.5)/N-0.5,b=(y+0.5)/N-0.5;v.push([f(a,b)+((x*7+y*13)%17)*1e-7,y*N+x]);}
+    v.sort((p,q)=>p[0]-q[0]);const t=new Float32Array(N*N);v.forEach((p,r)=>t[p[1]]=(r+0.5)/(N*N));return t;};
+  return {dots:mk((a,b)=>a*a+b*b),diamonds:mk((a,b)=>Math.abs(a)+Math.abs(b)),squares:mk((a,b)=>Math.max(Math.abs(a),Math.abs(b))),lines:mk((a,b)=>Math.abs(b)),hatch:mk((a,b)=>Math.min(Math.abs(a),Math.abs(b)))};})();
+const PAT_NAMES={dots:'Точки',diamonds:'Ромбы',squares:'Квадраты',lines:'Полосы',hatch:'Сетка'};
+function patThr(tile,u,v){const N=PAT_N;return tile[(Math.floor((v-Math.floor(v))*N)%N)*N+Math.floor((u-Math.floor(u))*N)%N];}
+/* t in 0..1 along the gradient -> LUT position, with steps (cel shading) or a halftone pattern between neighbouring tones */
+function gradQ(g,tile,t,pu,pv){
+  if(g.mode==='steps'){const n=Math.max(2,g.steps|0);return Math.min(n-1,Math.floor(t*n))/(n-1);}
+  if(g.mode==='pattern'){const n=Math.max(2,g.steps|0),x=t*(n-1),i=Math.min(n-2,Math.floor(x)),f=x-i;return (i+(patThr(tile,pu,pv)<f?1:0))/(n-1);}
+  return t;
+}
+
+/* Gradient layer: a plane gradient from A to B measured across the view direction V it was drawn from.
+   Painted into the decal texture like a sticker, so several can overlap, be reordered and edited later. */
+let gdrag=null,gradNo=0,gradDirty=false;
+function gradPixels(o,mi,d){ /* texels covered by the gradient's area on this part, each once */
+  o._px=o._px||[];if(o._px[mi])return o._px[mi];
+  const kr=d.mesh.userData.kr,W=kr.W,w=d.world,m=o.lim.sel&&o.lim.sel[mi],seen=new Uint8Array(W*W),idx=[],pos=[];
+  for(let t=0;t<d.tris;t++){if(m&&!m[t])continue;const a=t*9;
+    rasterTri(kr.uv,t,W,W,1.2,(p,w0,w1,w2)=>{if(seen[p])return;seen[p]=1;idx.push(p);
+      pos.push(w0*w[a]+w1*w[a+3]+w2*w[a+6],w0*w[a+1]+w1*w[a+4]+w2*w[a+7],w0*w[a+2]+w1*w[a+5]+w2*w[a+8]);});}
+  return o._px[mi]={idx:Int32Array.from(idx),pos:Float32Array.from(pos)};
+}
+function stampGrad(o){
+  const L=gradLUT(o.stops),A=o.A,V=o.V,D=o.B.clone().sub(A);D.addScaledVector(V,-D.dot(V));const len=D.length();
+  if(len<modelSize*1e-4){delete o._px;return;}
+  const U=D.clone().divideScalar(len),Q=new THREE.Vector3().crossVectors(V,U),cell=Math.max(1e-6,o.scale*modelSize),tile=PAT[o.pat]||PAT.dots;
+  meshes.forEach((d,mi)=>{if(!o.lim.shown[mi])return;const px=gradPixels(o,mi,d),idx=px.idx,pos=px.pos;if(!idx.length)return;touchTex(mi);
+    const kr=d.mesh.userData.kr,out=kr.data;
+    for(let k=0;k<idx.length;k++){const rx=pos[k*3]-A.x,ry=pos[k*3+1]-A.y,rz=pos[k*3+2]-A.z,along=rx*U.x+ry*U.y+rz*U.z;let t;
+      if(o.type==='radial'){const across=rx*Q.x+ry*Q.y+rz*Q.z;t=Math.sqrt(along*along+across*across)/len;}
+      else{t=along/len;if(o.type==='mirror')t=Math.abs(t);}
+      t=t<0?0:t>1?1:t;
+      const q=o.mode==='pattern'?gradQ(o,tile,t,along/cell,(rx*Q.x+ry*Q.y+rz*Q.z)/cell):gradQ(o,tile,t,0,0);
+      const li=Math.round(q*255)*4,sa=L[li+3]*o.alpha;if(sa<=0.002)continue;
+      const o4=idx[k]*4,da=out[o4+3]/255,oa=sa+da*(1-sa),k1=sa/oa,k2=da*(1-sa)/oa;
+      out[o4]=L[li]*255*k1+out[o4]*k2;out[o4+1]=L[li+1]*255*k1+out[o4+1]*k2;out[o4+2]=L[li+2]*255*k1+out[o4+2]*k2;out[o4+3]=oa*255;}
+    kr.tex.needsUpdate=true;kr.has=true;});
+  if(o!==edOp)delete o._px; /* keep the texel list only while this gradient is being edited */
+}
+function camDir(){return camera.getWorldDirection(new THREE.Vector3());}
+function planeHit(cx,cy,P,N){
+  const r=canvas.getBoundingClientRect();ndc.set(((cx-r.left)/r.width)*2-1,-((cy-r.top)/r.height)*2+1);ray.setFromCamera(ndc,camera);
+  return ray.ray.intersectPlane(new THREE.Plane().setFromNormalAndCoplanarPoint(N,P),new THREE.Vector3());
+}
+function toScreen(v){const r=canvas.getBoundingClientRect(),p=v.clone().project(camera);return [(p.x+1)/2*r.width,(1-p.y)/2*r.height,p.z];}
+function gradHandleAt(cx,cy){
+  if(!selGrad||!decalOps.includes(selGrad))return null;const r=canvas.getBoundingClientRect();
+  for(const h of ['B','A']){const p=toScreen(selGrad[h]);if(p[2]<1&&Math.hypot(p[0]-(cx-r.left),p[1]-(cy-r.top))<16)return h;}
+  return null;
+}
+function gradHitTest(hit){ /* topmost gradient whose area covers the hit triangle */
+  if(!hit)return null;const mi=meshes.indexOf(hit.d);
+  for(let i=decalOps.length-1;i>=0;i--){const o=decalOps[i];if(o.k!=='grad'||!o.lim.shown[mi])continue;const m=o.lim.sel&&o.lim.sel[mi];if(!m||m[hit.tri])return o;}
+  return null;
+}
+function gradStart(cx,cy,hit){
+  commitEdit();
+  const h=gradHandleAt(cx,cy);
+  if(h){const orig=selGrad;beginEdit(selGrad);gdrag={h,P:selGrad[h].clone(),N:camDir(),orig,sx:cx,sy:cy};canvas.style.cursor='grabbing';return;}
+  const V=camDir(),P0=hit?hit.point.clone():controls.target.clone(),A=planeHit(cx,cy,P0,V)||P0,ts=targets(hit);
+  const lim={shown:meshes.map(d=>ts.some(x=>x.d===d)),sel:meshes.map(d=>{const x=ts.find(y=>y.d===d);return x&&x.mask?x.mask.slice():null;})};
+  const g=st.grad,o={k:'grad',A,B:A.clone(),V,stops:cloneStops(g.stops),type:g.type,mode:g.mode,steps:g.steps,pat:g.pat,scale:g.scale,alpha:st.strength,lim,name:'Градиент '+(gradNo+1)};
+  editSnap={tex:snapAllTex(),decals:decalOps.slice(),baked:bakedBase};editBase=meshes.map(d=>d.mesh.userData.kr.data.slice());
+  decalOps.push(o);edOp=o;
+  gdrag={h:'B',P:A.clone(),N:V,fresh:true,prev:selGrad,hit,sx:cx,sy:cy};
 }
 function gradMove(cx,cy){
-  if(!gdrag)return;const r=canvas.getBoundingClientRect();gdrag.bx=cx-r.left;gdrag.by=cy-r.top;
-  const dx=gdrag.bx-gdrag.ax,dy=gdrag.by-gdrag.ay,L2=dx*dx+dy*dy;drawGradLine();
-  if(L2<36)return;gdrag.moved=true;
-  const s=st.strength,type=st.grad.type,L=Math.sqrt(L2);
-  gdrag.parts.forEach(p=>{const ca=p.d.mesh.geometry.attributes.color,col=ca.array,base=gdrag.base[p.bi];
-    for(let k=0;k<p.idx.length;k++){const i=p.idx[k],px=p.sx[k]-gdrag.ax,py=p.sy[k]-gdrag.ay;let t;
-      if(type==='radial')t=Math.sqrt(px*px+py*py)/L;else{t=(px*dx+py*dy)/L2;if(type==='mirror')t=Math.abs(t);}
-      t=clamp01(t);const li=Math.round(t*255)*3,o=i*3;
-      col[o]=base[o]+(LUT[li]-base[o])*s;col[o+1]=base[o+1]+(LUT[li+1]-base[o+1])*s;col[o+2]=base[o+2]+(LUT[li+2]-base[o+2])*s;}
-    ca.needsUpdate=true;});
+  if(!gdrag||!edOp)return;
+  if(!gdrag.moved&&Math.hypot(cx-gdrag.sx,cy-gdrag.sy)<6)return;
+  const p=planeHit(cx,cy,gdrag.P,gdrag.N);if(!p)return;
+  if(gdrag.fresh&&!gdrag.moved){selGrad=edOp;gradNo++;}
+  gdrag.moved=true;edOp[gdrag.h]=p;gradDirty=true;
 }
-function gradEnd(){if(!gdrag)return;if(gdrag.moved)pushUndo({cols:gdrag.base});else restoreCols(gdrag.base);gdrag=null;$('gradSvg').innerHTML='';}
-function drawGradLine(){const g=gdrag;if(!g)return;
-  const a=st.grad.stops.slice().sort((x,y)=>x.p-y.p);const c0=a[0].c,c1=a[a.length-1].c;
-  let extra='';if(st.grad.type==='radial'){const R=Math.hypot(g.bx-g.ax,g.by-g.ay);extra=`<circle cx="${g.ax}" cy="${g.ay}" r="${R}" fill="none" stroke="#fff" stroke-opacity=".5" stroke-dasharray="5 5"/>`;}
-  $('gradSvg').innerHTML=extra+`<line x1="${g.ax}" y1="${g.ay}" x2="${g.bx}" y2="${g.by}" stroke="#000" stroke-opacity=".5" stroke-width="4"/><line x1="${g.ax}" y1="${g.ay}" x2="${g.bx}" y2="${g.by}" stroke="#fff" stroke-width="2"/>`+
-  `<circle cx="${g.ax}" cy="${g.ay}" r="8" fill="${c0}" stroke="#fff" stroke-width="2.5"/><circle cx="${g.bx}" cy="${g.by}" r="8" fill="${c1}" stroke="#fff" stroke-width="2.5"/>`;}
+function gradEnd(){
+  const g=gdrag;gdrag=null;if(!g)return;
+  if(g.moved){if(gradDirty){gradDirty=false;redrawEdit();}commitEdit();updGradSel();applyControlMode();return;}
+  /* a click without dragging: pick the gradient under the cursor, or drop the selection */
+  if(g.fresh){restoreTex(editSnap.tex);decalOps=editSnap.decals;bakedBase=editSnap.baked;editSnap=null;editBase=null;edOp=null;
+    const o=gradHitTest(g.hit);if(o)selectGrad(o);else{selGrad=null;updGradSel();}}
+  else{restoreTex(editSnap.tex);decalOps=editSnap.decals;bakedBase=editSnap.baked;editSnap=null;editBase=null;edOp=null;selGrad=g.orig;}
+  applyControlMode();
+}
+let ghKey='';
+function drawGradHandles(){
+  const svg=$('gradSvg'),o=selGrad,on=o&&st.tool==='gradient'&&decalOps.includes(o);
+  if(!on){if(ghKey){svg.innerHTML='';ghKey='';}return;}
+  const a=toScreen(o.A),b=toScreen(o.B),s=o.stops.slice().sort((x,y)=>x.p-y.p),c0=s[0].c,c1=s[s.length-1].c;
+  const key=[a[0],a[1],b[0],b[1]].map(v=>v.toFixed(1)).join(',')+o.type+c0+c1;if(key===ghKey)return;ghKey=key;
+  let extra='';if(o.type==='radial'){const R=Math.hypot(b[0]-a[0],b[1]-a[1]);extra=`<circle cx="${a[0]}" cy="${a[1]}" r="${R}" fill="none" stroke="#fff" stroke-opacity=".6" stroke-dasharray="6 6"/>`;}
+  svg.innerHTML=extra+`<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="#000" stroke-opacity=".5" stroke-width="4"/><line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="#fff" stroke-width="2"/>`+
+    `<circle cx="${a[0]}" cy="${a[1]}" r="8" fill="${c0}" stroke="#fff" stroke-width="2.5"/><circle cx="${b[0]}" cy="${b[1]}" r="8" fill="${c1}" stroke="#fff" stroke-width="2.5"/>`;
+}
 
 /* ---------- decals ---------- */
 function curDecal(){return st.decal.list[st.decal.cur];}
@@ -726,7 +811,7 @@ function rotFrame(b,deg){const a=deg*Math.PI/180,c=Math.cos(a),s=Math.sin(a);
    An op is {k:'decal',P,N,base,rot,dec,size,alpha,flip,wrap,lim} or {k:'erase',pts,R,h,s,lim};
    lim freezes which parts were visible and what was selected when the op was made.
    The texture is the replay of all ops on top of bakedBase (decals that can no longer be edited, e.g. after subdividing). */
-let decalOps=[],bakedBase=null,selDec=null,editSnap=null,editBase=null;
+let decalOps=[],bakedBase=null,selDec=null,selGrad=null,edOp=null,editSnap=null,editBase=null;
 function curLim(){return {shown:meshes.map(shown),sel:hasSel()?meshes.map(d=>d.sel.slice()):null};}
 function stampDecal(o){
   const P=o.P,N=o.N,fr=rotFrame(o.base,o.rot),dec=o.dec,op=o.alpha,flip=o.flip,lim=o.lim,size=o.size*modelSize;
@@ -766,48 +851,52 @@ function eraseDab(P,o){
 }
 function eraseAt(hit){if(!stroke||!stroke.op)return;const P=hit.point.clone();stroke.op.pts.push(P);eraseDab(P,stroke.op);}
 function snapAllTex(){const m=new Map();meshes.forEach((d,i)=>m.set(i,d.mesh.userData.kr.data.slice()));return m;}
+function stampOp(o){if(o.k==='decal')stampDecal(o);else if(o.k==='grad')stampGrad(o);else o.pts.forEach(P=>eraseDab(P,o));}
 function replay(list){
   meshes.forEach((d,i)=>{const kr=d.mesh.userData.kr;if(bakedBase&&bakedBase[i])kr.data.set(bakedBase[i]);else kr.data.fill(0);kr.has=!!bakedBase;kr.tex.needsUpdate=true;});
   const keep=texOp;texOp=null;
-  list.forEach(o=>{if(o.k==='decal')stampDecal(o);else o.pts.forEach(P=>eraseDab(P,o));});texOp=keep;
+  list.forEach(stampOp);texOp=keep;
 }
 /* editing session: the edited decal keeps its layer; everything under it is rendered once into editBase,
    and on each change it is stamped again with the layers above it replayed on top */
-function beginEdit(){
-  if(editSnap||!selDec)return;
+function beginEdit(sel){
+  sel=sel||selDec;if(editSnap&&edOp!==sel)commitEdit();
+  if(editSnap||!sel)return;
   editSnap={tex:snapAllTex(),decals:decalOps.slice(),baked:bakedBase};
-  const i=decalOps.indexOf(selDec);const c=Object.assign({},selDec);
-  if(i>=0)decalOps[i]=c;else decalOps.push(c);selDec=c;
+  const i=decalOps.indexOf(sel);const c=Object.assign({},sel);delete sel._px;
+  if(i>=0)decalOps[i]=c;else decalOps.push(c);if(sel===selDec)selDec=c;if(sel===selGrad)selGrad=c;edOp=c;
   replay(decalOps.slice(0,decalOps.indexOf(c)));editBase=meshes.map(d=>d.mesh.userData.kr.data.slice());
 }
 function redrawEdit(){
-  if(!editBase||!selDec)return;
+  if(!editBase||!edOp)return;
   meshes.forEach((d,i)=>{const kr=d.mesh.userData.kr;kr.data.set(editBase[i]);kr.tex.needsUpdate=true;});
-  const i=decalOps.indexOf(selDec);if(i<0)return;
+  const i=decalOps.indexOf(edOp);if(i<0)return;
   const keep=texOp;texOp=null;
-  decalOps.slice(i).forEach(o=>{if(o.k==='decal')stampDecal(o);else o.pts.forEach(P=>eraseDab(P,o));});texOp=keep;
+  decalOps.slice(i).forEach(stampOp);texOp=keep;
 }
 /* layer order: 'up'/'down' swap with the neighbouring decal, 'top'/'bottom' move to the end */
+function curLayer(){return st.tool==='gradient'?selGrad:selDec;}
 function moveLayer(dir){
-  if(!selDec||!decalOps.includes(selDec)){toast('Сначала выбери наклейку на модели');return;}
-  commitEdit();const ops=decalOps.slice(),i=ops.indexOf(selDec);let j=i;
-  if(dir==='up'||dir==='down'){const st_=dir==='up'?1:-1;for(let k=i+st_;k>=0&&k<ops.length;k+=st_)if(ops[k].k==='decal'){j=k;break;}}
+  commitEdit();const sel=curLayer();
+  if(!sel||!decalOps.includes(sel)){toast('Сначала выбери слой: наклейку или градиент');return;}
+  const ops=decalOps.slice(),i=ops.indexOf(sel);let j=i;
+  if(dir==='up'||dir==='down'){const st_=dir==='up'?1:-1;for(let k=i+st_;k>=0&&k<ops.length;k+=st_)if(ops[k].k!=='erase'){j=k;break;}}
   else j=dir==='top'?ops.length-1:0;
   if(j===i)return;
   pushUndo({tex:snapAllTex(),decals:decalOps.slice(),baked:bakedBase});
-  ops.splice(i,1);ops.splice(j,0,selDec);decalOps=ops;replay(decalOps);
+  ops.splice(i,1);ops.splice(j,0,sel);decalOps=ops;replay(decalOps);
 }
 let layKey='';
 function renderLayers(){
-  const list=decalOps.filter(o=>o.k==='decal');
-  const key=list.map(o=>o.dec.name).join('|')+'#'+list.indexOf(selDec);if(key===layKey)return;layKey=key;
+  const list=decalOps.filter(o=>o.k!=='erase'),sel=curLayer();
+  const key=list.map(o=>o.k==='grad'?o.name+gradKey(o):o.dec.name).join('|')+'#'+list.indexOf(sel);if(key===layKey)return;layKey=key;
   const box=$('layers');box.innerHTML='';$('layersEmpty').hidden=!!list.length;
-  list.slice().reverse().forEach((o,k)=>{const row=document.createElement('button');row.className='layer'+(o===selDec?' on':'');
-    const im=new Image();im.src=o.dec.url;im.alt='';const nm=document.createElement('span');nm.textContent=o.dec.name;
-    const no=document.createElement('small');no.textContent=list.length-k;row.append(im,nm,no);row.title='Выбрать наклейку «'+o.dec.name+'»';
-    row.addEventListener('click',()=>{commitEdit();selectDecal(o);if(st.tool!=='dedit'&&st.tool!=='decal')setTool('dedit');layKey='';renderLayers();});box.appendChild(row);});
+  list.slice().reverse().forEach((o,k)=>{const row=document.createElement('button');row.className='layer'+(o===sel?' on':'');const g=o.k==='grad',name=g?o.name:o.dec.name;
+    const im=new Image();im.src=g?gradThumb(o):o.dec.url;im.alt='';const nm=document.createElement('span');nm.textContent=name;
+    const no=document.createElement('small');no.textContent=list.length-k;row.append(im,nm,no);row.title=(g?'Выбрать градиент «':'Выбрать наклейку «')+name+'»';
+    row.addEventListener('click',()=>{commitEdit();if(g){if(st.tool!=='gradient')setTool('gradient');selectGrad(o);}else{selectDecal(o);if(st.tool!=='dedit'&&st.tool!=='decal')setTool('dedit');}layKey='';renderLayers();});box.appendChild(row);});
 }
-function commitEdit(){if(!editSnap)return;pushUndo(editSnap);editSnap=null;editBase=null;if(!st.bake){st.bake=true;$('bakeChk').checked=true;}}
+function commitEdit(){if(!editSnap)return;if(edOp)delete edOp._px;edOp=null;pushUndo(editSnap);editSnap=null;editBase=null;if(!st.bake){st.bake=true;$('bakeChk').checked=true;}}
 function decalHitTest(hit){ /* topmost decal whose opaque pixels are under the hit point */
   if(!hit)return null;
   for(let i=decalOps.length-1;i>=0;i--){const o=decalOps[i];if(o.k!=='decal')continue;
@@ -824,6 +913,7 @@ function selectDecal(o){selDec=o;if(!o)return;
   Object.assign(st.decal,{size:o.size,rot:o.rot,op:o.alpha,flip:o.flip,wrap:o.wrap});
   const di=st.decal.list.indexOf(o.dec);if(di>=0&&di!==st.decal.cur){st.decal.cur=di;renderDecals();}}
 function deleteDecal(){if(!selDec)return;beginEdit();decalOps.splice(decalOps.indexOf(selDec),1);selDec=null;replay(decalOps);editBase=null;commitEdit();toast('Наклейка удалена');}
+function deleteGrad(){if(!selGrad||!decalOps.includes(selGrad))return;beginEdit(selGrad);decalOps.splice(decalOps.indexOf(selGrad),1);selGrad=null;replay(decalOps);editBase=null;commitEdit();updGradSel();toast('Градиент удалён');}
 let ddrag=null,pendingMove=null;
 function decalPlace(cx,cy){
   if(!ddrag||!selDec)return;const hit=pick(cx,cy);if(!hit)return;
@@ -899,8 +989,8 @@ function applyControlMode(){
 }
 function cancelOps(){
   if(stroke){if(stroke.cols)restoreCols(stroke.cols);if(stroke.tex)restoreTex(stroke.tex);if(stroke.decals)decalOps=stroke.decals;stroke=null;texOp=null;}
-  if(gdrag){restoreCols(gdrag.base);gdrag=null;$('gradSvg').innerHTML='';}
-  if(ddrag){if(editSnap){restoreTex(editSnap.tex);decalOps=editSnap.decals;bakedBase=editSnap.baked;editSnap=null;editBase=null;selDec=null;}ddrag=null;}
+  if(gdrag){if(editSnap){restoreTex(editSnap.tex);decalOps=editSnap.decals;bakedBase=editSnap.baked;editSnap=null;editBase=null;edOp=null;if(gdrag.fresh)selGrad=gdrag.prev;else selGrad=decalOps.find(o=>o===gdrag.orig)||null;}gdrag=null;updGradSel();}
+  if(ddrag){if(editSnap){restoreTex(editSnap.tex);decalOps=editSnap.decals;bakedBase=editSnap.baked;editSnap=null;editBase=null;edOp=null;selDec=null;}ddrag=null;}
   activePtr=null;
 }
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
@@ -916,14 +1006,14 @@ canvas.addEventListener('pointerdown',e=>{
   else if(tool==='fill'){if(hit){pushUndo({cols:snapCols()});fillAt(hit);addRecent();}activePtr=null;}
   else if(tool==='select'){if(hit){const m=region(hit.d,hit.tri);const add=!hit.d.sel[hit.tri];for(let t=0;t<hit.d.tris;t++)if(m[t])hit.d.sel[t]=add?1:0;rebuildSel(hit.d);}else if(!e.shiftKey){selectAll(false);}activePtr=null;}
   else if(tool==='pick'){if(hit){const col=hit.d.mesh.geometry.attributes.color.array,o=hit.tri*9;setColor([(col[o]+col[o+3]+col[o+6])/3,(col[o+1]+col[o+4]+col[o+7])/3,(col[o+2]+col[o+5]+col[o+8])/3]);toast('Цвет взят: '+rgbToHex(st.color));}activePtr=null;}
-  else if(tool==='gradient'){gradStart(e.clientX,e.clientY);}
+  else if(tool==='gradient'){gradStart(e.clientX,e.clientY,hit);}
   else if(tool==='decal'||tool==='dedit'){
     commitEdit();const o=decalHitTest(hit);
     if(o&&(tool==='dedit'||o===selDec)){selectDecal(o);ddrag={move:true,off:o.P.clone().sub(hit.point)};canvas.style.cursor='grabbing';return;}
     if(tool==='dedit'){selDec=null;activePtr=null;return;}
     const dec=curDecal();if(!dec){activePtr=null;toast('Сначала выбери наклейку');return;}
     editSnap={tex:snapAllTex(),decals:decalOps.slice(),baked:bakedBase};editBase=meshes.map(d=>d.mesh.userData.kr.data.slice());
-    selDec={k:'decal',P:null,N:null,base:null,rot:st.decal.rot,dec,size:st.decal.size,alpha:st.decal.op,flip:st.decal.flip,wrap:st.decal.wrap,lim:curLim()};
+    selDec={k:'decal',P:null,N:null,base:null,rot:st.decal.rot,dec,size:st.decal.size,alpha:st.decal.op,flip:st.decal.flip,wrap:st.decal.wrap,lim:curLim()};edOp=selDec;
     ddrag={};decalPlace(e.clientX,e.clientY);}
 });
 let lastPtr=null;
@@ -934,14 +1024,15 @@ canvas.addEventListener('pointermove',e=>{
     if(stroke&&e.pointerId===activePtr&&hit){if(stroke.cols)brushAt(hit);else eraseAt(hit);}}
   else {ring.visible=ringIn.visible=false;}
   if(gdrag&&e.pointerId===activePtr)gradMove(e.clientX,e.clientY);
+  else if(tool==='gradient'&&e.pointerType==='mouse')canvas.style.cursor=gradHandleAt(e.clientX,e.clientY)?'grab':'crosshair';
   if(ddrag&&e.pointerId===activePtr)pendingMove=[e.clientX,e.clientY];
   else if((tool==='decal'&&selDec)||tool==='dedit'){if(e.pointerType==='mouse'){const o=decalHitTest(pick(e.clientX,e.clientY));canvas.style.cursor=o&&(tool==='dedit'||o===selDec)?'grab':(tool==='decal'?'crosshair':'default');}}
 });
 function endPtr(e){ptrs.delete(e.pointerId);if(e.pointerId!==activePtr)return;activePtr=null;
   if(stroke){if(stroke.cols){pushUndo({cols:stroke.cols});addRecent();}else if(stroke.tex.size)pushUndo({tex:stroke.tex,decals:stroke.decals});else decalOps=stroke.decals;stroke=null;texOp=null;}
-  if(gdrag)gradEnd();
+  if(gdrag)gradEnd(e.clientX,e.clientY);
   if(ddrag){if(pendingMove){decalPlace(pendingMove[0],pendingMove[1]);pendingMove=null;}
-    if(ddrag.placed)commitEdit();else if(!ddrag.move){editSnap=null;editBase=null;selDec=null;}
+    if(ddrag.placed)commitEdit();else if(!ddrag.move){editSnap=null;editBase=null;edOp=null;selDec=null;}
     ddrag=null;applyControlMode();}
   if(e.pointerType==='touch')ring.visible=ringIn.visible=false;}
 canvas.addEventListener('pointerup',endPtr);canvas.addEventListener('pointercancel',e=>{ptrs.delete(e.pointerId);if(e.pointerId===activePtr)cancelOps();});
@@ -955,8 +1046,8 @@ function updRing(hit){
 
 /* ---------- UI: tools ---------- */
 const HINTS={dedit:'Нажми на наклейку на модели и тяни, чтобы двигать. Колесо над ней — размер, Shift+колесо — поворот, Delete — удалить.',brush:'Рисуй по модели. Правая кнопка или два пальца — вращать камеру.',fill:'Нажми на область — она зальётся цветом. Границу области задаёт ползунок.',
-  gradient:'Проведи линию по модели. Начало линии — левая точка градиента.',decal:'Нажми и веди по модели — наклейка едет следом и приклеивается, когда отпускаешь.',
-  erase:'Стирает только наклейки. Цвета вершин не трогает.',select:'Нажимай по областям, чтобы выделить. Пустое место — снять выделение.',
+  gradient:'Проведи линию — появится новый слой градиента. Кружки на концах выбранного градиента можно двигать.',decal:'Нажми и веди по модели — наклейка едет следом и приклеивается, когда отпускаешь.',
+  erase:'Стирает наклейки и градиенты. Цвета вершин не трогает.',select:'Нажимай по областям, чтобы выделить. Пустое место — снять выделение.',
   pick:'Нажми на модель, чтобы взять цвет.',camera:'Тяни, чтобы вращать. Колесо — приближение, средняя кнопка — сдвиг.'};
 function showPanel(t){const on=el=>el.dataset.tools.split(' ').includes(t);
   document.querySelectorAll('.panel [data-tools]').forEach(el=>{if(el.classList.contains('sec')&&!el.querySelector('[data-tools]'))el.hidden=!on(el);else if(!el.classList.contains('sec'))el.hidden=!on(el);});
@@ -984,41 +1075,84 @@ renderPal();
 function addRecent(){const h=rgbToHex(st.color);st.recent=[h,...st.recent.filter(x=>x!==h)].slice(0,8);const box=$('recent');box.innerHTML='';st.recent.forEach(x=>box.appendChild(swatch(x,y=>setColor(hexToRgb(y)))));}
 
 /* ---------- UI: gradient editor ---------- */
+/* while a gradient layer is selected, every change in the editor re-paints it; the edit is committed once changes pause */
+let gradT=0;
+function gradLive(){
+  if(!selGrad||st.tool!=='gradient'||gdrag||!decalOps.includes(selGrad))return;
+  beginEdit(selGrad);const g=st.grad;
+  Object.assign(selGrad,{stops:cloneStops(g.stops),type:g.type,mode:g.mode,steps:g.steps,pat:g.pat,scale:g.scale,alpha:st.strength});
+  gradDirty=true;clearTimeout(gradT);gradT=setTimeout(commitEdit,600);
+}
+function selectGrad(o){
+  commitEdit();selGrad=o;const g=st.grad;
+  Object.assign(g,{stops:cloneStops(o.stops),sel:0,type:o.type||'linear',mode:o.mode||'smooth',steps:o.steps||3,pat:o.pat||'dots',scale:o.scale||0.03});
+  st.strength=o.alpha;$('strength').value=Math.round(o.alpha*100);$('strengthO').textContent=Math.round(o.alpha*100);
+  renderGrad(true);updGradSel();
+}
+function updGradSel(){const on=!!selGrad&&decalOps.includes(selGrad);$('gSelRow').hidden=!on;if(on)$('gSelName').textContent=selGrad.name;layKey='';}
 const gcv=$('gcv'),gctx=gcv.getContext('2d');
-function redrawBar(){const w=gcv.width,h=gcv.height;const img=gctx.createImageData(w,h);
-  for(let x=0;x<w;x++){const li=Math.round(x/(w-1)*255)*3;for(let y=0;y<h;y++){const o=(y*w+x)*4;img.data[o]=LUT[li]*255;img.data[o+1]=LUT[li+1]*255;img.data[o+2]=LUT[li+2]*255;img.data[o+3]=255;}}gctx.putImageData(img,0,0);}
-function renderGrad(){
-  buildLUT();redrawBar();
+/* paints a gradient with its steps or pattern over a checkerboard: the bar, the pattern buttons and layer thumbnails */
+function gradPreview(ctx,w,h,g,L,cell){
+  const img=ctx.createImageData(w,h),tile=PAT[g.pat]||PAT.dots,ck=Math.max(4,Math.round(h/4));
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){const q=gradQ(g,tile,x/(w-1),x/cell,y/cell),li=Math.round(q*255)*4,a=L[li+3],bg=((Math.floor(x/ck)+Math.floor(y/ck))&1)?0.78:0.95,o=(y*w+x)*4;
+    img.data[o]=(L[li]*a+bg*(1-a))*255;img.data[o+1]=(L[li+1]*a+bg*(1-a))*255;img.data[o+2]=(L[li+2]*a+bg*(1-a))*255;img.data[o+3]=255;}
+  ctx.putImageData(img,0,0);
+}
+function redrawBar(){gradPreview(gctx,gcv.width,gcv.height,st.grad,LUT,gcv.height/3);}
+const gradKey=o=>JSON.stringify([o.stops,o.mode,o.steps,o.pat]);
+function gradThumb(o){const k=gradKey(o);if(o._thumb&&o._thumbK===k)return o._thumb;
+  const [c,x]=mkCanvas(48,24);gradPreview(x,48,24,o,gradLUT(o.stops),8);o._thumbK=k;return o._thumb=c.toDataURL();}
+const patCv={};
+Object.keys(PAT).forEach(k=>{const b=document.createElement('button');b.className='pat';b.dataset.p=k;b.title='Узор: '+PAT_NAMES[k];
+  const c=document.createElement('canvas');c.width=60;c.height=22;const sp=document.createElement('span');sp.textContent=PAT_NAMES[k];b.append(c,sp);
+  b.addEventListener('click',()=>{st.grad.pat=k;setModeUI();redrawBar();gradLive();});$('gPats').appendChild(b);patCv[k]=c;});
+function renderPats(){Object.keys(patCv).forEach(k=>{const c=patCv[k];gradPreview(c.getContext('2d'),c.width,c.height,{mode:'pattern',steps:2,pat:k},LUT,7);});}
+function setModeUI(){const g=st.grad;
+  document.querySelectorAll('#gType .chip').forEach(x=>x.classList.toggle('on',x.dataset.g===g.type));
+  document.querySelectorAll('#gMode .chip').forEach(x=>x.classList.toggle('on',x.dataset.m===g.mode));
+  document.querySelectorAll('#gPats .pat').forEach(x=>x.classList.toggle('on',x.dataset.p===g.pat));
+  $('gStepsRow').hidden=g.mode==='smooth';$('gPats').hidden=$('gScaleRow').hidden=g.mode!=='pattern';
+  $('gSteps').value=g.steps;$('gStepsO').textContent=g.steps;$('gScale').value=Math.round(g.scale*100);$('gScaleO').textContent=Math.round(g.scale*100)+'%';}
+function renderGrad(noLive){
+  buildLUT();redrawBar();renderPats();setModeUI();
   const box=$('stops');box.innerHTML='';
   st.grad.stops.forEach((s,i)=>{const d=document.createElement('div');d.className='stop'+(i===st.grad.sel?' on':'');d.style.left=(s.p*100)+'%';
     d.innerHTML='<span style="background:'+s.c+'"></span>';d.title='Точка '+Math.round(s.p*100)+'%';
-    d.addEventListener('pointerdown',ev=>{ev.preventDefault();ev.stopPropagation();st.grad.sel=i;$('stopColor').value=s.c.toLowerCase();box.querySelectorAll('.stop').forEach((el,j)=>el.classList.toggle('on',j===i));dragStop(ev,i);});
+    d.addEventListener('pointerdown',ev=>{ev.preventDefault();ev.stopPropagation();st.grad.sel=i;showStop();box.querySelectorAll('.stop').forEach((el,j)=>el.classList.toggle('on',j===i));dragStop(ev,i);});
     box.appendChild(d);});
-  const cur=st.grad.stops[st.grad.sel];if(cur)$('stopColor').value=cur.c.toLowerCase();
+  showStop();
   $('stopDel').disabled=st.grad.stops.length<=2;
+  if(!noLive)gradLive();
 }
+function showStop(){const cur=st.grad.stops[st.grad.sel];if(!cur)return;$('stopColor').value=cur.c.toLowerCase();const a=Math.round((cur.a==null?1:cur.a)*100);$('stopA').value=a;$('stopAO').textContent=a;}
 function dragStop(ev,i){
   const box=$('stops').getBoundingClientRect();const startY=ev.clientY;
   const mv=e=>{const s=st.grad.stops[i];if(!s)return;s.p=clamp01((e.clientX-box.left)/box.width);
-    const el=$('stops').children[i];if(el){el.style.left=(s.p*100)+'%';el.style.opacity=(e.clientY-startY>40&&st.grad.stops.length>2)?.3:1;}buildLUT();redrawBar();};
+    const el=$('stops').children[i];if(el){el.style.left=(s.p*100)+'%';el.style.opacity=(e.clientY-startY>40&&st.grad.stops.length>2)?.3:1;}buildLUT();redrawBar();gradLive();};
   const up=e=>{window.removeEventListener('pointermove',mv);window.removeEventListener('pointerup',up);
     if(e.clientY-startY>40&&st.grad.stops.length>2){st.grad.stops.splice(i,1);st.grad.sel=0;}renderGrad();};
   window.addEventListener('pointermove',mv);window.addEventListener('pointerup',up);
 }
-$('gbar').addEventListener('pointerdown',e=>{const r=$('gbar').getBoundingClientRect();const p=clamp01((e.clientX-r.left)/r.width);const li=Math.round(p*255)*3;
-  st.grad.stops.push({p,c:rgbToHex([LUT[li],LUT[li+1],LUT[li+2]])});st.grad.sel=st.grad.stops.length-1;renderGrad();});
+$('gbar').addEventListener('pointerdown',e=>{const r=$('gbar').getBoundingClientRect();const p=clamp01((e.clientX-r.left)/r.width);const li=Math.round(p*255)*4;
+  st.grad.stops.push({p,c:rgbToHex([LUT[li],LUT[li+1],LUT[li+2]]),a:LUT[li+3]});st.grad.sel=st.grad.stops.length-1;renderGrad();});
 $('stopColor').addEventListener('input',e=>{const s=st.grad.stops[st.grad.sel];if(s){s.c=e.target.value.toUpperCase();renderGrad();}});
+bindSlider('stopA',v=>{const s=st.grad.stops[st.grad.sel];if(s&&Math.round((s.a==null?1:s.a)*100)!==v){s.a=v/100;buildLUT();redrawBar();renderPats();gradLive();}},v=>v);
 $('stopDel').addEventListener('click',()=>{if(st.grad.stops.length<=2)return;st.grad.stops.splice(st.grad.sel,1);st.grad.sel=0;renderGrad();});
 $('gradRev').addEventListener('click',()=>{st.grad.stops.forEach(s=>s.p=1-s.p);renderGrad();});
-document.querySelectorAll('#gType .chip').forEach(b=>b.addEventListener('click',()=>{st.grad.type=b.dataset.g;document.querySelectorAll('#gType .chip').forEach(x=>x.classList.toggle('on',x===b));}));
+document.querySelectorAll('#gType .chip').forEach(b=>b.addEventListener('click',()=>{st.grad.type=b.dataset.g;setModeUI();gradLive();}));
+document.querySelectorAll('#gMode .chip').forEach(b=>b.addEventListener('click',()=>{st.grad.mode=b.dataset.m;setModeUI();redrawBar();gradLive();}));
+bindSlider('gSteps',v=>{if(st.grad.steps===v)return;st.grad.steps=v;redrawBar();gradLive();},v=>v);
+bindSlider('gScale',v=>{if(Math.round(st.grad.scale*100)===v)return;st.grad.scale=v/100;gradLive();},v=>v+'%');
+$('gNew').addEventListener('click',()=>{commitEdit();selGrad=null;updGradSel();toast('Проведи линию — получится новый градиент');});
+$('gDel').addEventListener('click',deleteGrad);
 GPRESETS.forEach(p=>{const b=document.createElement('button');b.className='gp';b.style.background='linear-gradient(90deg,'+p.join(',')+')';b.setAttribute('aria-label','Градиент '+p.join(' — '));
-  b.addEventListener('click',()=>{st.grad.stops=p.map((c,i)=>({p:i/(p.length-1),c}));st.grad.sel=0;renderGrad();setTool('gradient');});$('gPresets').appendChild(b);});
+  b.addEventListener('click',()=>{st.grad.stops=p.map((c,i)=>({p:i/(p.length-1),c,a:1}));st.grad.sel=0;renderGrad();setTool('gradient');});$('gPresets').appendChild(b);});
 
 /* ---------- UI: sliders & toggles ---------- */
 function bindSlider(id,fn,fmt){const el=$(id),o=$(id+'O');const f=()=>{fn(+el.value);o.textContent=fmt(+el.value);};el.addEventListener('input',f);f();}
 bindSlider('radius',v=>st.radius=v/100,v=>v+'%');
 bindSlider('hard',v=>st.hard=v/100,v=>v);
-bindSlider('strength',v=>st.strength=v/100,v=>v);
+bindSlider('strength',v=>{st.strength=v/100;gradLive();},v=>v);
 bindSlider('angle',v=>st.angle=v,v=>v+'°');
 function liveSet(k,v){st.decal[k]=v;if(selDec&&decalOps.includes(selDec)&&(st.tool==='decal'||st.tool==='dedit')&&!ddrag){beginEdit();selDec[k==='op'?'alpha':k]=v;redrawEdit();}}
 ['dSize','dRot','dOp'].forEach(id=>$(id).addEventListener('change',commitEdit));
@@ -1040,8 +1174,9 @@ $('dWrap').addEventListener('change',e=>{liveSet('wrap',e.target.checked);commit
 [['layTop','top'],['layUp','up'],['layDown','down'],['layBottom','bottom']].forEach(([id,d])=>$(id).addEventListener('click',()=>moveLayer(d)));
 $('dDel').addEventListener('click',()=>{if(selDec)deleteDecal();else toast('Сначала выбери наклейку на модели');});
 $('decalIn').addEventListener('change',e=>{[...e.target.files].forEach(loadDecalFile);e.target.value='';});
-$('dClear').addEventListener('click',()=>{const prev={decals:decalOps.slice(),baked:bakedBase};decalOps=[];bakedBase=null;selDec=null;const m=new Map();meshes.forEach((d,i)=>{const kr=d.mesh.userData.kr;if(kr.has){m.set(i,kr.data.slice());kr.data.fill(0);kr.tex.needsUpdate=true;kr.has=false;}});
-  if(m.size){pushUndo({tex:m,decals:prev.decals,baked:prev.baked});toast('Наклейки убраны');}else toast('Наклеек пока нет');});
+$('dClear').addEventListener('click',()=>{commitEdit();if(!bakedBase&&!decalOps.some(o=>o.k==='decal')){toast('Наклеек пока нет');return;}
+  pushUndo({tex:snapAllTex(),decals:decalOps.slice(),baked:bakedBase});decalOps=decalOps.filter(o=>o.k==='grad');bakedBase=null;selDec=null;replay(decalOps);
+  toast(decalOps.length?'Наклейки убраны, градиенты остались':'Наклейки убраны');});
 $('litChk').addEventListener('change',e=>{st.lit=e.target.checked;meshes.forEach(d=>{const kr=d.mesh.userData.kr;d.mesh.material=st.lit?kr.mLit:kr.mFlat;});});
 $('wireChk').addEventListener('change',e=>{st.wire=e.target.checked;meshes.forEach(d=>{if(d.wire)d.wire.visible=st.wire;});});
 $('bakeChk').addEventListener('change',e=>st.bake=e.target.checked);
@@ -1074,7 +1209,7 @@ $('subBtn').addEventListener('click',()=>{
     addWire(nd);meshes[mi]=nd;rebuildSel(nd);});
   renderParts();undo.length=0;redo.length=0;updUndo();updStats();
   /* triangle ids changed: existing decals stay as painted but can no longer be edited */
-  bakedBase=meshes.map(d=>d.mesh.userData.kr.data.slice());decalOps=[];selDec=null;editSnap=null;
+  bakedBase=meshes.map(d=>d.mesh.userData.kr.data.slice());decalOps=[];selDec=null;selGrad=null;edOp=null;editSnap=null;updGradSel();
   toast('Готово: треугольников стало в 4 раза больше. История отмен очищена.');
 });
 
@@ -1149,7 +1284,8 @@ async function saveProject(){
   z.file('model.glb',glb);
   const decs=[];const decId=dec=>{let i=decs.indexOf(dec);if(i<0){i=decs.length;decs.push(dec);}return i;};
   const ops=decalOps.map((o,oi)=>{
-    const lim={shown:o.lim.shown,sel:!!o.lim.sel};if(o.lim.sel)o.lim.sel.forEach((a,mi)=>z.file('sel/'+oi+'_'+mi+'.bin',a));
+    const lim={shown:o.lim.shown,sel:!!o.lim.sel};if(o.lim.sel)o.lim.sel.forEach((a,mi)=>{if(a)z.file('sel/'+oi+'_'+mi+'.bin',a);});
+    if(o.k==='grad')return {k:'grad',A:v3a(o.A),B:v3a(o.B),V:v3a(o.V),stops:o.stops,type:o.type,mode:o.mode,steps:o.steps,pat:o.pat,scale:o.scale,alpha:o.alpha,name:o.name,lim};
     if(o.k==='decal')return {k:'decal',P:v3a(o.P),N:v3a(o.N),X:v3a(o.base.X),Y:v3a(o.base.Y),rot:o.rot,size:o.size,alpha:o.alpha,flip:o.flip,wrap:o.wrap,dec:decId(o.dec),lim};
     return {k:'erase',pts:o.pts.map(v3a),R:o.R,h:o.h,s:o.s,lim};});
   meshes.forEach((d,i)=>{const kr=d.mesh.userData.kr;
@@ -1188,7 +1324,8 @@ async function loadProject(buf,fname){
     if(P.baked){bakedBase=[];for(let i=0;i<meshes.length;i++){const b=await bin('parts/'+i+'/baked.bin',Uint8Array);bakedBase[i]=b&&b.length===meshes[i].mesh.userData.kr.data.length?b:null;}}
     const ops=[];for(let oi=0;oi<P.ops.length;oi++){const o=P.ops[oi];
       const lim={shown:o.lim.shown,sel:null};
-      if(o.lim.sel){lim.sel=[];for(let mi=0;mi<meshes.length;mi++)lim.sel[mi]=await bin('sel/'+oi+'_'+mi+'.bin',Uint8Array)||new Uint8Array(meshes[mi].tris);}
+      if(o.lim.sel){lim.sel=[];for(let mi=0;mi<meshes.length;mi++){const m=await bin('sel/'+oi+'_'+mi+'.bin',Uint8Array);lim.sel[mi]=m||(o.k==='grad'?null:new Uint8Array(meshes[mi].tris));}}
+      if(o.k==='grad'){ops.push({k:'grad',A:a3v(o.A),B:a3v(o.B),V:a3v(o.V),stops:o.stops,type:o.type,mode:o.mode,steps:o.steps,pat:o.pat,scale:o.scale,alpha:o.alpha,name:o.name,lim});gradNo=Math.max(gradNo,+(/\d+$/.exec(o.name)||[0])[0]);continue;}
       if(o.k==='decal')ops.push({k:'decal',P:a3v(o.P),N:a3v(o.N),base:{X:a3v(o.X),Y:a3v(o.Y)},rot:o.rot,size:o.size,alpha:o.alpha,flip:o.flip,wrap:o.wrap,dec:stickers[o.dec],lim});
       else ops.push({k:'erase',pts:o.pts.map(a3v),R:o.R,h:o.h,s:o.s,lim});}
     decalOps=ops;st.bake=!!P.bake;$('bakeChk').checked=st.bake;
@@ -1306,16 +1443,17 @@ window.addEventListener('keydown',e=>{
   if((e.ctrlKey||e.metaKey)&&k==='y'){e.preventDefault();doRedo();return;}
   if((e.ctrlKey||e.metaKey)&&k==='s'){e.preventDefault();saveProject();return;}
   if((e.ctrlKey||e.metaKey)&&k==='o'){e.preventDefault();$('fileIn').click();return;}
-  if((e.ctrlKey||e.metaKey)&&(e.code==='BracketRight'||e.code==='BracketLeft')&&selDec){e.preventDefault();moveLayer(e.code==='BracketRight'?(e.shiftKey?'top':'up'):(e.shiftKey?'bottom':'down'));return;}
+  if((e.ctrlKey||e.metaKey)&&(e.code==='BracketRight'||e.code==='BracketLeft')&&curLayer()){e.preventDefault();moveLayer(e.code==='BracketRight'?(e.shiftKey?'top':'up'):(e.shiftKey?'bottom':'down'));return;}
   const np={Numpad1:[0,0,1],Numpad3:[1,0,0],Numpad7:[0,1,0]}[e.code];
   if(np){e.preventDefault();viewFrom(e.ctrlKey||e.metaKey?np.map(x=>-x):np);return;}
   if(e.code==='Space'&&!spaceHeld){e.preventDefault();spaceHeld=true;applyControlMode();return;}
   if((e.key==='Delete'||e.key==='Backspace')&&selDec&&(st.tool==='dedit'||st.tool==='decal')){e.preventDefault();deleteDecal();return;}
+  if((e.key==='Delete'||e.key==='Backspace')&&selGrad&&st.tool==='gradient'){e.preventDefault();deleteGrad();return;}
   const map={b:'brush',f:'fill',g:'gradient',d:'decal',t:'dedit',e:'erase',s:'select',i:'pick',v:'camera'};
   if(map[k]&&!e.ctrlKey&&!e.metaKey){setTool(map[k]);return;}
   if(e.key==='['||e.key===']'){const id=st.tool==='decal'?'dSize':'radius';const el=$(id);el.value=+el.value+(e.key===']'?1:-1);el.dispatchEvent(new Event('input'));el.dispatchEvent(new Event('change'));}
   if(k==='h'&&!e.ctrlKey&&!e.metaKey&&lastPtr){const hit=pick(lastPtr[0],lastPtr[1]);if(hit){setPartsVis(d=>d!==hit.d&&shown(d));toast('Скрыта деталь: '+partName(hit.d,meshes.indexOf(hit.d)));}return;}
-  if(e.key==='Escape'){if(selDec&&(st.tool==='dedit'||st.tool==='decal')){commitEdit();selDec=null;return;}selectAll(false);}
+  if(e.key==='Escape'){if(selDec&&(st.tool==='dedit'||st.tool==='decal')){commitEdit();selDec=null;return;}if(selGrad&&st.tool==='gradient'){commitEdit();selGrad=null;updGradSel();return;}selectAll(false);}
 });
 window.addEventListener('keyup',e=>{if(e.code==='Space'){spaceHeld=false;applyControlMode();}});
 
@@ -1352,6 +1490,7 @@ if(window.krDesktop&&typeof window.krDesktop.onOpenFile==='function'){
 }
 (function loop(){requestAnimationFrame(loop);
   if(pendingMove&&ddrag){const p=pendingMove;pendingMove=null;decalPlace(p[0],p[1]);}
-  stepView();controls.update();drawGizmo();drawHilite();drawDecalFrame();renderLayers();renderer.render(scene,camera);})();
+  if(gradDirty){gradDirty=false;redrawEdit();}
+  stepView();controls.update();drawGizmo();drawHilite();drawDecalFrame();drawGradHandles();renderLayers();renderer.render(scene,camera);})();
 })();
 </script>
