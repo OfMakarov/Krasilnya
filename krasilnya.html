@@ -48,18 +48,10 @@ header{grid-column:1/-1;display:flex;align-items:center;gap:12px;padding-inline:
 .stage{position:relative;min-width:0;min-height:0;background:radial-gradient(circle at 50% 40%,var(--stage-a),var(--stage-b) 70%)}
 .stage canvas{display:block;width:100%;height:100%;touch-action:none}
 #gradSvg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
-.gzw{position:absolute;top:12px;right:12px;display:flex;flex-direction:column;align-items:center;gap:4px;user-select:none;-webkit-user-select:none}
-.gizmo{width:76px;height:76px;border-radius:50%;background:var(--glass);border:1px solid var(--line);box-shadow:0 6px 18px rgba(0,0,0,.18);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);overflow:visible;transition:transform .18s}
-.gizmo:hover{transform:scale(1.06)}
-.gizmo .orbit{fill:none;stroke:var(--muted);stroke-opacity:.35;stroke-width:.8;stroke-dasharray:2 3;transform-origin:0 0;animation:gzspin 14s linear infinite}
-@keyframes gzspin{to{transform:rotate(360deg)}}
-.gizmo g.ax{cursor:pointer;outline:none}
-.gizmo g.ax .b{transition:transform .15s;transform-box:fill-box;transform-origin:center}
-.gizmo g.ax:hover .b,.gizmo g.ax:focus-visible .b{transform:scale(1.3)}
-.gizmo text{font-family:var(--f-display);font-size:7.5px;font-weight:700;fill:#fff;text-anchor:middle;dominant-baseline:central;pointer-events:none}
-.gzcap{font-family:var(--f-mono);font-size:10.5px;color:var(--muted);background:var(--glass);border:1px solid var(--line);border-radius:999px;padding:1px 8px;opacity:0;transition:opacity .15s;pointer-events:none}
-.gzcap.on{opacity:1}
-@media (prefers-reduced-motion:reduce){.gizmo .orbit{animation:none}.gizmo,.gizmo g.ax .b{transition:none}}
+.gizmo{position:absolute;top:10px;right:10px;width:104px;height:104px;border-radius:50%;user-select:none;-webkit-user-select:none}
+.gizmo:hover{background:var(--sw-line)}
+.gizmo g{cursor:pointer}
+.gizmo text{font-family:var(--f-mono);font-size:11px;font-weight:700;fill:#16171c;text-anchor:middle;dominant-baseline:central;pointer-events:none}
 .hud{position:absolute;left:12px;bottom:12px;right:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;pointer-events:none}
 .pill{pointer-events:auto;background:var(--glass);border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:12.5px;color:var(--muted)}
 .pill b{color:var(--fg);font-weight:600}
@@ -156,7 +148,7 @@ input[type=file]{display:none}
   <main class="stage" id="stage">
     <canvas id="cv"></canvas>
     <svg id="gradSvg"></svg>
-    <div class="gzw"><svg class="gizmo" id="gizmo" viewBox="-38 -38 76 76" role="group" aria-label="Виды камеры"></svg><div class="gzcap" id="gzCap"></div></div>
+    <svg class="gizmo" id="gizmo" viewBox="-52 -52 104 104" role="group" aria-label="Виды камеры"></svg>
     <div class="hud">
       <div class="pill" id="statPill">Загрузка…</div>
       <div class="pill" id="hintPill"></div>
@@ -949,34 +941,25 @@ $('shotBtn').addEventListener('click',()=>{
 
 /* ---------- view gizmo: click an axis to look straight along it ---------- */
 const GZ=[
-  {v:[1,0,0],c:'#ff4d6d',l:'X',t:'Справа'},{v:[-1,0,0],c:'#ff4d6d',t:'Слева'},
-  {v:[0,1,0],c:'#3ecf6e',l:'Y',t:'Сверху'},{v:[0,-1,0],c:'#3ecf6e',t:'Снизу'},
-  {v:[0,0,1],c:'#3d8bff',l:'Z',t:'Спереди'},{v:[0,0,-1],c:'#3d8bff',t:'Сзади'}];
-const NS='http://www.w3.org/2000/svg',gzSvg=$('gizmo'),gzCap=$('gzCap');
+  {v:[1,0,0],c:'#ff5d6c',l:'X',t:'Справа'},{v:[-1,0,0],c:'#ff5d6c',t:'Слева'},
+  {v:[0,1,0],c:'#8ad94a',l:'Y',t:'Сверху'},{v:[0,-1,0],c:'#8ad94a',t:'Снизу'},
+  {v:[0,0,1],c:'#4d9bff',l:'Z',t:'Спереди'},{v:[0,0,-1],c:'#4d9bff',t:'Сзади'}];
+const NS='http://www.w3.org/2000/svg',gzSvg=$('gizmo');
 const mkS=(tag,at)=>{const e=document.createElementNS(NS,tag);for(const k in at)e.setAttribute(k,at[k]);return e;};
-{const defs=mkS('defs',{});['X','Y','Z'].forEach((n,i)=>{const c=GZ[i*2].c,g=mkS('radialGradient',{id:'gz'+n,cx:'35%',cy:'30%',r:'75%'});
-  g.appendChild(mkS('stop',{offset:'0','stop-color':'#fff','stop-opacity':.85}));g.appendChild(mkS('stop',{offset:'.35','stop-color':c}));g.appendChild(mkS('stop',{offset:'1','stop-color':c,'stop-opacity':.85}));defs.appendChild(g);});
-  gzSvg.appendChild(defs);gzSvg.appendChild(mkS('circle',{class:'orbit',r:33}));gzSvg.appendChild(mkS('circle',{r:1.8,fill:'var(--muted)'}));}
 GZ.forEach(a=>{
-  if(a.l){a.line=mkS('line',{x1:0,y1:0,stroke:a.c,'stroke-width':2.2,'stroke-linecap':'round'});gzSvg.appendChild(a.line);}
-  a.g=mkS('g',{class:'ax',tabindex:0,role:'button','aria-label':a.t});
-  const b=mkS('g',{class:'b'});a.g.appendChild(b);
-  if(a.l){b.appendChild(mkS('circle',{r:7.5,fill:'url(#gz'+a.l+')',stroke:'rgba(0,0,0,.18)','stroke-width':.6}));const tx=mkS('text',{});tx.textContent=a.l;b.appendChild(tx);}
-  else{b.appendChild(mkS('circle',{r:5.5,fill:'var(--glass)',stroke:a.c,'stroke-width':1.6}));b.appendChild(mkS('circle',{r:1.8,fill:a.c}));}
+  if(a.l){a.line=mkS('line',{x1:0,y1:0,stroke:a.c,'stroke-width':2.5,'stroke-linecap':'round'});gzSvg.appendChild(a.line);}
+  a.g=mkS('g',{tabindex:0,role:'button','aria-label':a.t});const ti=mkS('title',{});ti.textContent=a.t;a.g.appendChild(ti);
+  a.g.appendChild(a.l?mkS('circle',{r:10,fill:a.c}):mkS('circle',{r:8,fill:a.c,'fill-opacity':.28,stroke:a.c,'stroke-width':1.5}));
+  if(a.l){const tx=mkS('text',{});tx.textContent=a.l;a.g.appendChild(tx);}
   a.g.addEventListener('click',()=>viewFrom(a.v));
   a.g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();viewFrom(a.v);}});
-  const cap=on=>{gzCap.textContent=a.t;gzCap.classList.toggle('on',on);};
-  a.g.addEventListener('mouseenter',()=>cap(true));a.g.addEventListener('mouseleave',()=>cap(false));
-  a.g.addEventListener('focus',()=>cap(true));a.g.addEventListener('blur',()=>cap(false));
   gzSvg.appendChild(a.g);});
 let gzKey='';
 function drawGizmo(){
   const q=camera.quaternion,k=q.x.toFixed(4)+q.y.toFixed(4)+q.z.toFixed(4)+q.w.toFixed(4);if(k===gzKey)return;gzKey=k;
   const inv=q.clone().invert(),v=new THREE.Vector3();
-  GZ.forEach(a=>{v.set(a.v[0],a.v[1],a.v[2]).applyQuaternion(inv);a.x=v.x*25;a.y=-v.y*25;a.z=v.z;
-    /* nearer balls a bit bigger and brighter, far ones recede */
-    a.g.setAttribute('transform','translate('+a.x.toFixed(2)+' '+a.y.toFixed(2)+') scale('+(1+0.12*a.z).toFixed(3)+')');
-    a.g.style.opacity=(0.62+0.38*(a.z+1)/2).toFixed(2);
+  GZ.forEach(a=>{v.set(a.v[0],a.v[1],a.v[2]).applyQuaternion(inv);a.x=v.x*36;a.y=-v.y*36;a.z=v.z;
+    a.g.setAttribute('transform','translate('+a.x.toFixed(2)+' '+a.y.toFixed(2)+')');
     if(a.line){a.line.setAttribute('x2',(a.x*0.72).toFixed(2));a.line.setAttribute('y2',(a.y*0.72).toFixed(2));}});
   /* far side first so the near circles cover it */
   GZ.slice().sort((p,r)=>p.z-r.z).forEach(a=>{if(a.line)gzSvg.appendChild(a.line);gzSvg.appendChild(a.g);});
