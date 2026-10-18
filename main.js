@@ -102,7 +102,7 @@ function sendFile(file) {
 }
 
 function fileFromArgs(argv) {
-  return argv.slice(1).find((a) => /\.(glb|gltf|obj|png|jpe?g|webp)$/i.test(a) && fs.existsSync(a)) || null;
+  return argv.slice(1).find((a) => /\.(kras|glb|gltf|obj|png|jpe?g|webp)$/i.test(a) && fs.existsSync(a)) || null;
 }
 
 function createWindow() {

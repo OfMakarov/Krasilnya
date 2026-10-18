@@ -65,12 +65,19 @@
       "createStartMenuShortcut": true,
       "shortcutName": "Красильня",
       "uninstallDisplayName": "Красильня",
-      "artifactName": "Krasilnya-Setup-${version}.${ext}"
+      "artifactName": "Krasilnya-Setup-${version}.${ext}",
+      "include": "build/installer.nsh"
     },
     "portable": {
       "artifactName": "Krasilnya-Portable-${version}.${ext}"
     },
     "fileAssociations": [
+      {
+        "ext": "kras",
+        "name": "KrasilnyaProject",
+        "description": "Проект Красильни",
+        "role": "Editor"
+      },
       {
         "ext": "glb",
         "name": "GLB",
