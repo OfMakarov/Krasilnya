@@ -326,6 +326,12 @@ body{font-size:13px}
         <button class="chip" data-g="radial">Радиальный</button>
         <button class="chip" data-g="mirror">Зеркальный</button>
       </div>
+      <div class="chips" id="gSpace" aria-label="Как ложится">
+        <button class="chip on" data-s="scene" title="Один градиент через всю модель">Вся модель</button>
+        <button class="chip" data-s="part" title="У каждой детали свой градиент от края до края, по направлению линии">Каждая деталь</button>
+        <button class="chip" data-s="normal" title="Цвет зависит от того, куда смотрит поверхность: линия вверх — конец градиента на гранях, смотрящих вверх">По наклону</button>
+      </div>
+      <div class="row"><button class="btn" id="gUp" title="Новый градиент по высоте на каждой детали: снизу тень, сверху свет, цвета под ним остаются">Тень снизу, свет сверху</button><button class="btn" id="gTop" title="Новый градиент по наклону: грани, смотрящие вверх, получают последний цвет — снег, пыль, мох">Сверху: снег/пыль</button></div>
       <div class="sl"><label for="stopA">Непрозрачн. точки</label><input type="range" id="stopA" min="0" max="100" value="100"><output id="stopAO">100</output></div>
       <div class="chips" id="gMode" aria-label="Переход">
         <button class="chip on" data-m="smooth">Плавный</button>
@@ -448,7 +454,7 @@ const GPRESETS=[
 ];
 
 /* ---------- state ---------- */
-const st={tool:'brush',color:[1,0.824,0.247],grad:{type:'linear',stops:[{p:0,c:'#FF7E5F',a:1},{p:1,c:'#FEB47B',a:1}],sel:0,mode:'smooth',steps:3,pat:'dots',scale:0.03},
+const st={tool:'brush',color:[1,0.824,0.247],grad:{type:'linear',stops:[{p:0,c:'#FF7E5F',a:1},{p:1,c:'#FEB47B',a:1}],sel:0,space:'scene',mode:'smooth',steps:3,pat:'dots',scale:0.03},
   radius:0.08,hard:0.6,brush:'round',sym:-1,pixel:0.012,bp:{pat:'dots',cell:0.025,den:0.45},pr:{size:true,alpha:true},strength:1,angle:30,recent:[],lit:true,wire:false,
   decal:{list:[],cur:0,size:0.22,rot:0,op:1,flip:false,wrap:true},bake:false};
 let LUT=new Float32Array(256*4);
@@ -866,22 +872,35 @@ function gradQ(g,tile,t,pu,pv){
 let gdrag=null,gradNo=0,gradDirty=false;
 function gradPixels(o,mi,d){ /* texels covered by the gradient's area on this part, each once */
   o._px=o._px||[];if(o._px[mi])return o._px[mi];
-  const kr=d.mesh.userData.kr,W=kr.W,w=d.world,m=o.lim.sel&&o.lim.sel[mi],seen=new Uint8Array(W*W),idx=[],pos=[],rect=[Infinity,Infinity,-Infinity,-Infinity];
+  const kr=d.mesh.userData.kr,W=kr.W,w=d.world,m=o.lim.sel&&o.lim.sel[mi],seen=new Uint8Array(W*W),idx=[],pos=[],nrm=[],rect=[Infinity,Infinity,-Infinity,-Infinity];
+  const na=d.mesh.geometry.attributes.normal,nm=new THREE.Matrix3().getNormalMatrix(d.mesh.matrixWorld),vn=[new THREE.Vector3(),new THREE.Vector3(),new THREE.Vector3()];
   for(let t=0;t<d.tris;t++){if(m&&!m[t])continue;const a=t*9,i6=t*6,u=kr.uv;
+    for(let k=0;k<3;k++){if(na)vn[k].fromBufferAttribute(na,t*3+k).applyMatrix3(nm).normalize();else vn[k].set(d.tn[t*3],d.tn[t*3+1],d.tn[t*3+2]);}
     rect[0]=Math.min(rect[0],u[i6]*W-2,u[i6+2]*W-2,u[i6+4]*W-2);rect[1]=Math.min(rect[1],u[i6+1]*W-2,u[i6+3]*W-2,u[i6+5]*W-2);
     rect[2]=Math.max(rect[2],u[i6]*W+2,u[i6+2]*W+2,u[i6+4]*W+2);rect[3]=Math.max(rect[3],u[i6+1]*W+2,u[i6+3]*W+2,u[i6+5]*W+2);
     rasterTri(kr.uv,t,W,W,1.2,(p,w0,w1,w2)=>{if(seen[p])return;seen[p]=1;idx.push(p);
-      pos.push(w0*w[a]+w1*w[a+3]+w2*w[a+6],w0*w[a+1]+w1*w[a+4]+w2*w[a+7],w0*w[a+2]+w1*w[a+5]+w2*w[a+8]);});}
-  return o._px[mi]={idx:Int32Array.from(idx),pos:Float32Array.from(pos),rect};
+      pos.push(w0*w[a]+w1*w[a+3]+w2*w[a+6],w0*w[a+1]+w1*w[a+4]+w2*w[a+7],w0*w[a+2]+w1*w[a+5]+w2*w[a+8]);
+      const nx=w0*vn[0].x+w1*vn[1].x+w2*vn[2].x,ny=w0*vn[0].y+w1*vn[1].y+w2*vn[2].y,nz=w0*vn[0].z+w1*vn[1].z+w2*vn[2].z,nl=Math.hypot(nx,ny,nz)||1;nrm.push(nx/nl,ny/nl,nz/nl);});}
+  return o._px[mi]={idx:Int32Array.from(idx),pos:Float32Array.from(pos),nrm:Float32Array.from(nrm),rect};
 }
 function stampGrad(o){
   const L=gradLUT(o.stops),A=o.A,V=o.V,D=o.B.clone().sub(A);D.addScaledVector(V,-D.dot(V));const len=D.length();
   if(len<modelSize*1e-4){delete o._px;return;}
   const U=D.clone().divideScalar(len),Q=new THREE.Vector3().crossVectors(V,U),cell=Math.max(1e-6,o.scale*modelSize),tile=PAT[o.pat]||PAT.dots;
-  meshes.forEach((d,mi)=>{if(!o.lim.shown[mi])return;const px=gradPixels(o,mi,d),idx=px.idx,pos=px.pos;if(!idx.length)return;touchTex(mi);
-    const kr=d.mesh.userData.kr,out=kr.data;dirtyRect(kr,...px.rect);
+  const space=o.space||'scene',pxs=meshes.map((d,mi)=>o.lim.shown[mi]?gradPixels(o,mi,d):null);
+  /* "each part": the line says where the gradient sits within the whole span, and every part repeats it across its own span */
+  let g0=Infinity,g1=-Infinity;const span=pxs.map(px=>{if(!px||!px.idx.length)return null;let a=Infinity,b=-Infinity;const P=px.pos;
+    for(let k=0;k<P.length;k+=3){const v=P[k]*U.x+P[k+1]*U.y+P[k+2]*U.z;if(v<a)a=v;if(v>b)b=v;}if(a<g0)g0=a;if(b>g1)g1=b;return [a,b];});
+  const gs=Math.max(1e-9,g1-g0),a0=(A.x*U.x+A.y*U.y+A.z*U.z-g0)/gs,b0=a0+len/gs;
+  meshes.forEach((d,mi)=>{const px=pxs[mi];if(!px||!px.idx.length)return;const idx=px.idx,pos=px.pos,nrm=px.nrm;touchTex(mi);
+    const kr=d.mesh.userData.kr,out=kr.data;dirtyRect(kr,...px.rect);const sp=span[mi],ps=Math.max(1e-9,sp[1]-sp[0]);
+    let cx=0,cy=0,cz=0,cr=1e-9;if(space==='part'&&o.type==='radial'){const n=pos.length/3;for(let k=0;k<pos.length;k+=3){cx+=pos[k];cy+=pos[k+1];cz+=pos[k+2];}cx/=n;cy/=n;cz/=n;
+      for(let k=0;k<pos.length;k+=3)cr=Math.max(cr,Math.hypot(pos[k]-cx,pos[k+1]-cy,pos[k+2]-cz));}
     for(let k=0;k<idx.length;k++){const rx=pos[k*3]-A.x,ry=pos[k*3+1]-A.y,rz=pos[k*3+2]-A.z,along=rx*U.x+ry*U.y+rz*U.z;let t;
-      if(o.type==='radial'){const across=rx*Q.x+ry*Q.y+rz*Q.z;t=Math.sqrt(along*along+across*across)/len;}
+      if(space==='normal'){const c=nrm[k*3]*U.x+nrm[k*3+1]*U.y+nrm[k*3+2]*U.z;t=o.type==='mirror'?Math.abs(c):(c+1)/2;}
+      else if(space==='part'){if(o.type==='radial')t=Math.hypot(pos[k*3]-cx,pos[k*3+1]-cy,pos[k*3+2]-cz)/cr;
+        else{t=((along+A.x*U.x+A.y*U.y+A.z*U.z-sp[0])/ps-a0)/Math.max(1e-6,b0-a0);if(o.type==='mirror')t=Math.abs(t);}}
+      else if(o.type==='radial'){const across=rx*Q.x+ry*Q.y+rz*Q.z;t=Math.sqrt(along*along+across*across)/len;}
       else{t=along/len;if(o.type==='mirror')t=Math.abs(t);}
       t=t<0?0:t>1?1:t;
       const q=o.mode==='pattern'?gradQ(o,tile,t,along/cell,(rx*Q.x+ry*Q.y+rz*Q.z)/cell):gradQ(o,tile,t,0,0);
@@ -913,7 +932,7 @@ function gradStart(cx,cy,hit){
   if(h){const orig=selGrad;beginEdit(selGrad);gdrag={h,P:selGrad[h].clone(),N:camDir(),orig,sx:cx,sy:cy};canvas.style.cursor='grabbing';return;}
   const V=camDir(),P0=hit?hit.point.clone():controls.target.clone(),A=planeHit(cx,cy,P0,V)||P0,ts=targets(hit);
   const lim={shown:meshes.map(d=>ts.some(x=>x.d===d)),sel:meshes.map(d=>{const x=ts.find(y=>y.d===d);return x&&x.mask?x.mask.slice():null;})};
-  const g=st.grad,o={k:'grad',A,B:A.clone(),V,stops:cloneStops(g.stops),type:g.type,mode:g.mode,steps:g.steps,pat:g.pat,scale:g.scale,alpha:st.strength,lim,name:'Градиент '+(gradNo+1)};
+  const g=st.grad,o={k:'grad',A,B:A.clone(),V,stops:cloneStops(g.stops),type:g.type,space:g.space,mode:g.mode,steps:g.steps,pat:g.pat,scale:g.scale,alpha:st.strength,lim,name:'Градиент '+(gradNo+1)};
   editSnap={tex:snapAllTex(),decals:decalOps.slice(),baked:bakedBase};
   const idx=newLayerIdx();edOp=o;setEditBase(idx);decalOps.splice(idx,0,o);
   gdrag={h:'B',P:A.clone(),N:V,fresh:true,prev:selGrad,hit,sx:cx,sy:cy};
@@ -1573,12 +1592,12 @@ let gradT=0;
 function gradLive(){
   if(!selGrad||st.tool!=='gradient'||gdrag||!decalOps.includes(selGrad))return;
   beginEdit(selGrad);const g=st.grad;
-  Object.assign(selGrad,{stops:cloneStops(g.stops),type:g.type,mode:g.mode,steps:g.steps,pat:g.pat,scale:g.scale,alpha:st.strength});
+  Object.assign(selGrad,{stops:cloneStops(g.stops),type:g.type,space:g.space,mode:g.mode,steps:g.steps,pat:g.pat,scale:g.scale,alpha:st.strength});
   gradDirty=true;clearTimeout(gradT);gradT=setTimeout(commitEdit,600);
 }
 function selectGrad(o){
   commitEdit();selGrad=selLay=o;const g=st.grad;
-  Object.assign(g,{stops:cloneStops(o.stops),sel:0,type:o.type||'linear',mode:o.mode||'smooth',steps:o.steps||3,pat:o.pat||'dots',scale:o.scale||0.03});
+  Object.assign(g,{stops:cloneStops(o.stops),sel:0,type:o.type||'linear',space:o.space||'scene',mode:o.mode||'smooth',steps:o.steps||3,pat:o.pat||'dots',scale:o.scale||0.03});
   st.strength=o.alpha;$('strength').value=Math.round(o.alpha*100);$('strengthO').textContent=Math.round(o.alpha*100);
   renderGrad(true);updGradSel();
 }
@@ -1603,6 +1622,7 @@ function renderPats(){Object.keys(patCv).forEach(k=>{const c=patCv[k];gradPrevie
 function setModeUI(){const g=st.grad;
   document.querySelectorAll('#gType .chip').forEach(x=>x.classList.toggle('on',x.dataset.g===g.type));
   document.querySelectorAll('#gMode .chip').forEach(x=>x.classList.toggle('on',x.dataset.m===g.mode));
+  document.querySelectorAll('#gSpace .chip').forEach(x=>x.classList.toggle('on',x.dataset.s===(g.space||'scene')));
   document.querySelectorAll('#gPats .pat').forEach(x=>x.classList.toggle('on',x.dataset.p===g.pat));
   $('gStepsRow').hidden=g.mode==='smooth';$('gPats').hidden=$('gScaleRow').hidden=g.mode!=='pattern';
   $('gSteps').value=g.steps;$('gStepsO').textContent=g.steps;$('gScale').value=Math.round(g.scale*100);$('gScaleO').textContent=Math.round(g.scale*100)+'%';}
@@ -1634,6 +1654,22 @@ $('stopDel').addEventListener('click',()=>{if(st.grad.stops.length<=2)return;st.
 $('gradRev').addEventListener('click',()=>{st.grad.stops.forEach(s=>s.p=1-s.p);renderGrad();});
 document.querySelectorAll('#gType .chip').forEach(b=>b.addEventListener('click',()=>{st.grad.type=b.dataset.g;setModeUI();gradLive();}));
 document.querySelectorAll('#gMode .chip').forEach(b=>b.addEventListener('click',()=>{st.grad.mode=b.dataset.m;setModeUI();redrawBar();gradLive();}));
+document.querySelectorAll('#gSpace .chip').forEach(b=>b.addEventListener('click',()=>{st.grad.space=b.dataset.s;setModeUI();gradLive();}));
+/* one-click gradients along the world up axis, over the selection or every visible part */
+function quickGrad(space,stops){
+  if(!meshes.length)return;commitEdit();setTool('gradient');
+  const box=new THREE.Box3();meshes.forEach(d=>{if(shown(d))box.expandByObject(d.mesh);});if(box.isEmpty())return;
+  const c=box.getCenter(new THREE.Vector3()),V=camDir();V.y=0;if(V.lengthSq()<1e-6)V.set(0,0,-1);V.normalize();
+  const A=new THREE.Vector3(c.x,box.min.y,c.z),B=new THREE.Vector3(c.x,space==='normal'?box.min.y+(box.max.y-box.min.y)*0.5:box.max.y,c.z),ts=targets(null);
+  const lim={shown:meshes.map(d=>ts.some(x=>x.d===d)),sel:meshes.map(d=>{const x=ts.find(y=>y.d===d);return x&&x.mask?x.mask.slice():null;})};
+  if(stops){st.grad.stops=stops;st.grad.sel=0;}st.grad.space=space;if(st.grad.type==='radial')st.grad.type='linear';renderGrad(true);
+  const g=st.grad,o={k:'grad',A,B,V,stops:cloneStops(g.stops),type:g.type,space,mode:g.mode,steps:g.steps,pat:g.pat,scale:g.scale,alpha:st.strength,lim,name:'Градиент '+(++gradNo)};
+  editSnap={tex:snapAllTex(),decals:decalOps.slice(),baked:bakedBase};
+  const idx=newLayerIdx();edOp=o;setEditBase(idx);decalOps.splice(idx,0,o);redrawEdit();commitEdit();selectGrad(o);applyControlMode();
+}
+/* shading that keeps the paint underneath: darker towards the bottom of every part, a warm light towards the top */
+$('gUp').addEventListener('click',()=>quickGrad('part',[{p:0,c:'#2B1D4A',a:0.55},{p:0.55,c:'#2B1D4A',a:0},{p:0.56,c:'#FFF1C9',a:0},{p:1,c:'#FFF1C9',a:0.35}]));
+$('gTop').addEventListener('click',()=>quickGrad('normal',[{p:0,c:'#FFFFFF',a:0},{p:0.72,c:'#FFFFFF',a:0},{p:0.86,c:'#FFFFFF',a:1},{p:1,c:'#FFFFFF',a:1}]));
 bindSlider('gSteps',v=>{if(st.grad.steps===v)return;st.grad.steps=v;redrawBar();gradLive();},v=>v);
 bindSlider('gScale',v=>{if(Math.round(st.grad.scale*100)===v)return;st.grad.scale=v/100;gradLive();},v=>v+'%');
 $('gNew').addEventListener('click',()=>{commitEdit();selGrad=null;updGradSel();toast('Проведи линию — получится новый градиент');});
@@ -1808,7 +1844,7 @@ async function projectFiles(){
   const lay=o=>({name:o.name,vis:o.vis!==false,blend:o.blend||'normal',er:(o.er||[]).map(one)});
   function one(o){
     if(o.k==='layer')return {k:'layer',name:o.name,vis:o.vis!==false,opacity:o.opacity,blend:o.blend||'normal',ops:o.ops.map(one)};
-    if(o.k==='grad')return Object.assign({k:'grad',A:v3a(o.A),B:v3a(o.B),V:v3a(o.V),stops:o.stops,type:o.type,mode:o.mode,steps:o.steps,pat:o.pat,scale:o.scale,alpha:o.alpha,lim:lim(o)},lay(o));
+    if(o.k==='grad')return Object.assign({k:'grad',A:v3a(o.A),B:v3a(o.B),V:v3a(o.V),stops:o.stops,type:o.type,space:o.space||'scene',mode:o.mode,steps:o.steps,pat:o.pat,scale:o.scale,alpha:o.alpha,lim:lim(o)},lay(o));
     if(o.k==='decal')return Object.assign({k:'decal',P:v3a(o.P),N:v3a(o.N),X:v3a(o.base.X),Y:v3a(o.base.Y),rot:o.rot,size:o.size,alpha:o.alpha,flip:o.flip,wrap:o.wrap,dec:decId(o.dec),lim:lim(o)},lay(o));
     if(o.k==='paint'){const r={k:'paint',shape:o.shape,px:o.px,c:o.c,R:o.R,s:o.s,h:o.h,seed:o.seed,sym:o.sym,mc:o.mc,pts:o.pts.map(q=>v3a(q.P).concat(v3a(q.N),v3a(q.X),q.w==null?[]:[q.w])),lim:lim(o)};
       if(o.shape==='pattern')Object.assign(r,{pat:o.pat,cell:o.cell,den:o.den});if(o.prS!=null)Object.assign(r,{prS:o.prS,prA:o.prA});return r;}
@@ -1873,7 +1909,7 @@ async function loadProjectFiles(get,fname){
     const er=[];if(o.er)for(const x of o.er)er.push(await one(x));
     const lay={name:o.name,vis:o.vis!==false,blend:o.blend||'normal',er};
     if(o.k==='grad'){gradNo=Math.max(gradNo,+(/\d+$/.exec(o.name||'')||[0])[0]);
-      return Object.assign({k:'grad',A:a3v(o.A),B:a3v(o.B),V:a3v(o.V),stops:o.stops,type:o.type,mode:o.mode,steps:o.steps,pat:o.pat,scale:o.scale,alpha:o.alpha,lim},lay);}
+      return Object.assign({k:'grad',A:a3v(o.A),B:a3v(o.B),V:a3v(o.V),stops:o.stops,type:o.type,space:o.space||'scene',mode:o.mode,steps:o.steps,pat:o.pat,scale:o.scale,alpha:o.alpha,lim},lay);}
     if(o.k==='decal')return Object.assign({k:'decal',P:a3v(o.P),N:a3v(o.N),base:{X:a3v(o.X),Y:a3v(o.Y)},rot:o.rot,size:o.size,alpha:o.alpha,flip:o.flip,wrap:o.wrap,dec:stickers[o.dec],lim},lay);
     if(o.k==='paint'){const r={k:'paint',shape:o.shape,px:o.px,c:o.c,R:o.R,s:o.s,h:o.h,seed:o.seed,sym:o.sym,mc:o.mc,pts:o.pts.map(a=>({P:a3v(a.slice(0,3)),N:a3v(a.slice(3,6)),X:a3v(a.slice(6,9)),w:a.length>9?a[9]:undefined})),lim};
       ['pat','cell','den','prS','prA'].forEach(k=>{if(o[k]!=null)r[k]=o[k];});return r;}
