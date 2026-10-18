@@ -116,6 +116,15 @@ header{grid-column:1/-1;display:flex;align-items:center;gap:12px;padding-inline:
 .part.off:not(.hot) label{color:var(--muted);text-decoration:line-through}
 .part .chip{height:26px;padding:0 8px;font-size:12px}
 .part .chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.laysec{display:flex;flex-direction:column;gap:8px;padding-top:6px;border-top:1px solid var(--line)}
+.layers{display:flex;flex-direction:column;gap:2px;max-height:200px;overflow-y:auto}
+.layer{display:flex;align-items:center;gap:8px;min-height:30px;padding:2px 8px 2px 4px;border-radius:4px;border:1px solid transparent;background:transparent;cursor:pointer;text-align:left}
+.layer:hover{background:var(--surface-2)}
+.layer.on{background:var(--surface-2);border-color:var(--accent)}
+.layer img{width:24px;height:24px;object-fit:contain;border-radius:3px;background:var(--chk-a)}
+.layer span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.layer small{font-family:var(--f-mono);color:var(--muted);font-size:11px}
+.layer:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .dc.add{background:var(--surface-2);color:var(--muted);font-size:22px}
 input[type=file]{display:none}
 :root[data-theme="light"] #themeBtn .sun,:root:not([data-theme="light"]) #themeBtn .moon{display:none}
@@ -165,8 +174,9 @@ body{font-size:13px}
     <button class="btn icon" id="themeBtn" title="Светлая / тёмная тема" aria-label="Сменить тему"><svg class="sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><svg class="moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 14.5A8.5 8.5 0 1 1 9.5 3.5a7 7 0 0 0 11 11z"/></svg></button>
     <button class="btn icon" id="undoBtn" title="Отменить (Ctrl+Z)" aria-label="Отменить"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
     <button class="btn icon" id="redoBtn" title="Повторить (Ctrl+Shift+Z)" aria-label="Повторить"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg></button>
-    <label class="btn" for="fileIn" title="Открыть GLB, GLTF или OBJ"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 8 5-5 5 5"/><path d="M5 21h14"/></svg><span class="lbl">Открыть модель</span></label>
-    <input type="file" id="fileIn" accept=".glb,.gltf,.obj">
+    <label class="btn" for="fileIn" title="Открыть проект .kras или модель GLB, GLTF, OBJ (Ctrl+O)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 8 5-5 5 5"/><path d="M5 21h14"/></svg><span class="lbl">Открыть модель</span></label>
+    <input type="file" id="fileIn" accept=".kras,.glb,.gltf,.obj">
+    <button class="btn" id="saveBtn" title="Сохранить проект .kras (Ctrl+S)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg><span class="lbl">Сохранить</span></button>
     <button class="btn primary" id="exportBtn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg><span class="lbl">Экспорт GLB</span></button>
   </header>
 
@@ -229,6 +239,18 @@ body{font-size:13px}
         <label class="chk"><input type="checkbox" id="dWrap" checked> Загибать на боковые грани</label>
       </div>
       <div class="row"><button class="btn" id="dDel" hidden>Удалить выбранную</button><button class="btn" id="dClear">Убрать все наклейки</button></div>
+      <div class="laysec">
+        <h3>Слои наклеек</h3>
+        <p class="hint" id="layersEmpty">Наклеек пока нет.</p>
+        <div class="layers" id="layers"></div>
+        <div class="row">
+          <button class="btn icon" id="layTop" title="На самый верх" aria-label="На самый верх"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h14"/><path d="m7 14 5-5 5 5"/><path d="M12 9v11"/></svg></button>
+          <button class="btn icon" id="layUp" title="Выше" aria-label="Выше"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 11 5-5 5 5"/><path d="M12 6v13"/></svg></button>
+          <button class="btn icon" id="layDown" title="Ниже" aria-label="Ниже"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 13 5 5 5-5"/><path d="M12 18V5"/></svg></button>
+          <button class="btn icon" id="layBottom" title="В самый низ" aria-label="В самый низ"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20h14"/><path d="m7 10 5 5 5-5"/><path d="M12 15V4"/></svg></button>
+        </div>
+        <p class="hint">Верхние слои перекрывают нижние: царапины вниз, пластырь наверх. Чтобы заменить картинку у выбранной наклейки, нажми на другую картинку в библиотеке выше (в режиме «Правка наклеек»).</p>
+      </div>
       <p class="hint">Выбери наклейку и веди по модели: она едет за пальцем и приклеивается, когда отпускаешь. Только что поставленную наклейку можно сразу двигать и менять ползунками. Любую другую — инструментом «Правка наклеек» (T). Свои PNG с прозрачным фоном добавляй через «+» или перетаскиванием.</p>
     </section>
 
@@ -749,18 +771,41 @@ function replay(list){
   const keep=texOp;texOp=null;
   list.forEach(o=>{if(o.k==='decal')stampDecal(o);else o.pts.forEach(P=>eraseDab(P,o));});texOp=keep;
 }
-/* editing session: the edited decal moves to the top of the stack, everything under it is rendered once into editBase */
+/* editing session: the edited decal keeps its layer; everything under it is rendered once into editBase,
+   and on each change it is stamped again with the layers above it replayed on top */
 function beginEdit(){
   if(editSnap||!selDec)return;
   editSnap={tex:snapAllTex(),decals:decalOps.slice(),baked:bakedBase};
   const i=decalOps.indexOf(selDec);const c=Object.assign({},selDec);
-  if(i>=0)decalOps.splice(i,1);decalOps.push(c);selDec=c;
-  replay(decalOps.slice(0,-1));editBase=meshes.map(d=>d.mesh.userData.kr.data.slice());
+  if(i>=0)decalOps[i]=c;else decalOps.push(c);selDec=c;
+  replay(decalOps.slice(0,decalOps.indexOf(c)));editBase=meshes.map(d=>d.mesh.userData.kr.data.slice());
 }
 function redrawEdit(){
   if(!editBase||!selDec)return;
   meshes.forEach((d,i)=>{const kr=d.mesh.userData.kr;kr.data.set(editBase[i]);kr.tex.needsUpdate=true;});
-  if(decalOps.includes(selDec))stampDecal(selDec);
+  const i=decalOps.indexOf(selDec);if(i<0)return;
+  const keep=texOp;texOp=null;
+  decalOps.slice(i).forEach(o=>{if(o.k==='decal')stampDecal(o);else o.pts.forEach(P=>eraseDab(P,o));});texOp=keep;
+}
+/* layer order: 'up'/'down' swap with the neighbouring decal, 'top'/'bottom' move to the end */
+function moveLayer(dir){
+  if(!selDec||!decalOps.includes(selDec)){toast('Сначала выбери наклейку на модели');return;}
+  commitEdit();const ops=decalOps.slice(),i=ops.indexOf(selDec);let j=i;
+  if(dir==='up'||dir==='down'){const st_=dir==='up'?1:-1;for(let k=i+st_;k>=0&&k<ops.length;k+=st_)if(ops[k].k==='decal'){j=k;break;}}
+  else j=dir==='top'?ops.length-1:0;
+  if(j===i)return;
+  pushUndo({tex:snapAllTex(),decals:decalOps.slice(),baked:bakedBase});
+  ops.splice(i,1);ops.splice(j,0,selDec);decalOps=ops;replay(decalOps);
+}
+let layKey='';
+function renderLayers(){
+  const list=decalOps.filter(o=>o.k==='decal');
+  const key=list.map(o=>o.dec.name).join('|')+'#'+list.indexOf(selDec);if(key===layKey)return;layKey=key;
+  const box=$('layers');box.innerHTML='';$('layersEmpty').hidden=!!list.length;
+  list.slice().reverse().forEach((o,k)=>{const row=document.createElement('button');row.className='layer'+(o===selDec?' on':'');
+    const im=new Image();im.src=o.dec.url;im.alt='';const nm=document.createElement('span');nm.textContent=o.dec.name;
+    const no=document.createElement('small');no.textContent=list.length-k;row.append(im,nm,no);row.title='Выбрать наклейку «'+o.dec.name+'»';
+    row.addEventListener('click',()=>{commitEdit();selectDecal(o);if(st.tool!=='dedit'&&st.tool!=='decal')setTool('dedit');layKey='';renderLayers();});box.appendChild(row);});
 }
 function commitEdit(){if(!editSnap)return;pushUndo(editSnap);editSnap=null;editBase=null;if(!st.bake){st.bake=true;$('bakeChk').checked=true;}}
 function decalHitTest(hit){ /* topmost decal whose opaque pixels are under the hit point */
@@ -778,7 +823,7 @@ function selectDecal(o){selDec=o;if(!o)return;
   set('dSize',Math.round(o.size*100));set('dRot',Math.round(o.rot));set('dOp',Math.round(o.alpha*100));$('dFlip').checked=o.flip;$('dWrap').checked=o.wrap;
   Object.assign(st.decal,{size:o.size,rot:o.rot,op:o.alpha,flip:o.flip,wrap:o.wrap});
   const di=st.decal.list.indexOf(o.dec);if(di>=0&&di!==st.decal.cur){st.decal.cur=di;renderDecals();}}
-function deleteDecal(){if(!selDec)return;beginEdit();decalOps.pop();selDec=null;replay(decalOps);editBase=null;commitEdit();toast('Наклейка удалена');}
+function deleteDecal(){if(!selDec)return;beginEdit();decalOps.splice(decalOps.indexOf(selDec),1);selDec=null;replay(decalOps);editBase=null;commitEdit();toast('Наклейка удалена');}
 let ddrag=null,pendingMove=null;
 function decalPlace(cx,cy){
   if(!ddrag||!selDec)return;const hit=pick(cx,cy);if(!hit)return;
@@ -992,6 +1037,7 @@ bindSlider('dRot',v=>liveSet('rot',v),v=>v+'°');
 bindSlider('dOp',v=>liveSet('op',v/100),v=>v);
 $('dFlip').addEventListener('change',e=>{liveSet('flip',e.target.checked);commitEdit();});
 $('dWrap').addEventListener('change',e=>{liveSet('wrap',e.target.checked);commitEdit();});
+[['layTop','top'],['layUp','up'],['layDown','down'],['layBottom','bottom']].forEach(([id,d])=>$(id).addEventListener('click',()=>moveLayer(d)));
 $('dDel').addEventListener('click',()=>{if(selDec)deleteDecal();else toast('Сначала выбери наклейку на модели');});
 $('decalIn').addEventListener('change',e=>{[...e.target.files].forEach(loadDecalFile);e.target.value='';});
 $('dClear').addEventListener('click',()=>{const prev={decals:decalOps.slice(),baked:bakedBase};decalOps=[];bakedBase=null;selDec=null;const m=new Map();meshes.forEach((d,i)=>{const kr=d.mesh.userData.kr;if(kr.has){m.set(i,kr.data.slice());kr.data.fill(0);kr.tex.needsUpdate=true;kr.has=false;}});
@@ -1055,15 +1101,111 @@ async function saveBlob(name,blob){
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},120000);
 }
 function canvasBlob(c){return new Promise(r=>c.toBlob(r,'image/png'));}
+/* ---------- project file .kras ----------
+   A .kras file is a real PNG (a 512px preview of the painted model) with the project packed into a private
+   "krAs" chunk as a zip: model.glb (geometry + uv), per-part vertex colors and decal layer, editable decal ops
+   and the decal images they use. Image viewers and the Windows thumbnail show the preview. */
+const CRC_T=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
+function crc32(b){let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=CRC_T[(c^b[i])&255]^(c>>>8);return (c^0xFFFFFFFF)>>>0;}
+function pngWithChunk(png,type,data){
+  const out=new Uint8Array(png.length+12+data.length),dv=new DataView(out.buffer),end=png.length-12; /* IEND is always the last 12 bytes */
+  out.set(png.subarray(0,end),0);let o=end;dv.setUint32(o,data.length);o+=4;
+  const td=new Uint8Array(4+data.length);for(let i=0;i<4;i++)td[i]=type.charCodeAt(i);td.set(data,4);
+  out.set(td,o);o+=td.length;dv.setUint32(o,crc32(td));o+=4;out.set(png.subarray(end),o);return out;
+}
+function pngChunk(buf,type){
+  const b=new Uint8Array(buf),dv=new DataView(b.buffer,b.byteOffset,b.byteLength);
+  if(b.length<8||b[1]!==0x50||b[2]!==0x4E||b[3]!==0x47)return null;
+  for(let o=8;o+8<=b.length;){const len=dv.getUint32(o),t=String.fromCharCode(b[o+4],b[o+5],b[o+6],b[o+7]);
+    if(t===type)return b.subarray(o+8,o+8+len);o+=12+len;}
+  return null;
+}
+async function renderPreview(S){
+  const prevSize=renderer.getSize(new THREE.Vector2()),prevPR=renderer.getPixelRatio(),prevAsp=camera.aspect;
+  const hidden=[grid,ring,ringIn].filter(x=>x&&x.visible);hidden.forEach(x=>x.visible=false);
+  const extra=meshes.flatMap(d=>[d.selMesh,d.wire]).filter(x=>x&&x.visible);extra.forEach(x=>x.visible=false);
+  /* frame the visible model from the current view direction */
+  const box=new THREE.Box3();meshes.forEach(d=>{if(shown(d))box.expandByObject(d.mesh);});if(box.isEmpty())box.setFromObject(root);
+  const c=box.getCenter(new THREE.Vector3()),R=box.getBoundingSphere(new THREE.Sphere()).radius||1;
+  const pos=camera.position.clone(),dir=camera.position.clone().sub(controls.target).normalize();
+  camera.aspect=1;camera.position.copy(c).addScaledVector(dir,R/Math.sin(camera.fov*Math.PI/360)*1.05);camera.lookAt(c);camera.updateProjectionMatrix();
+  renderer.setPixelRatio(1);renderer.setSize(S,S,false);renderer.setClearColor(0x000000,0);renderer.clear();renderer.render(scene,camera);
+  const [cv,x]=mkCanvas(S,S);x.drawImage(canvas,0,0,S,S);
+  renderer.setPixelRatio(prevPR);renderer.setSize(prevSize.x,prevSize.y,false);camera.aspect=prevAsp;camera.position.copy(pos);camera.lookAt(controls.target);camera.updateProjectionMatrix();
+  hidden.forEach(x=>x.visible=true);extra.forEach(x=>x.visible=true);
+  return new Uint8Array(await (await canvasBlob(cv)).arrayBuffer());
+}
+const v3a=v=>[v.x,v.y,v.z],a3v=a=>new THREE.Vector3(a[0],a[1],a[2]);
+async function saveProject(){
+  if(!meshes.length)return;if(typeof JSZip==='undefined'){toast('Не загрузился архиватор');return;}
+  commitEdit();toast('Сохраняю проект…');await new Promise(r=>setTimeout(r,30));
+  const z=new JSZip();
+  /* geometry: a plain copy of every part with its placement, without our paint materials */
+  const grp=new THREE.Group();
+  meshes.forEach(d=>{const g=new THREE.BufferGeometry();['position','normal','uv'].forEach(n=>{if(d.mesh.geometry.attributes[n])g.setAttribute(n,d.mesh.geometry.attributes[n]);});
+    const m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:0xffffff}));m.name=d.mesh.name;
+    root.updateMatrixWorld(true);d.mesh.matrixWorld.decompose(m.position,m.quaternion,m.scale);grp.add(m);});
+  const glb=await new Promise((ok,bad)=>{const ex=new THREE.GLTFExporter(),o={binary:true};if(ex.parseAsync)ex.parseAsync(grp,o).then(ok,bad);else ex.parse(grp,ok,bad,o);});
+  z.file('model.glb',glb);
+  const decs=[];const decId=dec=>{let i=decs.indexOf(dec);if(i<0){i=decs.length;decs.push(dec);}return i;};
+  const ops=decalOps.map((o,oi)=>{
+    const lim={shown:o.lim.shown,sel:!!o.lim.sel};if(o.lim.sel)o.lim.sel.forEach((a,mi)=>z.file('sel/'+oi+'_'+mi+'.bin',a));
+    if(o.k==='decal')return {k:'decal',P:v3a(o.P),N:v3a(o.N),X:v3a(o.base.X),Y:v3a(o.base.Y),rot:o.rot,size:o.size,alpha:o.alpha,flip:o.flip,wrap:o.wrap,dec:decId(o.dec),lim};
+    return {k:'erase',pts:o.pts.map(v3a),R:o.R,h:o.h,s:o.s,lim};});
+  meshes.forEach((d,i)=>{const kr=d.mesh.userData.kr;
+    z.file('parts/'+i+'/colors.bin',new Uint8Array(d.mesh.geometry.attributes.color.array.buffer.slice(0)));
+    if(kr.has)z.file('parts/'+i+'/decals.bin',kr.data);
+    if(bakedBase&&bakedBase[i])z.file('parts/'+i+'/baked.bin',bakedBase[i]);});
+  decs.forEach((d,i)=>z.file('stickers/'+i+'.png',d.url.split(',')[1],{base64:true}));
+  z.file('project.json',JSON.stringify({app:'Krasilnya',v:1,name:modelName,
+    parts:meshes.map((d,i)=>({name:d.mesh.name,visible:shown(d),W:d.mesh.userData.kr.W,decals:d.mesh.userData.kr.has})),
+    stickers:decs.map(d=>({name:d.name})),ops,baked:!!bakedBase,bake:st.bake},null,1));
+  const data=await z.generateAsync({type:'uint8array',compression:'DEFLATE',compressionOptions:{level:6}});
+  const png=await renderPreview(512);
+  await saveBlob((modelName||'model')+'.kras',new Blob([pngWithChunk(png,'krAs',data)],{type:'image/png'}));
+}
+async function loadProject(buf,fname){
+  const chunk=pngChunk(buf,'krAs');if(!chunk){toast('Это не проект Красильни');return;}
+  if(typeof JSZip==='undefined'){toast('Не загрузился архиватор');return;}
+  try{
+    const z=await JSZip.loadAsync(chunk),P=JSON.parse(await z.file('project.json').async('string'));
+    const glb=await z.file('model.glb').async('arraybuffer');
+    const scene_=await new Promise((ok,bad)=>new THREE.GLTFLoader().parse(glb,'',g=>ok(g.scene),bad));
+    setModel(scene_,P.name||fname);if(meshes.length!==P.parts.length)throw new Error('части модели не совпали');
+    const bin=async(path,Ctor)=>{const f=z.file(path);return f?new Ctor((await f.async('uint8array')).slice().buffer):null;};
+    const stickers=[];for(let i=0;i<P.stickers.length;i++){
+      const b64=await z.file('stickers/'+i+'.png').async('base64'),url='data:image/png;base64,'+b64;
+      let dec=st.decal.list.find(d=>d.url===url);
+      if(!dec){const im=new Image();await new Promise((ok,bad)=>{im.onload=ok;im.onerror=bad;im.src=url;});
+        const [c,x]=mkCanvas(im.width,im.height);x.drawImage(im,0,0);dec=decalFromCanvas(P.stickers[i].name,c);dec.url=url;st.decal.list.push(dec);}
+      stickers.push(dec);}
+    renderDecals();
+    for(let i=0;i<meshes.length;i++){const d=meshes[i],kr=d.mesh.userData.kr,pp=P.parts[i];
+      const col=await bin('parts/'+i+'/colors.bin',Float32Array),ca=d.mesh.geometry.attributes.color;
+      if(col&&col.length===ca.array.length){ca.array.set(col);ca.needsUpdate=true;}
+      const dd=await bin('parts/'+i+'/decals.bin',Uint8Array);if(dd&&dd.length===kr.data.length){kr.data.set(dd);kr.has=true;kr.tex.needsUpdate=true;}
+      d.mesh.visible=pp.visible!==false;}
+    if(P.baked){bakedBase=[];for(let i=0;i<meshes.length;i++){const b=await bin('parts/'+i+'/baked.bin',Uint8Array);bakedBase[i]=b&&b.length===meshes[i].mesh.userData.kr.data.length?b:null;}}
+    const ops=[];for(let oi=0;oi<P.ops.length;oi++){const o=P.ops[oi];
+      const lim={shown:o.lim.shown,sel:null};
+      if(o.lim.sel){lim.sel=[];for(let mi=0;mi<meshes.length;mi++)lim.sel[mi]=await bin('sel/'+oi+'_'+mi+'.bin',Uint8Array)||new Uint8Array(meshes[mi].tris);}
+      if(o.k==='decal')ops.push({k:'decal',P:a3v(o.P),N:a3v(o.N),base:{X:a3v(o.X),Y:a3v(o.Y)},rot:o.rot,size:o.size,alpha:o.alpha,flip:o.flip,wrap:o.wrap,dec:stickers[o.dec],lim});
+      else ops.push({k:'erase',pts:o.pts.map(a3v),R:o.R,h:o.h,s:o.s,lim});}
+    decalOps=ops;st.bake=!!P.bake;$('bakeChk').checked=st.bake;
+    renderParts();layKey='';toast('Проект открыт: '+fname);
+  }catch(e){toast('Проект не открылся: '+(e&&e.message||e));}
+}
 function loadFile(f){
   if(!f)return;const ext=f.name.split('.').pop().toLowerCase();
   if(/^(png|webp|gif|jpe?g|svg)$/.test(ext)){loadDecalFile(f);return;}
   const rd=new FileReader();rd.onerror=()=>toast('Не удалось прочитать файл');
+  if(ext==='kras'){rd.onload=()=>loadProject(rd.result,f.name);rd.readAsArrayBuffer(f);return;}
   if(ext==='obj'){rd.onload=()=>{try{setModel(new THREE.OBJLoader().parse(rd.result),f.name);toast('Открыто: '+f.name);}catch(e){toast('OBJ не прочитался: '+e.message);}};rd.readAsText(f);}
   else if(ext==='glb'||ext==='gltf'){rd.onload=()=>{new THREE.GLTFLoader().parse(rd.result,'',g=>{setModel(g.scene,f.name);},()=>toast('Файл не открылся. Если это .gltf с отдельными файлами — сохрани модель как .glb.'));};rd.readAsArrayBuffer(f);}
-  else toast('Поддерживаются модели .glb, .gltf, .obj и картинки для наклеек');
+  else toast('Поддерживаются проекты .kras, модели .glb, .gltf, .obj и картинки для наклеек');
 }
 $('fileIn').addEventListener('change',e=>{loadFile(e.target.files[0]);e.target.value='';});
+$('saveBtn').addEventListener('click',saveProject);
 let dragDepth=0;
 stage.addEventListener('dragenter',e=>{e.preventDefault();dragDepth++;$('drop').hidden=false;});
 stage.addEventListener('dragover',e=>e.preventDefault());
@@ -1162,6 +1304,9 @@ window.addEventListener('keydown',e=>{
   const k=e.key.toLowerCase();
   if((e.ctrlKey||e.metaKey)&&k==='z'){e.preventDefault();e.shiftKey?doRedo():doUndo();return;}
   if((e.ctrlKey||e.metaKey)&&k==='y'){e.preventDefault();doRedo();return;}
+  if((e.ctrlKey||e.metaKey)&&k==='s'){e.preventDefault();saveProject();return;}
+  if((e.ctrlKey||e.metaKey)&&k==='o'){e.preventDefault();$('fileIn').click();return;}
+  if((e.ctrlKey||e.metaKey)&&(e.code==='BracketRight'||e.code==='BracketLeft')&&selDec){e.preventDefault();moveLayer(e.code==='BracketRight'?(e.shiftKey?'top':'up'):(e.shiftKey?'bottom':'down'));return;}
   const np={Numpad1:[0,0,1],Numpad3:[1,0,0],Numpad7:[0,1,0]}[e.code];
   if(np){e.preventDefault();viewFrom(e.ctrlKey||e.metaKey?np.map(x=>-x):np);return;}
   if(e.code==='Space'&&!spaceHeld){e.preventDefault();spaceHeld=true;applyControlMode();return;}
@@ -1207,6 +1352,6 @@ if(window.krDesktop&&typeof window.krDesktop.onOpenFile==='function'){
 }
 (function loop(){requestAnimationFrame(loop);
   if(pendingMove&&ddrag){const p=pendingMove;pendingMove=null;decalPlace(p[0],p[1]);}
-  stepView();controls.update();drawGizmo();drawHilite();drawDecalFrame();renderer.render(scene,camera);})();
+  stepView();controls.update();drawGizmo();drawHilite();drawDecalFrame();renderLayers();renderer.render(scene,camera);})();
 })();
 </script>
