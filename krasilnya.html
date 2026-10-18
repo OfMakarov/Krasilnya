@@ -1,25 +1,25 @@
 <title>Красильня</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Manrope:wght@400;500;600;800&family=JetBrains+Mono:wght@400&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Manrope:wght@400;500;600;800&family=JetBrains+Mono:wght@400&display=swap">
 <script>try{const t=localStorage.getItem('kr_theme')||(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark');document.documentElement.dataset.theme=t;}catch(e){}</script>
 <style>
 /* Layout: инструменты слева — холст по центру — панель цвета, градиента и наклеек справа; на телефоне всё стопкой */
 :root{
-  --bg:#16171c; --surface:#1f2128; --surface-2:#272a33; --line:#343845; --fg:#eceaf2; --muted:#9a98a8;
-  --accent:#ff8a3d; --accent-ink:#2a1405; --sel:#3fd0c9; --danger:#ff6b6b;
-  --f-display:"Unbounded","Arial Black",system-ui,sans-serif;
-  --f-body:"Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --bg:#161719; --surface:#1e1f22; --surface-2:#2a2b2f; --line:#303236; --fg:#e4e4e6; --muted:#8a8c92;
+  --accent:#4c8dff; --accent-ink:#ffffff; --sel:#3fd0c9; --danger:#ff6b6b;
+  --f-display:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-body:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
   --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
-  --stage-a:#23252e; --stage-b:#16171c; --glass:rgba(22,23,28,.82); --hover-line:#4a4f60; --sw-line:rgba(255,255,255,.08);
-  --chk-a:#2b2e38; --chk-b:#343845;
+  --stage-a:#2d2e33; --stage-b:#18191b; --glass:rgba(30,31,34,.9); --hover-line:#4a4c52; --sw-line:rgba(255,255,255,.07);
+  --chk-a:#26272b; --chk-b:#303236;
   color-scheme:dark;
 }
 :root[data-theme="light"]{
-  --bg:#f3f1ec; --surface:#ffffff; --surface-2:#f2f0eb; --line:#e0dcd3; --fg:#1d1b26; --muted:#6d6a78;
-  --accent:#f0701e; --accent-ink:#ffffff; --sel:#13a39c; --danger:#e04848;
-  --stage-a:#ffffff; --stage-b:#e6e3dc; --glass:rgba(255,255,255,.86); --hover-line:#c5c0b5; --sw-line:rgba(0,0,0,.1);
-  --chk-a:#f2f0eb; --chk-b:#e2ded6;
+  --bg:#eceef1; --surface:#ffffff; --surface-2:#f0f2f5; --line:#dde0e5; --fg:#1b1d21; --muted:#6b7079;
+  --accent:#2f74ff; --accent-ink:#ffffff; --sel:#13a39c; --danger:#e04848;
+  --stage-a:#ffffff; --stage-b:#e2e5ea; --glass:rgba(255,255,255,.9); --hover-line:#c3c8d0; --sw-line:rgba(0,0,0,.1);
+  --chk-a:#f0f2f5; --chk-b:#e1e4e9;
   color-scheme:light;
 }
 html,body{height:100%}
@@ -119,6 +119,32 @@ header{grid-column:1/-1;display:flex;align-items:center;gap:12px;padding-inline:
 .dc.add{background:var(--surface-2);color:var(--muted);font-size:22px}
 input[type=file]{display:none}
 :root[data-theme="light"] #themeBtn .sun,:root:not([data-theme="light"]) #themeBtn .moon{display:none}
+/* Студия: плотная компоновка в духе 3D-редакторов */
+body{font-size:13px}
+.app{grid-template-columns:48px 1fr 290px;grid-template-rows:42px 1fr}
+.logo{font-weight:600;font-size:14px;letter-spacing:0}
+.logo i{border-radius:4px;width:16px;height:16px}
+.btn,.hex,.palsel{height:28px;border-radius:5px;font-size:12.5px}
+.btn.icon{width:28px}
+.tools{padding:6px 5px;gap:3px}
+.tool{width:36px;height:36px;flex-basis:36px;border-radius:5px}
+.tool svg{width:19px;height:19px}
+.tool.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.tool.on kbd{color:rgba(255,255,255,.75)}
+.panel{padding:12px 12px 20px;gap:14px}
+.tabs{margin:-12px -12px 0;padding:0 8px;gap:0;top:-12px}
+.tab{height:36px;border-radius:0;font-size:12px;font-weight:500}
+.tab.on{background:transparent;border-color:transparent;box-shadow:inset 0 -2px 0 var(--accent)}
+.sec h3{font-weight:600;font-size:11px;letter-spacing:.02em;text-transform:none;color:var(--fg)}
+.chip{height:24px;border-radius:4px;font-size:11.5px}
+.sw{border-radius:3px}
+.cur input[type=color]{width:38px;height:38px}
+.cur input[type=color]::-webkit-color-swatch{border-radius:5px}
+.pill{border-radius:5px;font-size:11.5px;padding:4px 9px}
+.part{min-height:26px;border-radius:4px}
+.part .chip{height:22px}
+.gizmo{background:var(--glass);border:1px solid var(--line)}
+.toast{border-radius:6px}
 @media (max-width:820px){
   body{overflow:auto}
   .app{height:auto;grid-template-columns:1fr;grid-template-rows:auto auto 58svh auto;padding-left:0;padding-right:0}
@@ -201,7 +227,7 @@ input[type=file]{display:none}
         <label class="chk"><input type="checkbox" id="dWrap" checked> Загибать на боковые грани</label>
       </div>
       <div class="row"><button class="btn" id="dClear">Убрать все наклейки</button></div>
-      <p class="hint">Выбери наклейку и веди по модели: она едет за пальцем и приклеивается, когда отпускаешь. Свои PNG с прозрачным фоном добавляй через «+» или перетаскиванием.</p>
+      <p class="hint">Выбери наклейку и веди по модели: она едет за пальцем и приклеивается, когда отпускаешь. Последнюю наклейку можно перетащить, а ползунки меняют её вживую, пока не поставишь следующую. Свои PNG с прозрачным фоном добавляй через «+» или перетаскиванием.</p>
     </section>
 
     <section class="sec" data-tab="paint" data-tools="gradient">
@@ -336,13 +362,13 @@ const root=new THREE.Group();scene.add(root);
 let grid=null,gridAt=[0,0,0];
 const isLight=()=>document.documentElement.dataset.theme==='light';
 function makeGrid(){if(grid){scene.remove(grid);grid.geometry.dispose();grid.material.dispose();}
-  grid=isLight()?new THREE.GridHelper(modelSize*4,16,0xc9c4ba,0xdcd8cf):new THREE.GridHelper(modelSize*4,16,0x3a3d4a,0x2a2c35);
+  grid=isLight()?new THREE.GridHelper(modelSize*4,16,0xc8ccd3,0xdde0e5):new THREE.GridHelper(modelSize*4,16,0x3d3f45,0x26272b);
   grid.position.set(gridAt[0],gridAt[1],gridAt[2]);scene.add(grid);}
 const wireMat=new THREE.MeshBasicMaterial({color:0x000000,wireframe:true,transparent:true,opacity:0.18});
 const selMat=new THREE.MeshBasicMaterial({color:0x3fd0c9,transparent:true,opacity:0.38,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2,side:THREE.DoubleSide});
 const ring=new THREE.Mesh(new THREE.RingGeometry(0.92,1,64),new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0.9,depthTest:false,side:THREE.DoubleSide}));
 ring.renderOrder=999;ring.visible=false;scene.add(ring);
-const ringIn=new THREE.Mesh(new THREE.RingGeometry(0.97,1,64),new THREE.MeshBasicMaterial({color:0xff8a3d,transparent:true,opacity:0.9,depthTest:false,side:THREE.DoubleSide}));
+const ringIn=new THREE.Mesh(new THREE.RingGeometry(0.97,1,64),new THREE.MeshBasicMaterial({color:0x4c8dff,transparent:true,opacity:0.9,depthTest:false,side:THREE.DoubleSide}));
 ringIn.renderOrder=999;ringIn.visible=false;scene.add(ringIn);
 
 /* vertex colors + decal layer: final = mix(vertexColor, decal.rgb, decal.a) */
@@ -455,7 +481,7 @@ function buildData(m){
 function addWire(d){const w=new THREE.Mesh(d.mesh.geometry,wireMat);w.visible=st.wire;w.raycast=()=>{};d.mesh.add(w);d.wire=w;}
 function setModel(obj,name){
   while(root.children.length)root.remove(root.children[0]);
-  meshes=[];modelName=(name||'model').replace(/\.[^.]+$/,'');
+  meshes=[];lastDecal=null;modelName=(name||'model').replace(/\.[^.]+$/,'');
   root.add(obj);root.updateMatrixWorld(true);
   const list=[];obj.traverse(o=>{if(o.isMesh)list.push(o);});
   if(!list.length){toast('В файле нет мешей');return;}
@@ -557,7 +583,7 @@ function restoreTex(map){map.forEach((arr,i)=>{const d=meshes[i];if(!d)return;co
 function entryBytes(e){let b=0;if(e.cols)e.cols.forEach(a=>b+=a.byteLength);if(e.tex)e.tex.forEach(a=>b+=a.byteLength);return b;}
 function pushUndo(e){undo.push(e);redo.length=0;
   let total=undo.reduce((s,x)=>s+entryBytes(x),0);while(undo.length>1&&(undo.length>40||total>220e6)){total-=entryBytes(undo.shift());}updUndo();}
-function apply(e){if(e.cols)restoreCols(e.cols);if(e.tex)restoreTex(e.tex);}
+function apply(e){if(e.cols)restoreCols(e.cols);if(e.tex){restoreTex(e.tex);lastDecal=null;}}
 function mirror(e){const o={};if(e.cols)o.cols=snapCols();if(e.tex)o.tex=snapTexLike(e.tex);return o;}
 function doUndo(){if(!undo.length)return;const e=undo.pop();redo.push(mirror(e));apply(e);updUndo();}
 function doRedo(){if(!redo.length)return;const e=redo.pop();undo.push(mirror(e));apply(e);updUndo();}
@@ -663,15 +689,15 @@ function drawGradLine(){const g=gdrag;if(!g)return;
 /* ---------- decals ---------- */
 function curDecal(){return st.decal.list[st.decal.cur];}
 /* frame: X,Y in-plane axes (unit), N normal */
-function frameFromCamera(N){
+function baseFrame(N){
   const camRight=new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld,0);
   const camUp=new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld,1);
   let X=camRight.clone().addScaledVector(N,-camRight.dot(N));
   if(X.lengthSq()<1e-6)X=camUp.clone().cross(N);
-  X.normalize();const Y=new THREE.Vector3().crossVectors(N,X).normalize();
-  const a=st.decal.rot*Math.PI/180,c=Math.cos(a),s=Math.sin(a);
-  return {X:X.clone().multiplyScalar(c).addScaledVector(Y,s),Y:Y.clone().multiplyScalar(c).addScaledVector(X,-s)};
+  X.normalize();return {X,Y:new THREE.Vector3().crossVectors(N,X).normalize()};
 }
+function rotFrame(b,deg){const a=deg*Math.PI/180,c=Math.cos(a),s=Math.sin(a);
+  return {X:b.X.clone().multiplyScalar(c).addScaledVector(b.Y,s),Y:b.Y.clone().multiplyScalar(c).addScaledVector(b.X,-s)};}
 function stampDecal(P,N,fr,dec,opts){
   opts=opts||{};const size=(opts.size||st.decal.size)*modelSize,op=opts.op!=null?opts.op:st.decal.op,flip=opts.flip!=null?opts.flip:st.decal.flip;
   const asp=dec.h/dec.w,hw=size/2,hh=size*asp/2,R=Math.hypot(hw,hh),depthLim=size*0.6,minDot=st.decal.wrap?0.05:0.55;
@@ -709,12 +735,22 @@ function eraseAt(hit){
     if(ch)kr.tex.needsUpdate=true;});
 }
 let ddrag=null,pendingMove=null;
+/* the last placed decal stays editable: the size, rotation and opacity sliders and dragging it
+   re-stamp it from the texture state saved before it was placed (the same Map its undo entry holds) */
+let lastDecal=null;
+function stampLive(L){
+  L.before.forEach((arr,i)=>{const kr=meshes[i].mesh.userData.kr;kr.data.set(arr);kr.tex.needsUpdate=true;});
+  texOp=L.before;stampDecal(L.P,L.N,rotFrame(L.base,L.rot),L.dec,{size:L.size,op:L.op,flip:L.flip});texOp=null;
+}
+function onLastDecal(hit){if(!lastDecal||!hit)return false;const L=lastDecal,r=L.size*modelSize*0.5*Math.max(1,L.dec.h/L.dec.w);return hit.point.distanceTo(L.P)<=r;}
 function decalPlace(cx,cy){
-  const dec=curDecal();if(!dec||!ddrag)return;
-  const hit=pick(cx,cy);
+  if(!ddrag)return;const hit=pick(cx,cy);
+  if(ddrag.move){if(!hit)return;const L=lastDecal;L.P=hit.point.clone();L.N=hit.normal.clone();L.base=baseFrame(L.N);stampLive(L);return;}
+  const dec=curDecal();if(!dec)return;
   ddrag.before.forEach((arr,i)=>{const kr=meshes[i].mesh.userData.kr;kr.data.set(arr);kr.tex.needsUpdate=true;});
   if(!hit)return;
-  stampDecal(hit.point,hit.normal,frameFromCamera(hit.normal),dec);ddrag.placed=true;
+  ddrag.live={before:ddrag.before,P:hit.point.clone(),N:hit.normal.clone(),base:baseFrame(hit.normal),dec,size:st.decal.size,rot:st.decal.rot,op:st.decal.op,flip:st.decal.flip};
+  stampDecal(hit.point,hit.normal,rotFrame(ddrag.live.base,st.decal.rot),dec);ddrag.placed=true;
 }
 
 /* ---------- built-in decals ---------- */
@@ -772,7 +808,7 @@ function applyControlMode(){
 function cancelOps(){
   if(stroke){if(stroke.cols)restoreCols(stroke.cols);if(stroke.tex)restoreTex(stroke.tex);stroke=null;texOp=null;}
   if(gdrag){restoreCols(gdrag.base);gdrag=null;$('gradSvg').innerHTML='';}
-  if(ddrag){restoreTex(ddrag.before);ddrag=null;texOp=null;}
+  if(ddrag){if(!ddrag.move)restoreTex(ddrag.before);ddrag=null;texOp=null;}
   activePtr=null;
 }
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
@@ -783,12 +819,14 @@ canvas.addEventListener('pointerdown',e=>{
   activePtr=e.pointerId;try{canvas.setPointerCapture(e.pointerId);}catch(_){}
   const tool=st.tool,hit=pick(e.clientX,e.clientY);
   if(tool==='brush'){if(!hit){activePtr=null;return;}stroke={cols:snapCols()};brushAt(hit);}
-  else if(tool==='erase'){if(!hit){activePtr=null;return;}texOp=new Map();stroke={tex:texOp};eraseAt(hit);}
+  else if(tool==='erase'){if(!hit){activePtr=null;return;}lastDecal=null;texOp=new Map();stroke={tex:texOp};eraseAt(hit);}
   else if(tool==='fill'){if(hit){pushUndo({cols:snapCols()});fillAt(hit);addRecent();}activePtr=null;}
   else if(tool==='select'){if(hit){const m=region(hit.d,hit.tri);const add=!hit.d.sel[hit.tri];for(let t=0;t<hit.d.tris;t++)if(m[t])hit.d.sel[t]=add?1:0;rebuildSel(hit.d);}else if(!e.shiftKey){selectAll(false);}activePtr=null;}
   else if(tool==='pick'){if(hit){const col=hit.d.mesh.geometry.attributes.color.array,o=hit.tri*9;setColor([(col[o]+col[o+3]+col[o+6])/3,(col[o+1]+col[o+4]+col[o+7])/3,(col[o+2]+col[o+5]+col[o+8])/3]);toast('Цвет взят: '+rgbToHex(st.color));}activePtr=null;}
   else if(tool==='gradient'){gradStart(e.clientX,e.clientY);}
-  else if(tool==='decal'){if(!curDecal()){activePtr=null;toast('Сначала выбери наклейку');return;}texOp=new Map();ddrag={before:texOp,placed:false};decalPlace(e.clientX,e.clientY);}
+  else if(tool==='decal'){
+    if(onLastDecal(hit)){ddrag={move:true};canvas.style.cursor='grabbing';return;}
+    if(!curDecal()){activePtr=null;toast('Сначала выбери наклейку');return;}texOp=new Map();ddrag={before:texOp,placed:false};decalPlace(e.clientX,e.clientY);}
 });
 let lastPtr=null;
 canvas.addEventListener('pointermove',e=>{
@@ -799,19 +837,21 @@ canvas.addEventListener('pointermove',e=>{
   else {ring.visible=ringIn.visible=false;}
   if(gdrag&&e.pointerId===activePtr)gradMove(e.clientX,e.clientY);
   if(ddrag&&e.pointerId===activePtr)pendingMove=[e.clientX,e.clientY];
+  else if(tool==='decal'&&lastDecal&&e.pointerType==='mouse')canvas.style.cursor=onLastDecal(pick(e.clientX,e.clientY))?'grab':'crosshair';
 });
 function endPtr(e){ptrs.delete(e.pointerId);if(e.pointerId!==activePtr)return;activePtr=null;
   if(stroke){if(stroke.cols){pushUndo({cols:stroke.cols});addRecent();}else if(stroke.tex.size)pushUndo({tex:stroke.tex});stroke=null;texOp=null;}
   if(gdrag)gradEnd();
   if(ddrag){if(pendingMove){decalPlace(pendingMove[0],pendingMove[1]);pendingMove=null;}
-    if(ddrag.placed&&ddrag.before.size){pushUndo({tex:ddrag.before});if(!st.bake){st.bake=true;$('bakeChk').checked=true;}}else restoreTex(ddrag.before);ddrag=null;texOp=null;}
+    if(ddrag.move){ddrag=null;applyControlMode();}
+    else{if(ddrag.placed&&ddrag.before.size){pushUndo({tex:ddrag.before});lastDecal=ddrag.live;if(!st.bake){st.bake=true;$('bakeChk').checked=true;}}else restoreTex(ddrag.before);ddrag=null;texOp=null;}}
   if(e.pointerType==='touch')ring.visible=ringIn.visible=false;}
 canvas.addEventListener('pointerup',endPtr);canvas.addEventListener('pointercancel',e=>{ptrs.delete(e.pointerId);if(e.pointerId===activePtr)cancelOps();});
 canvas.addEventListener('pointerleave',()=>{lastPtr=null;markRow(-1);if(!stroke){ring.visible=ringIn.visible=false;}});
 function updRing(hit){
   const t=effTool();
   if(!hit||(t!=='brush'&&t!=='erase')){ring.visible=ringIn.visible=false;return;}
-  const R=st.radius*modelSize;ring.visible=ringIn.visible=true;ringIn.material.color.set(t==='erase'?0xff6b6b:0xff8a3d);
+  const R=st.radius*modelSize;ring.visible=ringIn.visible=true;ringIn.material.color.set(t==='erase'?0xff6b6b:0x4c8dff);
   [ring,ringIn].forEach((r,i)=>{r.position.copy(hit.point).addScaledVector(hit.normal,modelSize*0.002);r.lookAt(hit.point.clone().add(hit.normal));r.scale.setScalar(i?R*Math.max(0.05,st.hard):R);});
 }
 
@@ -882,13 +922,14 @@ bindSlider('radius',v=>st.radius=v/100,v=>v+'%');
 bindSlider('hard',v=>st.hard=v/100,v=>v);
 bindSlider('strength',v=>st.strength=v/100,v=>v);
 bindSlider('angle',v=>st.angle=v,v=>v+'°');
-bindSlider('dSize',v=>st.decal.size=v/100,v=>v+'%');
-bindSlider('dRot',v=>st.decal.rot=v,v=>v+'°');
-bindSlider('dOp',v=>st.decal.op=v/100,v=>v);
-$('dFlip').addEventListener('change',e=>st.decal.flip=e.target.checked);
+function liveSet(k,v){st.decal[k]=v;if(lastDecal&&!ddrag){lastDecal[k]=v;stampLive(lastDecal);}}
+bindSlider('dSize',v=>liveSet('size',v/100),v=>v+'%');
+bindSlider('dRot',v=>liveSet('rot',v),v=>v+'°');
+bindSlider('dOp',v=>liveSet('op',v/100),v=>v);
+$('dFlip').addEventListener('change',e=>liveSet('flip',e.target.checked));
 $('dWrap').addEventListener('change',e=>st.decal.wrap=e.target.checked);
 $('decalIn').addEventListener('change',e=>{[...e.target.files].forEach(loadDecalFile);e.target.value='';});
-$('dClear').addEventListener('click',()=>{const m=new Map();meshes.forEach((d,i)=>{const kr=d.mesh.userData.kr;if(kr.has){m.set(i,kr.data.slice());kr.data.fill(0);kr.tex.needsUpdate=true;kr.has=false;}});
+$('dClear').addEventListener('click',()=>{lastDecal=null;const m=new Map();meshes.forEach((d,i)=>{const kr=d.mesh.userData.kr;if(kr.has){m.set(i,kr.data.slice());kr.data.fill(0);kr.tex.needsUpdate=true;kr.has=false;}});
   if(m.size){pushUndo({tex:m});toast('Наклейки убраны');}else toast('Наклеек пока нет');});
 $('litChk').addEventListener('change',e=>{st.lit=e.target.checked;meshes.forEach(d=>{const kr=d.mesh.userData.kr;d.mesh.material=st.lit?kr.mLit:kr.mFlat;});});
 $('wireChk').addEventListener('change',e=>{st.wire=e.target.checked;meshes.forEach(d=>{if(d.wire)d.wire.visible=st.wire;});});
@@ -902,7 +943,7 @@ $('partsInv').addEventListener('click',()=>setPartsVis(d=>!shown(d)));
 $('undoBtn').addEventListener('click',doUndo);$('redoBtn').addEventListener('click',doRedo);
 
 /* ---------- subdivide ---------- */
-$('subBtn').addEventListener('click',()=>{
+$('subBtn').addEventListener('click',()=>{lastDecal=null;
   let total=0;meshes.forEach(d=>total+=d.tris*4);
   if(total>600000){toast('Модель станет слишком тяжёлой (больше 600 тыс. треугольников)');return;}
   meshes.forEach((d,mi)=>{
