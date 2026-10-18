@@ -84,10 +84,11 @@ header{grid-column:1/-1;display:flex;align-items:center;gap:12px;padding-inline:
 .dc.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
 .parts{display:flex;flex-direction:column;gap:2px;max-height:240px;overflow-y:auto}
 .part{display:flex;align-items:center;gap:8px;min-height:32px;padding:0 4px 0 8px;border-radius:8px}
-.part:hover{background:var(--surface-2)}
+.part:hover,.part.hot{background:var(--surface-2)}
+.part.hot{box-shadow:inset 3px 0 0 var(--accent)}
 .part input{accent-color:var(--accent);margin:0;flex:0 0 auto}
 .part label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
-.part.off label{color:var(--muted);text-decoration:line-through}
+.part.off:not(.hot) label{color:var(--muted);text-decoration:line-through}
 .part .chip{height:26px;padding:0 8px;font-size:12px}
 .part .chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .dc.add{background:var(--surface-2);color:var(--muted);font-size:22px}
@@ -220,7 +221,7 @@ input[type=file]{display:none}
         <button class="btn" id="partsAll">Показать все</button>
         <button class="btn" id="partsInv">Инвертировать</button>
       </div>
-      <p class="hint">Скрытые детали не красятся: кисть, заливка, градиент и наклейки достают только видимые. «Только» оставляет одну деталь, повторное нажатие возвращает все. H — скрыть деталь под курсором.</p>
+      <p class="hint">Наведи на строку — деталь подсветится на модели, наведи на модель — подсветится её строка. Скрытые детали не красятся. «Только» оставляет одну деталь, повторное нажатие возвращает все. H — скрыть деталь под курсором.</p>
     </section>
 
     <section class="sec">
@@ -439,10 +440,23 @@ function updStats(){let t=0;meshes.forEach(d=>{t+=d.tris;});
 /* ---------- parts (show / hide separate objects) ---------- */
 const shown=d=>d.mesh.visible;
 function partName(d,i){return (d.mesh.name||'').trim()||('Деталь '+(i+1));}
+/* hovering a row lights the part up on the model (through other parts, even when hidden) */
+const hiMat=new THREE.MeshBasicMaterial({color:0xff8a3d,transparent:true,opacity:0.4,depthTest:false,depthWrite:false,side:THREE.DoubleSide});
+let hiMesh=null,hiObj=null,hotRow=-1;
+function hilite(obj){
+  if(hiMesh){scene.remove(hiMesh);hiMesh=null;}hiObj=obj||null;if(!obj)return;
+  obj.updateMatrixWorld(true);hiMesh=new THREE.Mesh(obj.geometry,hiMat);hiMesh.matrixAutoUpdate=false;hiMesh.matrix.copy(obj.matrixWorld);
+  hiMesh.raycast=()=>{};hiMesh.renderOrder=10;scene.add(hiMesh);
+}
+function markRow(i){if(i===hotRow)return;const rows=$('parts').children;
+  if(rows[hotRow])rows[hotRow].classList.remove('hot');hotRow=i;const r=rows[i];if(!r)return;r.classList.add('hot');
+  const box=$('parts');if(r.offsetTop<box.scrollTop)box.scrollTop=r.offsetTop;else if(r.offsetTop+r.offsetHeight>box.scrollTop+box.clientHeight)box.scrollTop=r.offsetTop+r.offsetHeight-box.clientHeight;}
 function renderParts(){
-  const box=$('parts');box.innerHTML='';$('partsSec').hidden=meshes.length<2;
+  const box=$('parts');box.innerHTML='';hotRow=-1;$('partsSec').hidden=meshes.length<2;
+  hilite(meshes.some(d=>d.mesh===hiObj)?hiObj:null);
   meshes.forEach((d,i)=>{
     const row=document.createElement('div');row.className='part'+(shown(d)?'':' off');
+    row.addEventListener('mouseenter',()=>hilite(d.mesh));
     const cb=document.createElement('input');cb.type='checkbox';cb.id='part'+i;cb.checked=shown(d);
     cb.addEventListener('change',()=>setPartsVis(x=>x===d?cb.checked:shown(x)));
     const lb=document.createElement('label');lb.htmlFor=cb.id;lb.textContent=partName(d,i);lb.title=lb.textContent;
@@ -701,6 +715,7 @@ canvas.addEventListener('pointerdown',e=>{
 let lastPtr=null;
 canvas.addEventListener('pointermove',e=>{
   lastPtr=[e.clientX,e.clientY];const tool=effTool();
+  if(e.pointerType==='mouse'&&meshes.length>1&&!$('partsSec').hidden){const h=pick(e.clientX,e.clientY);markRow(h?meshes.indexOf(h.d):-1);}
   if(((tool==='brush'||tool==='erase')&&e.pointerType!=='touch')||stroke){const hit=pick(e.clientX,e.clientY);updRing(hit);
     if(stroke&&e.pointerId===activePtr&&hit){if(stroke.cols)brushAt(hit);else eraseAt(hit);}}
   else {ring.visible=ringIn.visible=false;}
@@ -714,7 +729,7 @@ function endPtr(e){ptrs.delete(e.pointerId);if(e.pointerId!==activePtr)return;ac
     if(ddrag.placed&&ddrag.before.size){pushUndo({tex:ddrag.before});if(!st.bake){st.bake=true;$('bakeChk').checked=true;}}else restoreTex(ddrag.before);ddrag=null;texOp=null;}
   if(e.pointerType==='touch')ring.visible=ringIn.visible=false;}
 canvas.addEventListener('pointerup',endPtr);canvas.addEventListener('pointercancel',e=>{ptrs.delete(e.pointerId);if(e.pointerId===activePtr)cancelOps();});
-canvas.addEventListener('pointerleave',()=>{lastPtr=null;if(!stroke){ring.visible=ringIn.visible=false;}});
+canvas.addEventListener('pointerleave',()=>{lastPtr=null;markRow(-1);if(!stroke){ring.visible=ringIn.visible=false;}});
 function updRing(hit){
   const t=effTool();
   if(!hit||(t!=='brush'&&t!=='erase')){ring.visible=ringIn.visible=false;return;}
@@ -797,6 +812,7 @@ $('bakeChk').addEventListener('change',e=>st.bake=e.target.checked);
 $('selAll').addEventListener('click',()=>selectAll(true));
 $('selNone').addEventListener('click',()=>selectAll(false));
 $('selInv').addEventListener('click',selectInv);
+$('parts').addEventListener('mouseleave',()=>hilite(null));
 $('partsAll').addEventListener('click',()=>setPartsVis(()=>true));
 $('partsInv').addEventListener('click',()=>setPartsVis(d=>!shown(d)));
 $('undoBtn').addEventListener('click',doUndo);$('redoBtn').addEventListener('click',doRedo);
