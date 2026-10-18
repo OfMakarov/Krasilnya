@@ -238,7 +238,7 @@ input[type=file]{display:none}
         <button class="btn" id="partsAll">Показать все</button>
         <button class="btn" id="partsInv">Инвертировать</button>
       </div>
-      <p class="hint">Наведи на строку — деталь подсветится на модели, наведи на модель — подсветится её строка. Скрытые детали не красятся. «Только» оставляет одну деталь, повторное нажатие возвращает все. H — скрыть деталь под курсором.</p>
+      <p class="hint">Наведи на строку (на телефоне — нажми) — деталь обведётся на модели, наведи на модель — подсветится её строка. Скрытые детали не красятся. «Только» оставляет одну деталь, повторное нажатие возвращает все. H — скрыть деталь под курсором.</p>
     </section>
 
     <section class="sec">
@@ -461,23 +461,39 @@ function updStats(){let t=0;meshes.forEach(d=>{t+=d.tris;});
 /* ---------- parts (show / hide separate objects) ---------- */
 const shown=d=>d.mesh.visible;
 function partName(d,i){return (d.mesh.name||'').trim()||('Деталь '+(i+1));}
-/* hovering a row lights the part up on the model (through other parts, even when hidden) */
-const hiMat=new THREE.MeshBasicMaterial({color:0xff8a3d,transparent:true,opacity:0.4,depthTest:false,depthWrite:false,side:THREE.DoubleSide});
-let hiMesh=null,hiObj=null,hotRow=-1;
-function hilite(obj){
-  if(hiMesh){scene.remove(hiMesh);hiMesh=null;}hiObj=obj||null;if(!obj)return;
-  obj.updateMatrixWorld(true);hiMesh=new THREE.Mesh(obj.geometry,hiMat);hiMesh.matrixAutoUpdate=false;hiMesh.matrix.copy(obj.matrixWorld);
-  hiMesh.raycast=()=>{};hiMesh.renderOrder=10;scene.add(hiMesh);
+/* hovering a row outlines the part on the model; the surface colors stay untouched.
+   A hidden part shows as a faint ghost so you can find it. */
+const hiLine=new THREE.MeshBasicMaterial({color:0xff8a3d,side:THREE.BackSide});
+const hiGhost=new THREE.MeshBasicMaterial({color:0xff8a3d,transparent:true,opacity:0.3,depthWrite:false,side:THREE.DoubleSide});
+let hiMesh=null,hiObj=null,hotRow=-1,hiTimer=0;
+function hullGeo(obj){ /* copy of the mesh pushed out along smoothed normals: drawn back-face only it reads as an outline */
+  const g=obj.geometry,c=obj.userData.hull;if(c&&c.src===g.uuid)return c.geo;if(c)c.geo.dispose();
+  const P=g.attributes.position.array,n=P.length/3,acc=new Map(),key=i=>Math.round(P[i*3]*1e4)+','+Math.round(P[i*3+1]*1e4)+','+Math.round(P[i*3+2]*1e4);
+  const a=new THREE.Vector3(),b=new THREE.Vector3(),e=new THREE.Vector3(),f=new THREE.Vector3();
+  for(let t=0;t<n;t+=3){a.fromArray(P,t*3);b.fromArray(P,t*3+3).sub(a);e.fromArray(P,t*3+6).sub(a);f.crossVectors(b,e);
+    for(let k=0;k<3;k++){const id=key(t+k),v=acc.get(id);if(v)v.add(f);else acc.set(id,f.clone());}}
+  acc.forEach(v=>v.normalize());
+  const s=obj.matrixWorld.getMaxScaleOnAxis()||1,off=modelSize*0.012/s,out=new Float32Array(P.length);
+  for(let i=0;i<n;i++){const v=acc.get(key(i));out[i*3]=P[i*3]+v.x*off;out[i*3+1]=P[i*3+1]+v.y*off;out[i*3+2]=P[i*3+2]+v.z*off;}
+  const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.BufferAttribute(out,3));
+  obj.userData.hull={src:g.uuid,geo};return geo;
+}
+function hilite(obj,keepTimer){
+  if(!keepTimer)clearTimeout(hiTimer);if(hiMesh){scene.remove(hiMesh);hiMesh=null;}hiObj=obj||null;if(!obj)return;
+  obj.updateMatrixWorld(true);hiMesh=obj.visible?new THREE.Mesh(hullGeo(obj),hiLine):new THREE.Mesh(obj.geometry,hiGhost);
+  hiMesh.matrixAutoUpdate=false;hiMesh.matrix.copy(obj.matrixWorld);hiMesh.raycast=()=>{};hiMesh.renderOrder=10;scene.add(hiMesh);
 }
 function markRow(i){if(i===hotRow)return;const rows=$('parts').children;
   if(rows[hotRow])rows[hotRow].classList.remove('hot');hotRow=i;const r=rows[i];if(!r)return;r.classList.add('hot');
   const box=$('parts');if(r.offsetTop<box.scrollTop)box.scrollTop=r.offsetTop;else if(r.offsetTop+r.offsetHeight>box.scrollTop+box.clientHeight)box.scrollTop=r.offsetTop+r.offsetHeight-box.clientHeight;}
 function renderParts(){
   const box=$('parts');box.innerHTML='';hotRow=-1;$('partsSec').hidden=meshes.length<2;
-  hilite(meshes.some(d=>d.mesh===hiObj)?hiObj:null);
+  hilite(meshes.some(d=>d.mesh===hiObj)?hiObj:null,true);
   meshes.forEach((d,i)=>{
     const row=document.createElement('div');row.className='part'+(shown(d)?'':' off');
-    row.addEventListener('mouseenter',()=>hilite(d.mesh));
+    /* mouse: outline while hovering; touch has no hover, so a tap flashes the outline briefly */
+    row.addEventListener('pointerenter',e=>{if(e.pointerType==='mouse')hilite(d.mesh);});
+    row.addEventListener('pointerdown',e=>{if(e.pointerType!=='mouse'){hilite(d.mesh);hiTimer=setTimeout(()=>hilite(null),1200);}});
     const cb=document.createElement('input');cb.type='checkbox';cb.id='part'+i;cb.checked=shown(d);
     cb.addEventListener('change',()=>setPartsVis(x=>x===d?cb.checked:shown(x)));
     const lb=document.createElement('label');lb.htmlFor=cb.id;lb.textContent=partName(d,i);lb.title=lb.textContent;
@@ -833,7 +849,7 @@ $('bakeChk').addEventListener('change',e=>st.bake=e.target.checked);
 $('selAll').addEventListener('click',()=>selectAll(true));
 $('selNone').addEventListener('click',()=>selectAll(false));
 $('selInv').addEventListener('click',selectInv);
-$('parts').addEventListener('mouseleave',()=>hilite(null));
+$('parts').addEventListener('pointerleave',e=>{if(e.pointerType==='mouse')hilite(null);});
 $('partsAll').addEventListener('click',()=>setPartsVis(()=>true));
 $('partsInv').addEventListener('click',()=>setPartsVis(d=>!shown(d)));
 $('undoBtn').addEventListener('click',doUndo);$('redoBtn').addEventListener('click',doRedo);
