@@ -298,6 +298,7 @@ body{font-size:13px}
       <h3>Параметры</h3>
       <div data-tools="brush">
       <div class="pats brushes" id="brushes" role="group" aria-label="Форма кисти"></div>
+      <div class="sl" id="pxRow" hidden><label for="pxSize">Размер пикселя</label><input type="range" id="pxSize" min="3" max="50" value="12"><output id="pxSizeO">1.2%</output></div>
       </div>
       <div data-tools="brush erase">
       <div class="sl"><label for="radius">Размер кисти</label><input type="range" id="radius" min="1" max="40" value="8"><output id="radiusO">8%</output></div>
@@ -390,7 +391,7 @@ const GPRESETS=[
 
 /* ---------- state ---------- */
 const st={tool:'brush',color:[1,0.824,0.247],grad:{type:'linear',stops:[{p:0,c:'#FF7E5F',a:1},{p:1,c:'#FEB47B',a:1}],sel:0,mode:'smooth',steps:3,pat:'dots',scale:0.03},
-  radius:0.08,hard:0.6,brush:'round',sym:-1,strength:1,angle:30,recent:[],lit:true,wire:false,
+  radius:0.08,hard:0.6,brush:'round',sym:-1,pixel:0.012,strength:1,angle:30,recent:[],lit:true,wire:false,
   decal:{list:[],cur:0,size:0.22,rot:0,op:1,flip:false,wrap:true},bake:false};
 let LUT=new Float32Array(256*4);
 
@@ -473,6 +474,76 @@ function atlasUV(T){
 }
 function uvArray(g){const uv=g.attributes.uv,a=new Float32Array(uv.count*2);for(let i=0;i<uv.count;i++){a[i*2]=uv.getX(i);a[i*2+1]=uv.getY(i);}return a;}
 
+/* ---------- spatial grid: triangles bucketed by world position, for fast brush queries and picking ---------- */
+function buildGrid(bb,tris){
+  const mn=[Infinity,Infinity,Infinity],mx=[-Infinity,-Infinity,-Infinity];
+  for(let t=0;t<tris;t++)for(let k=0;k<3;k++){if(bb[t*6+k]<mn[k])mn[k]=bb[t*6+k];if(bb[t*6+3+k]>mx[k])mx[k]=bb[t*6+3+k];}
+  const G=Math.max(1,Math.min(64,Math.round(Math.cbrt(tris/2)))),ext=Math.max(mx[0]-mn[0],mx[1]-mn[1],mx[2]-mn[2])||1;
+  const cs=[0,1,2].map(k=>Math.max((mx[k]-mn[k])/G,ext*1e-4)),cell=(v,k)=>Math.min(G-1,Math.max(0,Math.floor((v-mn[k])/cs[k])));
+  const cnt=new Int32Array(G*G*G+1),each=(t,fn)=>{const a=t*6,x0=cell(bb[a],0),x1=cell(bb[a+3],0),y0=cell(bb[a+1],1),y1=cell(bb[a+4],1),z0=cell(bb[a+2],2),z1=cell(bb[a+5],2);
+    for(let z=z0;z<=z1;z++)for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++)fn((z*G+y)*G+x);};
+  for(let t=0;t<tris;t++)each(t,c=>cnt[c+1]++);
+  for(let c=0;c<G*G*G;c++)cnt[c+1]+=cnt[c];
+  const fill=cnt.slice(),items=new Int32Array(cnt[G*G*G]);
+  for(let t=0;t<tris;t++)each(t,c=>{items[fill[c]++]=t;});
+  return {mn,cs,G,start:cnt,items,mark:new Uint32Array(tris),q:0,cell};
+}
+/* triangles whose bounding box comes within r of P */
+function nearTris(d,P,r){
+  const g=d.grid,G=g.G,bb=d.bb,out=[],q=++g.q;
+  const x0=g.cell(P.x-r,0),x1=g.cell(P.x+r,0),y0=g.cell(P.y-r,1),y1=g.cell(P.y+r,1),z0=g.cell(P.z-r,2),z1=g.cell(P.z+r,2);
+  for(let z=z0;z<=z1;z++)for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){const c=(z*G+y)*G+x;
+    for(let k=g.start[c],e=g.start[c+1];k<e;k++){const t=g.items[k];if(g.mark[t]===q)continue;g.mark[t]=q;
+      if(bb[t*6]>P.x+r||bb[t*6+3]<P.x-r||bb[t*6+1]>P.y+r||bb[t*6+4]<P.y-r||bb[t*6+2]>P.z+r||bb[t*6+5]<P.z-r)continue;out.push(t);}}
+  return out;
+}
+/* nearest triangle hit along a world-space ray: walks the grid cells the ray crosses (3D DDA), double-sided */
+function rayGrid(d,o,v){
+  const g=d.grid,G=g.G,w=d.world,mn=g.mn,cs=g.cs;let t0=0,t1=Infinity;const O=[o.x,o.y,o.z],D=[v.x,v.y,v.z];
+  for(let k=0;k<3;k++){const lo=mn[k],hi=mn[k]+cs[k]*G;
+    if(Math.abs(D[k])<1e-12){if(O[k]<lo||O[k]>hi)return null;continue;}
+    let a=(lo-O[k])/D[k],b=(hi-O[k])/D[k];if(a>b){const s=a;a=b;b=s;}if(a>t0)t0=a;if(b<t1)t1=b;if(t0>t1)return null;}
+  const c=[0,0,0],step=[0,0,0],tMax=[0,0,0],tDel=[0,0,0];
+  for(let k=0;k<3;k++){const p=O[k]+D[k]*(t0+1e-9);c[k]=Math.min(G-1,Math.max(0,Math.floor((p-mn[k])/cs[k])));
+    if(D[k]>0){step[k]=1;tMax[k]=(mn[k]+(c[k]+1)*cs[k]-O[k])/D[k];tDel[k]=cs[k]/D[k];}
+    else if(D[k]<0){step[k]=-1;tMax[k]=(mn[k]+c[k]*cs[k]-O[k])/D[k];tDel[k]=-cs[k]/D[k];}
+    else{tMax[k]=Infinity;tDel[k]=Infinity;}}
+  const q=++g.q;let best=Infinity,bt=-1;
+  for(;;){const ci=(c[2]*G+c[1])*G+c[0];
+    for(let k=g.start[ci],e=g.start[ci+1];k<e;k++){const t=g.items[k];if(g.mark[t]===q)continue;g.mark[t]=q;const a=t*9;
+      const e1x=w[a+3]-w[a],e1y=w[a+4]-w[a+1],e1z=w[a+5]-w[a+2],e2x=w[a+6]-w[a],e2y=w[a+7]-w[a+1],e2z=w[a+8]-w[a+2];
+      const px=D[1]*e2z-D[2]*e2y,py=D[2]*e2x-D[0]*e2z,pz=D[0]*e2y-D[1]*e2x,det=e1x*px+e1y*py+e1z*pz;if(Math.abs(det)<1e-14)continue;
+      const inv=1/det,sx=O[0]-w[a],sy=O[1]-w[a+1],sz=O[2]-w[a+2],u=(sx*px+sy*py+sz*pz)*inv;if(u<0||u>1)continue;
+      const qx=sy*e1z-sz*e1y,qy=sz*e1x-sx*e1z,qz=sx*e1y-sy*e1x,vv=(D[0]*qx+D[1]*qy+D[2]*qz)*inv;if(vv<0||u+vv>1)continue;
+      const tt=(e2x*qx+e2y*qy+e2z*qz)*inv;if(tt>1e-9&&tt<best){best=tt;bt=t;}}
+    const ax=tMax[0]<tMax[1]?(tMax[0]<tMax[2]?0:2):(tMax[1]<tMax[2]?1:2);
+    if(best<=tMax[ax]||tMax[ax]>t1)break;
+    c[ax]+=step[ax];if(c[ax]<0||c[ax]>=G)break;tMax[ax]+=tDel[ax];}
+  return bt<0?null:{t:best,tri:bt};
+}
+
+/* ---------- texture uploads: only the changed rectangle goes to the GPU, once per frame ---------- */
+function dirtyRect(kr,x0,y0,x1,y1){
+  const r=kr.dr||(kr.dr=[Infinity,Infinity,-Infinity,-Infinity]);if(x0<r[0])r[0]=x0;if(y0<r[1])r[1]=y0;if(x1>r[2])r[2]=x1;if(y1>r[3])r[3]=y1;
+  const e=kr.rec;if(e){if(x0<e[0])e[0]=x0;if(y0<e[1])e[1]=y0;if(x1>e[2])e[2]=x1;if(y1>e[3])e[3]=y1;}}
+function texDirty(kr,uvA,t){const i=t*6,W=kr.W;
+  dirtyRect(kr,Math.min(uvA[i],uvA[i+2],uvA[i+4])*W-2,Math.min(uvA[i+1],uvA[i+3],uvA[i+5])*W-2,Math.max(uvA[i],uvA[i+2],uvA[i+4])*W+2,Math.max(uvA[i+1],uvA[i+3],uvA[i+5])*W+2);}
+function texFull(kr){kr.full=true;}
+function clampRect(r,W){return [Math.max(0,Math.floor(r[0])),Math.max(0,Math.floor(r[1])),Math.min(W,Math.ceil(r[2])),Math.min(W,Math.ceil(r[3]))];}
+const upTex=new THREE.DataTexture(new Uint8Array(4),1,1,THREE.RGBAFormat),upPos=new THREE.Vector2();
+function flushTex(){
+  for(const d of meshes){const kr=d.mesh.userData.kr;
+    if(kr.full){kr.full=false;kr.dr=null;kr.tex.needsUpdate=true;continue;}
+    if(!kr.dr)continue;const W=kr.W,[x0,y0,x1,y1]=clampRect(kr.dr,W),w=x1-x0,h=y1-y0;kr.dr=null;if(w<=0||h<=0)continue;
+    if(w*h>W*W*0.45){kr.tex.needsUpdate=true;continue;}
+    const buf=new Uint8Array(w*h*4);for(let y=0;y<h;y++)buf.set(kr.data.subarray(((y0+y)*W+x0)*4,((y0+y)*W+x1)*4),y*w*4);
+    upTex.image={data:buf,width:w,height:h};upPos.set(x0,y0);renderer.copyTextureToTexture(upPos,upTex,kr.tex);}
+}
+/* vertex colours: upload only the touched range of the colour buffer */
+function colDirty(ca,lo,hi){ca.needsUpdate=true;if(ca._full)return;const r=ca.updateRange,off=lo*3,end=(hi+1)*3;
+  if(r.count>0){const e=Math.max(r.offset+r.count,end);r.offset=Math.min(r.offset,off);r.count=e-r.offset;}else{r.offset=off;r.count=end-off;}}
+function colFull(ca){ca._full=true;ca.updateRange.offset=0;ca.updateRange.count=-1;ca.needsUpdate=true;}
+
 /* ---------- mesh prep ---------- */
 function sampleTexture(mat){
   try{const img=mat.map&&mat.map.image;if(!img||!img.width)return null;
@@ -525,7 +596,7 @@ function buildData(m){
   const em=new Map();const adj=new Array(tris);for(let t=0;t<tris;t++)adj[t]=[];
   for(let t=0;t<tris;t++){for(let e=0;e<3;e++){let a=vid[t*3+e],b=vid[t*3+(e+1)%3];if(a===b)continue;if(a>b){const s=a;a=b;b=s;}const key=a*4194304+b;
     const lst=em.get(key);if(lst){for(const o of lst){adj[t].push(o);adj[o].push(t);}lst.push(t);}else em.set(key,[t]);}}
-  return {mesh:m,n,tris,world,tn,bb,adj,sel:new Uint8Array(tris),selMesh:null,wire:null};
+  return {mesh:m,n,tris,world,tn,bb,adj,grid:buildGrid(bb,tris),sel:new Uint8Array(tris),selMesh:null,wire:null};
 }
 function addWire(d){const w=new THREE.Mesh(d.mesh.geometry,wireMat);w.visible=st.wire;w.raycast=()=>{};d.mesh.add(w);d.wire=w;}
 function setModel(obj,name){
@@ -626,9 +697,9 @@ function escapeHtml(s){return s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>
 /* ---------- undo (vertex colors or touched decal layers) ---------- */
 const undo=[],redo=[];
 function snapCols(){return meshes.map(d=>d.mesh.geometry.attributes.color.array.slice());}
-function restoreCols(s){meshes.forEach((d,i)=>{const a=d.mesh.geometry.attributes.color;if(s[i]&&s[i].length===a.array.length){a.array.set(s[i]);a.needsUpdate=true;}});}
+function restoreCols(s){meshes.forEach((d,i)=>{const a=d.mesh.geometry.attributes.color;if(s[i]&&s[i].length===a.array.length){a.array.set(s[i]);colFull(a);}});}
 function snapTexLike(map){const m=new Map();map.forEach((_,i)=>{if(meshes[i])m.set(i,meshes[i].mesh.userData.kr.data.slice());});return m;}
-function restoreTex(map){map.forEach((arr,i)=>{const d=meshes[i];if(!d)return;const kr=d.mesh.userData.kr;if(arr.length===kr.data.length){kr.data.set(arr);kr.tex.needsUpdate=true;}});}
+function restoreTex(map){map.forEach((arr,i)=>{const d=meshes[i];if(!d)return;const kr=d.mesh.userData.kr;if(arr.length===kr.data.length){kr.data.set(arr);texFull(kr);}});}
 function entryBytes(e){let b=0;if(e.cols)e.cols.forEach(a=>b+=a.byteLength);if(e.tex)e.tex.forEach(a=>b+=a.byteLength);return b;}
 function pushUndo(e){undo.push(e);redo.length=0;
   let total=undo.reduce((s,x)=>s+entryBytes(x),0);while(undo.length>1&&(undo.length>40||total>220e6)){total-=entryBytes(undo.shift());}updUndo();}
@@ -672,30 +743,35 @@ const ray=new THREE.Raycaster(),ndc=new THREE.Vector2();
 function pick(cx,cy){
   const r=canvas.getBoundingClientRect();ndc.set(((cx-r.left)/r.width)*2-1,-((cy-r.top)/r.height)*2+1);
   ray.setFromCamera(ndc,camera);
-  const hits=ray.intersectObjects(meshes.filter(shown).map(d=>d.mesh),false);
-  if(!hits.length)return null;const h=hits[0];const d=meshes.find(x=>x.mesh===h.object);
-  return {d,tri:h.faceIndex,point:h.point,normal:new THREE.Vector3(d.tn[h.faceIndex*3],d.tn[h.faceIndex*3+1],d.tn[h.faceIndex*3+2])};
+  const o=ray.ray.origin,v=ray.ray.direction;let best=null,bd=null;
+  for(const d of meshes){if(!shown(d))continue;const h=rayGrid(d,o,v);if(h&&(!best||h.t<best.t)){best=h;bd=d;}}
+  if(!best)return null;const f=best.tri;
+  return {d:bd,tri:f,point:o.clone().addScaledVector(v,best.t),normal:new THREE.Vector3(bd.tn[f*3],bd.tn[f*3+1],bd.tn[f*3+2])};
 }
 
 /* ---------- vertex painting ---------- */
-function brushAt(hit){brushDab(hit.point,hit.normal);if(st.sym>=0){const m={sym:st.sym,mc:modelCenter.toArray()};brushDab(mirrorV(hit.point,m),mirrorN(hit.normal,m));}}
+function brushAt(hit){
+  const R=st.radius*modelSize,last=stroke&&stroke.last;stroke&&(stroke.last={P:hit.point.clone(),N:hit.normal.clone()});
+  if(last&&fillGap(last,hit.point,hit.normal,R*0.3,R*8,(P,N)=>brushAt1(P,N)))return;
+  if(!last||last.P.distanceTo(hit.point)>=R*0.3||!stroke)brushAt1(hit.point,hit.normal);}
+function brushAt1(P0,N0){const hit={point:P0,normal:N0};brushDab(hit.point,hit.normal);if(st.sym>=0){const m={sym:st.sym,mc:modelCenter.toArray()};brushDab(mirrorV(hit.point,m),mirrorN(hit.normal,m));}}
 function brushDab(P,N){
   const R=st.radius*modelSize,R2=R*R,h=st.hard,s=st.strength,c=st.color,any=hasSel();
   meshes.forEach(d=>{if(!shown(d))return;
-    const ca=d.mesh.geometry.attributes.color,col=ca.array,w=d.world;let ch=false;
-    for(let i=0;i<d.n;i++){
-      const dx=w[i*3]-P.x,dy=w[i*3+1]-P.y,dz=w[i*3+2]-P.z,dd=dx*dx+dy*dy+dz*dz;if(dd>R2)continue;
-      const t=(i/3)|0;if(any&&!d.sel[t])continue;
+    const ca=d.mesh.geometry.attributes.color,col=ca.array,w=d.world;let lo=Infinity,hi=-1;
+    for(const t of nearTris(d,P,R)){if(any&&!d.sel[t])continue;
       if(d.tn[t*3]*N.x+d.tn[t*3+1]*N.y+d.tn[t*3+2]*N.z<-0.2)continue;
-      const dist=Math.sqrt(dd)/R;let f=dist<=h?1:1-(dist-h)/Math.max(1e-4,1-h);f=f*f*(3-2*f);f*=s;
-      col[i*3]+=(c[0]-col[i*3])*f;col[i*3+1]+=(c[1]-col[i*3+1])*f;col[i*3+2]+=(c[2]-col[i*3+2])*f;ch=true;}
-    if(ch)ca.needsUpdate=true;});
+      for(let i=t*3;i<t*3+3;i++){
+        const dx=w[i*3]-P.x,dy=w[i*3+1]-P.y,dz=w[i*3+2]-P.z,dd=dx*dx+dy*dy+dz*dz;if(dd>R2)continue;
+        const dist=Math.sqrt(dd)/R;let f=dist<=h?1:1-(dist-h)/Math.max(1e-4,1-h);f=f*f*(3-2*f);f*=s;
+        col[i*3]+=(c[0]-col[i*3])*f;col[i*3+1]+=(c[1]-col[i*3+1])*f;col[i*3+2]+=(c[2]-col[i*3+2])*f;if(i<lo)lo=i;if(i>hi)hi=i;}}
+    if(hi>=0)colDirty(ca,lo,hi);});
 }
 function fillAt(hit){
   const ts=targets(hit),c=st.color,s=st.strength;
   ts.forEach(({d,mask})=>{const ca=d.mesh.geometry.attributes.color,col=ca.array;
     for(let t=0;t<d.tris;t++){if(mask&&!mask[t])continue;for(let k=0;k<3;k++){const i=(t*3+k)*3;col[i]+=(c[0]-col[i])*s;col[i+1]+=(c[1]-col[i+1])*s;col[i+2]+=(c[2]-col[i+2])*s;}}
-    ca.needsUpdate=true;});
+    colFull(ca);});
 }
 /* gradient colours: 256 RGBA steps, colours mixed in OkLab, alpha linearly */
 function gradLUT(stops){
@@ -727,18 +803,20 @@ function gradQ(g,tile,t,pu,pv){
 let gdrag=null,gradNo=0,gradDirty=false;
 function gradPixels(o,mi,d){ /* texels covered by the gradient's area on this part, each once */
   o._px=o._px||[];if(o._px[mi])return o._px[mi];
-  const kr=d.mesh.userData.kr,W=kr.W,w=d.world,m=o.lim.sel&&o.lim.sel[mi],seen=new Uint8Array(W*W),idx=[],pos=[];
-  for(let t=0;t<d.tris;t++){if(m&&!m[t])continue;const a=t*9;
+  const kr=d.mesh.userData.kr,W=kr.W,w=d.world,m=o.lim.sel&&o.lim.sel[mi],seen=new Uint8Array(W*W),idx=[],pos=[],rect=[Infinity,Infinity,-Infinity,-Infinity];
+  for(let t=0;t<d.tris;t++){if(m&&!m[t])continue;const a=t*9,i6=t*6,u=kr.uv;
+    rect[0]=Math.min(rect[0],u[i6]*W-2,u[i6+2]*W-2,u[i6+4]*W-2);rect[1]=Math.min(rect[1],u[i6+1]*W-2,u[i6+3]*W-2,u[i6+5]*W-2);
+    rect[2]=Math.max(rect[2],u[i6]*W+2,u[i6+2]*W+2,u[i6+4]*W+2);rect[3]=Math.max(rect[3],u[i6+1]*W+2,u[i6+3]*W+2,u[i6+5]*W+2);
     rasterTri(kr.uv,t,W,W,1.2,(p,w0,w1,w2)=>{if(seen[p])return;seen[p]=1;idx.push(p);
       pos.push(w0*w[a]+w1*w[a+3]+w2*w[a+6],w0*w[a+1]+w1*w[a+4]+w2*w[a+7],w0*w[a+2]+w1*w[a+5]+w2*w[a+8]);});}
-  return o._px[mi]={idx:Int32Array.from(idx),pos:Float32Array.from(pos)};
+  return o._px[mi]={idx:Int32Array.from(idx),pos:Float32Array.from(pos),rect};
 }
 function stampGrad(o){
   const L=gradLUT(o.stops),A=o.A,V=o.V,D=o.B.clone().sub(A);D.addScaledVector(V,-D.dot(V));const len=D.length();
   if(len<modelSize*1e-4){delete o._px;return;}
   const U=D.clone().divideScalar(len),Q=new THREE.Vector3().crossVectors(V,U),cell=Math.max(1e-6,o.scale*modelSize),tile=PAT[o.pat]||PAT.dots;
   meshes.forEach((d,mi)=>{if(!o.lim.shown[mi])return;const px=gradPixels(o,mi,d),idx=px.idx,pos=px.pos;if(!idx.length)return;touchTex(mi);
-    const kr=d.mesh.userData.kr,out=kr.data;
+    const kr=d.mesh.userData.kr,out=kr.data;dirtyRect(kr,...px.rect);
     for(let k=0;k<idx.length;k++){const rx=pos[k*3]-A.x,ry=pos[k*3+1]-A.y,rz=pos[k*3+2]-A.z,along=rx*U.x+ry*U.y+rz*U.z;let t;
       if(o.type==='radial'){const across=rx*Q.x+ry*Q.y+rz*Q.z;t=Math.sqrt(along*along+across*across)/len;}
       else{t=along/len;if(o.type==='mirror')t=Math.abs(t);}
@@ -747,7 +825,7 @@ function stampGrad(o){
       const li=Math.round(q*255)*4,sa=L[li+3]*o.alpha;if(sa<=0.002)continue;
       const o4=idx[k]*4,da=out[o4+3]/255,oa=sa+da*(1-sa),k1=sa/oa,k2=da*(1-sa)/oa;
       out[o4]=L[li]*255*k1+out[o4]*k2;out[o4+1]=L[li+1]*255*k1+out[o4+1]*k2;out[o4+2]=L[li+2]*255*k1+out[o4+2]*k2;out[o4+3]=oa*255;}
-    kr.tex.needsUpdate=true;kr.has=true;});
+    kr.has=true;});
   if(o!==edOp)delete o._px; /* keep the texel list only while this gradient is being edited */
 }
 function camDir(){return camera.getWorldDirection(new THREE.Vector3());}
@@ -773,7 +851,7 @@ function gradStart(cx,cy,hit){
   const V=camDir(),P0=hit?hit.point.clone():controls.target.clone(),A=planeHit(cx,cy,P0,V)||P0,ts=targets(hit);
   const lim={shown:meshes.map(d=>ts.some(x=>x.d===d)),sel:meshes.map(d=>{const x=ts.find(y=>y.d===d);return x&&x.mask?x.mask.slice():null;})};
   const g=st.grad,o={k:'grad',A,B:A.clone(),V,stops:cloneStops(g.stops),type:g.type,mode:g.mode,steps:g.steps,pat:g.pat,scale:g.scale,alpha:st.strength,lim,name:'Градиент '+(gradNo+1)};
-  editSnap={tex:snapAllTex(),decals:decalOps.slice(),baked:bakedBase};editBase=meshes.map(d=>d.mesh.userData.kr.data.slice());
+  editSnap={tex:snapAllTex(),decals:decalOps.slice(),baked:bakedBase};setEditBase();
   decalOps.push(o);edOp=o;
   gdrag={h:'B',P:A.clone(),N:V,fresh:true,prev:selGrad,hit,sx:cx,sy:cy};
 }
@@ -828,12 +906,12 @@ function stampDecal(o){
   const X=fr.X,Y=fr.Y,img=dec.data,iw=dec.w,ih=dec.h;
   meshes.forEach((d,mi)=>{if(!lim.shown[mi])return;const sel=lim.sel&&lim.sel[mi];
     const kr=d.mesh.userData.kr,W=kr.W,out=kr.data,uvA=kr.uv,w=d.world,bb=d.bb;let ch=false;
-    for(let t=0;t<d.tris;t++){
+    for(const t of nearTris(d,P,R)){
       if(lim.sel&&!(sel&&sel[t]))continue;
       if(bb[t*6]>P.x+R||bb[t*6+3]<P.x-R||bb[t*6+1]>P.y+R||bb[t*6+4]<P.y-R||bb[t*6+2]>P.z+R||bb[t*6+5]<P.z-R)continue;
       if(d.tn[t*3]*N.x+d.tn[t*3+1]*N.y+d.tn[t*3+2]*N.z<minDot)continue;
       const a=t*9;
-      if(!ch){touchTex(mi);ch=true;}
+      if(!ch){touchTex(mi);ch=true;}texDirty(kr,uvA,t);
       rasterTri(uvA,t,W,W,1.2,(o,w0,w1,w2)=>{
         const rx=w0*w[a]+w1*w[a+3]+w2*w[a+6]-P.x,ry=w0*w[a+1]+w1*w[a+4]+w2*w[a+7]-P.y,rz=w0*w[a+2]+w1*w[a+5]+w2*w[a+8]-P.z;
         const lx=(rx*X.x+ry*X.y+rz*X.z)/hw,ly=(rx*Y.x+ry*Y.y+rz*Y.z)/hh;if(lx<-1||lx>1||ly<-1||ly>1)return;
@@ -843,24 +921,26 @@ function stampDecal(o){
         const o4=o*4,da=out[o4+3]/255,oa=sa+da*(1-sa),k1=sa/oa,k2=da*(1-sa)/oa;
         out[o4]=img[s4]*k1+out[o4]*k2;out[o4+1]=img[s4+1]*k1+out[o4+1]*k2;out[o4+2]=img[s4+2]*k1+out[o4+2]*k2;out[o4+3]=oa*255;});
     }
-    if(ch){kr.tex.needsUpdate=true;kr.has=true;}
+    if(ch)kr.has=true;
   });
 }
 function eraseDab(P,o){
   const R=o.R,R2=R*R,h=o.h,s=o.s,lim=o.lim;
   meshes.forEach((d,mi)=>{if(!lim.shown[mi])return;const sel=lim.sel&&lim.sel[mi];const kr=d.mesh.userData.kr,W=kr.W,out=kr.data,w=d.world,bb=d.bb;let ch=false;
-    for(let t=0;t<d.tris;t++){
+    for(const t of nearTris(d,P,R)){
       if(lim.sel&&!(sel&&sel[t]))continue;
       if(bb[t*6]>P.x+R||bb[t*6+3]<P.x-R||bb[t*6+1]>P.y+R||bb[t*6+4]<P.y-R||bb[t*6+2]>P.z+R||bb[t*6+5]<P.z-R)continue;
-      const a=t*9;if(!ch){touchTex(mi);ch=true;}
+      const a=t*9;if(!ch){touchTex(mi);ch=true;}texDirty(kr,kr.uv,t);
       rasterTri(kr.uv,t,W,W,1.2,(o,w0,w1,w2)=>{
         const rx=w0*w[a]+w1*w[a+3]+w2*w[a+6]-P.x,ry=w0*w[a+1]+w1*w[a+4]+w2*w[a+7]-P.y,rz=w0*w[a+2]+w1*w[a+5]+w2*w[a+8]-P.z,dd=rx*rx+ry*ry+rz*rz;if(dd>R2)return;
         const dist=Math.sqrt(dd)/R;let f=dist<=h?1:1-(dist-h)/Math.max(1e-4,1-h);f=f*f*(3-2*f)*s;out[o*4+3]*=(1-f);});}
-    if(ch)kr.tex.needsUpdate=true;});
+    });
 }
-function eraseAt(hit){if(!stroke||!stroke.op)return;const o=stroke.op,P=hit.point.clone();o.pts.push(P);eraseDab(P,o);if(o.sym>=0)eraseDab(mirrorV(P,o),o);}
+function eraseAt(hit){if(!stroke||!stroke.op)return;const o=stroke.op,last=stroke.last;stroke.last={P:hit.point.clone(),N:hit.normal.clone()};
+  const dab=P=>{P=P.clone();o.pts.push(P);eraseDab(P,o);if(o.sym>=0)eraseDab(mirrorV(P,o),o);};
+  if(!last)dab(hit.point);else fillGap(last,hit.point,hit.normal,o.R*0.3,o.R*8,P=>dab(P));}
 /* ---------- textured brushes: each stroke is a layer op painted into the decal texture ---------- */
-const BRUSHES={round:'Круглая',water:'Акварель',blot:'Клякса',dry:'Сухая',chalk:'Мел',spray:'Брызги'};
+const BRUSHES={round:'Круглая',water:'Акварель',blot:'Клякса',dry:'Сухая',chalk:'Мел',spray:'Брызги',pixel:'Пиксели'};
 /* value noise in world space, so a stroke stays seamless across UV islands */
 function hash3(x,y,z,s){let h=(Math.imul(x,374761393)+Math.imul(y,668265263)+Math.imul(z,1440662683)+Math.imul(s,951274213))|0;h=Math.imul(h^(h>>>13),1274126177);h^=h>>>16;return (h>>>0)/4294967296;}
 function vnoise(x,y,z,s){const xi=Math.floor(x),yi=Math.floor(y),zi=Math.floor(z),xf=x-xi,yf=y-yi,zf=z-zi,u=xf*xf*(3-2*xf),v=yf*yf*(3-2*yf),w=zf*zf*(3-2*zf);
@@ -875,14 +955,20 @@ function dabDrops(o,di){const r=rnd(o.seed*7919+di*104729+1),out=[];
   else if(o.shape==='spray'){for(let k=0;k<9;k++){const a=r()*6.283,d=Math.sqrt(r());out.push([Math.cos(a)*d,Math.sin(a)*d,0.03+r()*0.06]);}}
   return out;}
 const dropCov=(drops,lx,ly,c)=>{for(const q of drops)c=Math.max(c,clamp01((q[2]-Math.hypot(lx-q[0],ly-q[1]))*30+0.5));return c;};
-/* coverage of one dab at a texel; lx,ly in brush radii (X along the stroke), n* = world position in brush radii */
-function dabCov(o,lx,ly,nx,ny,nz,drops){const d=Math.hypot(lx,ly);
+/* world-space noise a stroke reads at each texel (computed once per texel per stroke); n* in brush radii */
+function texNoise(o,nx,ny,nz){
+  switch(o.shape){case 'water':return fbm(nx*1.5,ny*1.5,nz*1.5,o.seed);case 'blot':return fbm(nx*1.3,ny*1.3,nz*1.3,o.seed);
+    case 'dry':return fbm(nx*2,ny*2,nz*2,o.seed+3);case 'chalk':return vnoise(nx*7,ny*7,nz*7,o.seed);}
+  return 0;}
+/* coverage of one dab at a texel; lx,ly in brush radii (X along the stroke), n = texNoise, w* world position, P dab centre */
+function dabCov(o,lx,ly,n,drops,wx,wy,wz,P){const d=Math.hypot(lx,ly);
   switch(o.shape){
-    case 'water':return 1-d+(fbm(nx*1.5,ny*1.5,nz*1.5,o.seed)-0.5)*0.6;
-    case 'blot':return dropCov(drops,lx,ly,clamp01((0.72+(fbm(nx*1.3,ny*1.3,nz*1.3,o.seed)-0.5)*1.0-d)*10+0.5));
-    case 'dry':{const disc=softDisc(d,o.h);if(!disc)return 0;return disc*smooth(0.4,0.6,vnoise(ly*6,0.5,0.5,o.seed))*(0.55+0.45*smooth(0.25,0.6,fbm(nx*2,ny*2,nz*2,o.seed+3)));}
-    case 'chalk':{const disc=softDisc(d,o.h);if(!disc)return 0;return smooth(0.55,0.72,vnoise(nx*7,ny*7,nz*7,o.seed)+disc*0.35)*Math.min(1,disc*3);}
-    case 'spray':return dropCov(drops,lx,ly,0);}
+    case 'water':return 1-d+(n-0.5)*0.6;
+    case 'blot':return dropCov(drops,lx,ly,clamp01((0.72+(n-0.5)*1.0-d)*10+0.5));
+    case 'dry':{const disc=softDisc(d,o.h);if(!disc)return 0;return disc*smooth(0.4,0.6,vnoise(ly*6,0.5,0.5,o.seed))*(0.55+0.45*smooth(0.25,0.6,n));}
+    case 'chalk':{const disc=softDisc(d,o.h);if(!disc)return 0;return smooth(0.55,0.72,n+disc*0.35)*Math.min(1,disc*3);}
+    case 'spray':return dropCov(drops,lx,ly,0);
+    case 'pixel':{const s=o.px,cx=(Math.floor(wx/s)+0.5)*s-P.x,cy=(Math.floor(wy/s)+0.5)*s-P.y,cz=(Math.floor(wz/s)+0.5)*s-P.z;return cx*cx+cy*cy+cz*cz<=o.R*o.R?1:0;}}
   return softDisc(d,o.h);}
 /* coverage -> paint opacity; watercolour gets darker rims and pigment granulation */
 function paintAlpha(o,c,g){if(c<=0)return 0;
@@ -890,52 +976,62 @@ function paintAlpha(o,c,g){if(c<=0)return 0;
   return Math.min(1,c)*o.s;}
 function mirrorV(v,o){const a=v.toArray();a[o.sym]=2*o.mc[o.sym]-a[o.sym];return new THREE.Vector3().fromArray(a);}
 function mirrorN(v,o){const a=v.toArray();a[o.sym]=-a[o.sym];return new THREE.Vector3().fromArray(a);}
-/* paint dabs i0.. of a stroke (and their mirror twins); ss keeps the stroke's coverage and the texture under it,
-   so each new dab only re-composites the texels it touches */
+/* per-part scratch reused by every stroke: a texel belongs to the current stroke when gen matches;
+   it keeps the stroke's coverage, the noise read there and the colour that was under the stroke */
+let strokeGen=0;
+function strokeState(){if(++strokeGen>65535){strokeGen=1;meshes.forEach(d=>{const ps=d.mesh.userData.kr.ps;if(ps)ps.gen.fill(0);});}return {gen:strokeGen};}
+function paintScratch(kr){if(!kr.ps){const n=kr.W*kr.W;kr.ps={gen:new Uint16Array(n),cov:new Float32Array(n),nz:new Uint8Array(n),aux:new Uint8Array(n),base:new Uint8Array(n*4)};}return kr.ps;}
+/* paint dabs i0.. of a stroke (and their mirror twins); only texels the new dabs reach are re-composited */
 function paintDabs(o,ss,i0){
-  const R=o.R,lim=o.lim,list=[];
+  const R=o.R,lim=o.lim,list=[],gen=ss.gen,water=o.shape==='water';
   for(let i=i0;i<o.pts.length;i++){const q=o.pts[i];list.push([q.P,q.N,q.X,i]);if(o.sym>=0)list.push([mirrorV(q.P,o),mirrorN(q.N,o),mirrorN(q.X,o),i+1e6]);}
-  const ext=R*(o.shape==='blot'?2:1.05),ext2=(ext/R)*(ext/R),Y=new THREE.Vector3(),invR=1/R;
-  meshes.forEach((d,mi)=>{if(!lim.shown[mi])return;const sel=lim.sel&&lim.sel[mi];const kr=d.mesh.userData.kr,W=kr.W,out=kr.data,w=d.world,bb=d.bb;const changed=[];
+  const ext=R*(o.shape==='blot'?2:1.05)+(o.shape==='pixel'?o.px:0),ext2=(ext/R)*(ext/R),Y=new THREE.Vector3(),invR=1/R;
+  meshes.forEach((d,mi)=>{if(!lim.shown[mi])return;const sel=lim.sel&&lim.sel[mi];const kr=d.mesh.userData.kr,W=kr.W,out=kr.data,w=d.world,uvA=kr.uv;let ps=null;const changed=[];
     for(const [P,N,X,di] of list){Y.crossVectors(N,X);const drops=dabDrops(o,di);
-      for(let t=0;t<d.tris;t++){
+      for(const t of nearTris(d,P,ext)){
         if(lim.sel&&!(sel&&sel[t]))continue;
-        if(bb[t*6]>P.x+ext||bb[t*6+3]<P.x-ext||bb[t*6+1]>P.y+ext||bb[t*6+4]<P.y-ext||bb[t*6+2]>P.z+ext||bb[t*6+5]<P.z-ext)continue;
         if(d.tn[t*3]*N.x+d.tn[t*3+1]*N.y+d.tn[t*3+2]*N.z<-0.2)continue;
-        if(!ss.cov[mi]){touchTex(mi);ss.cov[mi]=new Float32Array(W*W);ss.aux[mi]=new Float32Array(W*W).fill(-1);ss.base[mi]=out.slice();}
-        const cov=ss.cov[mi],aux=ss.aux[mi],a=t*9;
-        rasterTri(kr.uv,t,W,W,1.2,(p,w0,w1,w2)=>{
+        if(!ps){ps=paintScratch(kr);touchTex(mi);}
+        texDirty(kr,uvA,t);const a=t*9,G=ps.gen,cov=ps.cov,nzA=ps.nz,base=ps.base;
+        rasterTri(uvA,t,W,W,1.2,(p,w0,w1,w2)=>{
           const wx=w0*w[a]+w1*w[a+3]+w2*w[a+6],wy=w0*w[a+1]+w1*w[a+4]+w2*w[a+7],wz=w0*w[a+2]+w1*w[a+5]+w2*w[a+8],rx=wx-P.x,ry=wy-P.y,rz=wz-P.z;
           if(Math.abs(rx*N.x+ry*N.y+rz*N.z)>R*0.8)return;
           const lx=(rx*X.x+ry*X.y+rz*X.z)*invR,ly=(rx*Y.x+ry*Y.y+rz*Y.z)*invR;if(lx*lx+ly*ly>ext2)return;
-          if(aux[p]<0)aux[p]=o.shape==='water'?fbm(wx*invR*6,wy*invR*6,wz*invR*6,o.seed+29):0;
-          const c=dabCov(o,lx,ly,wx*invR,wy*invR,wz*invR,drops);if(c>cov[p]){cov[p]=c;changed.push(p);}});}}
+          if(G[p]!==gen){G[p]=gen;cov[p]=0;const o4=p*4;base[o4]=out[o4];base[o4+1]=out[o4+1];base[o4+2]=out[o4+2];base[o4+3]=out[o4+3];
+            nzA[p]=texNoise(o,wx*invR,wy*invR,wz*invR)*255;ps.aux[p]=water?fbm(wx*invR*6,wy*invR*6,wz*invR*6,o.seed+29)*255:0;}
+          const c=dabCov(o,lx,ly,nzA[p]/255,drops,wx,wy,wz,P);if(c>cov[p]){cov[p]=c;changed.push(p);}});}}
     if(!changed.length)return;
-    const base=ss.base[mi],cov=ss.cov[mi],aux=ss.aux[mi],cr=o.c[0]*255,cg=o.c[1]*255,cb=o.c[2]*255;
-    for(const p of changed){const o4=p*4,sa=paintAlpha(o,cov[p],aux[p]);
+    const base=ps.base,cov=ps.cov,aux=ps.aux,cr=o.c[0]*255,cg=o.c[1]*255,cb=o.c[2]*255;
+    for(const p of changed){const o4=p*4,sa=paintAlpha(o,cov[p],aux[p]/255);
       out[o4]=base[o4];out[o4+1]=base[o4+1];out[o4+2]=base[o4+2];out[o4+3]=base[o4+3];if(sa<=0.002)continue;
       const da=base[o4+3]/255,oa=sa+da*(1-sa),k1=sa/oa,k2=da*(1-sa)/oa;
       out[o4]=cr*k1+base[o4]*k2;out[o4+1]=cg*k1+base[o4+1]*k2;out[o4+2]=cb*k1+base[o4+2]*k2;out[o4+3]=oa*255;}
-    kr.tex.needsUpdate=true;kr.has=true;});
+    kr.has=true;});
 }
-const strokeState=()=>({cov:[],aux:[],base:[]});
+/* points between the last dab and the new hit, every `gap`; a jump longer than `jump` starts afresh */
+function fillGap(last,P,N,gap,jump,fn){
+  const dist=P.distanceTo(last.P);if(dist<gap)return false;
+  if(dist>jump){fn(P,N,null);return true;}
+  const n=Math.min(64,Math.ceil(dist/gap));
+  for(let k=1;k<=n;k++){const Pk=last.P.clone().lerp(P,k/n),Nk=last.N.clone().lerp(N,k/n).normalize(),X=P.clone().sub(last.P);X.addScaledVector(Nk,-X.dot(Nk));fn(Pk,Nk,X.lengthSq()<1e-12?null:X.normalize());}
+  return true;
+}
 function paintAt(hit){
-  const o=stroke.op,P=hit.point.clone(),N=hit.normal.clone(),last=o.pts[o.pts.length-1],gap=o.R*(o.shape==='spray'?0.5:0.25),i0=o.pts.length;
+  const o=stroke.op,P=hit.point.clone(),N=hit.normal.clone(),last=o.pts[o.pts.length-1],i0=o.pts.length;
+  const gap=o.R*(o.shape==='spray'?0.5:o.shape==='pixel'?0.35:0.25);
   if(!last)o.pts.push({P,N,X:baseFrame(N).X});
-  else{const dist=P.distanceTo(last.P);if(dist<gap)return;const n=Math.min(64,Math.ceil(dist/gap));
-    for(let k=1;k<=n;k++){const Pk=last.P.clone().lerp(P,k/n),Nk=last.N.clone().lerp(N,k/n).normalize(),X=P.clone().sub(last.P);
-      X.addScaledVector(Nk,-X.dot(Nk));o.pts.push({P:Pk,N:Nk,X:X.lengthSq()<1e-12?baseFrame(Nk).X:X.normalize()});}}
+  else if(!fillGap(last,P,N,gap,o.R*8,(Pk,Nk,X)=>o.pts.push({P:Pk,N:Nk,X:X||baseFrame(Nk).X})))return;
   paintDabs(o,stroke.ss,i0);
 }
 /* small stroke previews for the brush buttons, drawn with the same dab code on a flat strip */
 function brushPreview(c,shape){
-  const x=c.getContext('2d'),w=c.width,h=c.height,img=x.createImageData(w,h),R=h*0.32,o={shape,seed:7,h:st.hard,s:1},pts=[];
+  const x=c.getContext('2d'),w=c.width,h=c.height,img=x.createImageData(w,h),R=h*0.32,o={shape,seed:7,h:st.hard,s:1,R,px:h*0.12},pts=[];
   for(let i=0;i<=24;i++){const t=i/24,px=R*1.1+t*(w-R*2.2),py=h/2+Math.sin(t*5)*h*0.12;pts.push([px,py]);}
   const drops=pts.map((_,i)=>dabDrops(o,i)),col=st.color;
-  for(let yy=0;yy<h;yy++)for(let xx=0;xx<w;xx++){let cv=0;
+  for(let yy=0;yy<h;yy++)for(let xx=0;xx<w;xx++){let cv=0;const n=texNoise(o,(xx+0.5)/R,(yy+0.5)/R,0);
     for(let i=0;i<pts.length;i++){const q=pts[i],nq=pts[Math.min(i+1,pts.length-1)],pq=pts[Math.max(i-1,0)];let dx=nq[0]-pq[0],dy=nq[1]-pq[1];const L=Math.hypot(dx,dy)||1;dx/=L;dy/=L;
       const rx=xx+0.5-q[0],ry=yy+0.5-q[1],lx=(rx*dx+ry*dy)/R,ly=(-rx*dy+ry*dx)/R;if(lx*lx+ly*ly>4)continue;
-      cv=Math.max(cv,dabCov(o,lx,ly,(xx+0.5)/R,(yy+0.5)/R,0,drops[i]));}
+      cv=Math.max(cv,dabCov(o,lx,ly,n,drops[i],xx+0.5,yy+0.5,0,{x:q[0],y:q[1],z:0}));}
     const a=paintAlpha(o,cv,shape==='water'?fbm((xx+0.5)/R*6,(yy+0.5)/R*6,0,36):0),k=(yy*w+xx)*4;
     img.data[k]=col[0]*255;img.data[k+1]=col[1]*255;img.data[k+2]=col[2]*255;img.data[k+3]=a*255;}
   x.putImageData(img,0,0);
@@ -944,7 +1040,7 @@ function brushPreview(c,shape){
 function snapAllTex(){const m=new Map();meshes.forEach((d,i)=>m.set(i,d.mesh.userData.kr.data.slice()));return m;}
 function stampOp(o){if(o.k==='decal')stampDecal(o);else if(o.k==='grad')stampGrad(o);else if(o.k==='paint')paintDabs(o,strokeState(),0);else o.pts.forEach(P=>{eraseDab(P,o);if(o.sym>=0)eraseDab(mirrorV(P,o),o);});}
 function replay(list){
-  meshes.forEach((d,i)=>{const kr=d.mesh.userData.kr;if(bakedBase&&bakedBase[i])kr.data.set(bakedBase[i]);else kr.data.fill(0);kr.has=!!bakedBase;kr.tex.needsUpdate=true;});
+  meshes.forEach((d,i)=>{const kr=d.mesh.userData.kr;if(bakedBase&&bakedBase[i])kr.data.set(bakedBase[i]);else kr.data.fill(0);kr.has=!!bakedBase;texFull(kr);});
   const keep=texOp;texOp=null;
   list.forEach(stampOp);texOp=keep;
 }
@@ -956,14 +1052,18 @@ function beginEdit(sel){
   editSnap={tex:snapAllTex(),decals:decalOps.slice(),baked:bakedBase};
   const i=decalOps.indexOf(sel);const c=Object.assign({},sel);delete sel._px;
   if(i>=0)decalOps[i]=c;else decalOps.push(c);if(sel===selDec)selDec=c;if(sel===selGrad)selGrad=c;edOp=c;
-  replay(decalOps.slice(0,decalOps.indexOf(c)));editBase=meshes.map(d=>d.mesh.userData.kr.data.slice());
+  replay(decalOps.slice(0,decalOps.indexOf(c)));setEditBase();
 }
+function setEditBase(){editBase=meshes.map(d=>{const kr=d.mesh.userData.kr;kr.er=null;return kr.data.slice();});}
 function redrawEdit(){
   if(!editBase||!edOp)return;
-  meshes.forEach((d,i)=>{const kr=d.mesh.userData.kr;kr.data.set(editBase[i]);kr.tex.needsUpdate=true;});
-  const i=decalOps.indexOf(edOp);if(i<0)return;
-  const keep=texOp;texOp=null;
-  decalOps.slice(i).forEach(stampOp);texOp=keep;
+  meshes.forEach((d,i)=>{const kr=d.mesh.userData.kr,W=kr.W;
+    if(kr.er){const [x0,y0,x1,y1]=clampRect(kr.er,W);for(let y=y0;y<y1;y++){const a=(y*W+x0)*4,b=(y*W+x1)*4;kr.data.set(editBase[i].subarray(a,b),a);}dirtyRect(kr,x0,y0,x1,y1);}
+    else{kr.data.set(editBase[i]);texFull(kr);}
+    kr.rec=[Infinity,Infinity,-Infinity,-Infinity];});
+  const i=decalOps.indexOf(edOp);
+  if(i>=0){const keep=texOp;texOp=null;decalOps.slice(i).forEach(stampOp);texOp=keep;}
+  meshes.forEach(d=>{const kr=d.mesh.userData.kr;kr.er=kr.rec;kr.rec=null;});
 }
 /* layer order: 'up'/'down' swap with the neighbouring decal, 'top'/'bottom' move to the end */
 function curLayer(){return st.tool==='gradient'?selGrad:selDec;}
@@ -1094,7 +1194,7 @@ canvas.addEventListener('pointerdown',e=>{
   if(tool==='brush'){if(!hit){activePtr=null;return;}
     if(st.brush==='round'){stroke={cols:snapCols()};brushAt(hit);}
     else{commitEdit();selDec=null;texOp=new Map();
-      const o={k:'paint',shape:st.brush,c:st.color.slice(),R:st.radius*modelSize,s:st.strength,h:st.hard,seed:(Math.random()*1e9)|0,sym:st.sym,mc:modelCenter.toArray(),pts:[],lim:curLim()};
+      const o={k:'paint',shape:st.brush,px:st.pixel*modelSize,c:st.color.slice(),R:st.radius*modelSize,s:st.strength,h:st.hard,seed:(Math.random()*1e9)|0,sym:st.sym,mc:modelCenter.toArray(),pts:[],lim:curLim()};
       stroke={tex:texOp,decals:decalOps.slice(),op:o,ss:strokeState()};decalOps.push(o);paintAt(hit);}}
   else if(tool==='erase'){if(!hit){activePtr=null;return;}commitEdit();selDec=null;texOp=new Map();
     stroke={tex:texOp,decals:decalOps.slice(),op:{k:'erase',pts:[],R:st.radius*modelSize,h:st.hard,s:st.strength,sym:st.sym,mc:modelCenter.toArray(),lim:curLim()}};decalOps.push(stroke.op);eraseAt(hit);}
@@ -1107,23 +1207,28 @@ canvas.addEventListener('pointerdown',e=>{
     if(o&&(tool==='dedit'||o===selDec)){selectDecal(o);ddrag={move:true,off:o.P.clone().sub(hit.point)};canvas.style.cursor='grabbing';return;}
     if(tool==='dedit'){selDec=null;activePtr=null;return;}
     const dec=curDecal();if(!dec){activePtr=null;toast('Сначала выбери наклейку');return;}
-    editSnap={tex:snapAllTex(),decals:decalOps.slice(),baked:bakedBase};editBase=meshes.map(d=>d.mesh.userData.kr.data.slice());
+    editSnap={tex:snapAllTex(),decals:decalOps.slice(),baked:bakedBase};setEditBase();
     selDec={k:'decal',P:null,N:null,base:null,rot:st.decal.rot,dec,size:st.decal.size,alpha:st.decal.op,flip:st.decal.flip,wrap:st.decal.wrap,lim:curLim()};edOp=selDec;
     ddrag={};decalPlace(e.clientX,e.clientY);}
 });
 let lastPtr=null;
 canvas.addEventListener('pointermove',e=>{
   lastPtr=[e.clientX,e.clientY];const tool=effTool();
-  if(e.pointerType==='mouse'&&meshes.length>1&&$('panel').dataset.tab==='parts'){const h=pick(e.clientX,e.clientY);markRow(h?meshes.indexOf(h.d):-1);}
-  if(((tool==='brush'||tool==='erase')&&e.pointerType!=='touch')||stroke){const hit=pick(e.clientX,e.clientY);updRing(hit);
-    if(stroke&&e.pointerId===activePtr&&hit){if(stroke.cols)brushAt(hit);else if(stroke.op.k==='paint')paintAt(hit);else eraseAt(hit);}}
+  if(e.pointerType==='mouse'&&meshes.length>1&&$('panel').dataset.tab==='parts')rowPend=[e.clientX,e.clientY];
+  if(((tool==='brush'||tool==='erase')&&e.pointerType!=='touch')||stroke){movePend=[e.clientX,e.clientY,!!(stroke&&e.pointerId===activePtr)];}
   else {ring.visible=ringIn.visible=ring2.visible=ringIn2.visible=false;}
   if(gdrag&&e.pointerId===activePtr)gradMove(e.clientX,e.clientY);
   else if(tool==='gradient'&&e.pointerType==='mouse')canvas.style.cursor=gradHandleAt(e.clientX,e.clientY)?'grab':'crosshair';
   if(ddrag&&e.pointerId===activePtr)pendingMove=[e.clientX,e.clientY];
   else if((tool==='decal'&&selDec)||tool==='dedit'){if(e.pointerType==='mouse'){const o=decalHitTest(pick(e.clientX,e.clientY));canvas.style.cursor=o&&(tool==='dedit'||o===selDec)?'grab':(tool==='decal'?'crosshair':'default');}}
 });
-function endPtr(e){ptrs.delete(e.pointerId);if(e.pointerId!==activePtr)return;activePtr=null;
+let movePend=null,rowPend=null;
+function processMove(){
+  if(rowPend){const h=pick(rowPend[0],rowPend[1]);rowPend=null;markRow(h?meshes.indexOf(h.d):-1);}
+  if(!movePend)return;const [x,y,paint]=movePend;movePend=null;const hit=pick(x,y);updRing(hit);
+  if(paint&&stroke&&hit){if(stroke.cols)brushAt(hit);else if(stroke.op.k==='paint')paintAt(hit);else eraseAt(hit);}
+}
+function endPtr(e){ptrs.delete(e.pointerId);if(e.pointerId!==activePtr)return;if(movePend)processMove();activePtr=null;
   if(stroke){if(stroke.cols){pushUndo({cols:stroke.cols});addRecent();}else if(stroke.tex.size){pushUndo({tex:stroke.tex,decals:stroke.decals});if(stroke.op.k==='paint')addRecent();}else decalOps=stroke.decals;stroke=null;texOp=null;}
   if(gdrag)gradEnd(e.clientX,e.clientY);
   if(ddrag){if(pendingMove){decalPlace(pendingMove[0],pendingMove[1]);pendingMove=null;}
@@ -1196,8 +1301,9 @@ $('palImg').addEventListener('change',e=>{const f=e.target.files[0];e.target.val
 var brushCv={},brushT=0;
 Object.keys(BRUSHES).forEach(k=>{const b=document.createElement('button');b.className='pat'+(k===st.brush?' on':'');b.dataset.b=k;b.title='Кисть: '+BRUSHES[k];
   const c=document.createElement('canvas');c.width=90;c.height=30;const sp=document.createElement('span');sp.textContent=BRUSHES[k];b.append(c,sp);
-  b.addEventListener('click',()=>{st.brush=k;document.querySelectorAll('#brushes .pat').forEach(x=>x.classList.toggle('on',x===b));});$('brushes').appendChild(b);brushCv[k]=c;});
+  b.addEventListener('click',()=>{st.brush=k;document.querySelectorAll('#brushes .pat').forEach(x=>x.classList.toggle('on',x===b));$('pxRow').hidden=k!=='pixel';});$('brushes').appendChild(b);brushCv[k]=c;});
 function renderBrushes(){if(!brushCv)return;clearTimeout(brushT);brushT=setTimeout(()=>Object.keys(brushCv).forEach(k=>brushPreview(brushCv[k],k)),60);}
+bindSlider('pxSize',v=>{st.pixel=v/1000;},v=>(v/10).toFixed(1)+'%');
 renderBrushes();
 document.querySelectorAll('#symChips .chip').forEach(b=>b.addEventListener('click',()=>{st.sym=+b.dataset.s;document.querySelectorAll('#symChips .chip').forEach(x=>x.classList.toggle('on',x===b));}));
 
@@ -1387,7 +1493,7 @@ function pngChunk(buf,type){
     if(t===type)return b.subarray(o+8,o+8+len);o+=12+len;}
   return null;
 }
-async function renderPreview(S){
+async function renderPreview(S){flushTex();
   const prevSize=renderer.getSize(new THREE.Vector2()),prevPR=renderer.getPixelRatio(),prevAsp=camera.aspect;
   const hidden=[grid,ring,ringIn].filter(x=>x&&x.visible);hidden.forEach(x=>x.visible=false);
   const extra=meshes.flatMap(d=>[d.selMesh,d.wire]).filter(x=>x&&x.visible);extra.forEach(x=>x.visible=false);
@@ -1419,7 +1525,7 @@ async function saveProject(){
     const lim={shown:o.lim.shown,sel:!!o.lim.sel};if(o.lim.sel)o.lim.sel.forEach((a,mi)=>{if(a)z.file('sel/'+oi+'_'+mi+'.bin',a);});
     if(o.k==='grad')return {k:'grad',A:v3a(o.A),B:v3a(o.B),V:v3a(o.V),stops:o.stops,type:o.type,mode:o.mode,steps:o.steps,pat:o.pat,scale:o.scale,alpha:o.alpha,name:o.name,lim};
     if(o.k==='decal')return {k:'decal',P:v3a(o.P),N:v3a(o.N),X:v3a(o.base.X),Y:v3a(o.base.Y),rot:o.rot,size:o.size,alpha:o.alpha,flip:o.flip,wrap:o.wrap,dec:decId(o.dec),lim};
-    if(o.k==='paint')return {k:'paint',shape:o.shape,c:o.c,R:o.R,s:o.s,h:o.h,seed:o.seed,sym:o.sym,mc:o.mc,pts:o.pts.map(q=>v3a(q.P).concat(v3a(q.N),v3a(q.X))),lim};
+    if(o.k==='paint')return {k:'paint',shape:o.shape,px:o.px,c:o.c,R:o.R,s:o.s,h:o.h,seed:o.seed,sym:o.sym,mc:o.mc,pts:o.pts.map(q=>v3a(q.P).concat(v3a(q.N),v3a(q.X))),lim};
     return {k:'erase',pts:o.pts.map(v3a),R:o.R,h:o.h,s:o.s,sym:o.sym,mc:o.mc,lim};});
   meshes.forEach((d,i)=>{const kr=d.mesh.userData.kr;
     z.file('parts/'+i+'/colors.bin',new Uint8Array(d.mesh.geometry.attributes.color.array.buffer.slice(0)));
@@ -1451,8 +1557,8 @@ async function loadProject(buf,fname){
     renderDecals();
     for(let i=0;i<meshes.length;i++){const d=meshes[i],kr=d.mesh.userData.kr,pp=P.parts[i];
       const col=await bin('parts/'+i+'/colors.bin',Float32Array),ca=d.mesh.geometry.attributes.color;
-      if(col&&col.length===ca.array.length){ca.array.set(col);ca.needsUpdate=true;}
-      const dd=await bin('parts/'+i+'/decals.bin',Uint8Array);if(dd&&dd.length===kr.data.length){kr.data.set(dd);kr.has=true;kr.tex.needsUpdate=true;}
+      if(col&&col.length===ca.array.length){ca.array.set(col);colFull(ca);}
+      const dd=await bin('parts/'+i+'/decals.bin',Uint8Array);if(dd&&dd.length===kr.data.length){kr.data.set(dd);kr.has=true;texFull(kr);}
       d.mesh.visible=pp.visible!==false;}
     if(P.baked){bakedBase=[];for(let i=0;i<meshes.length;i++){const b=await bin('parts/'+i+'/baked.bin',Uint8Array);bakedBase[i]=b&&b.length===meshes[i].mesh.userData.kr.data.length?b:null;}}
     const ops=[];for(let oi=0;oi<P.ops.length;oi++){const o=P.ops[oi];
@@ -1460,7 +1566,7 @@ async function loadProject(buf,fname){
       if(o.lim.sel){lim.sel=[];for(let mi=0;mi<meshes.length;mi++){const m=await bin('sel/'+oi+'_'+mi+'.bin',Uint8Array);lim.sel[mi]=m||(o.k==='grad'?null:new Uint8Array(meshes[mi].tris));}}
       if(o.k==='grad'){ops.push({k:'grad',A:a3v(o.A),B:a3v(o.B),V:a3v(o.V),stops:o.stops,type:o.type,mode:o.mode,steps:o.steps,pat:o.pat,scale:o.scale,alpha:o.alpha,name:o.name,lim});gradNo=Math.max(gradNo,+(/\d+$/.exec(o.name)||[0])[0]);continue;}
       if(o.k==='decal')ops.push({k:'decal',P:a3v(o.P),N:a3v(o.N),base:{X:a3v(o.X),Y:a3v(o.Y)},rot:o.rot,size:o.size,alpha:o.alpha,flip:o.flip,wrap:o.wrap,dec:stickers[o.dec],lim});
-      else if(o.k==='paint')ops.push({k:'paint',shape:o.shape,c:o.c,R:o.R,s:o.s,h:o.h,seed:o.seed,sym:o.sym,mc:o.mc,pts:o.pts.map(a=>({P:a3v(a.slice(0,3)),N:a3v(a.slice(3,6)),X:a3v(a.slice(6,9))})),lim});
+      else if(o.k==='paint')ops.push({k:'paint',shape:o.shape,px:o.px,c:o.c,R:o.R,s:o.s,h:o.h,seed:o.seed,sym:o.sym,mc:o.mc,pts:o.pts.map(a=>({P:a3v(a.slice(0,3)),N:a3v(a.slice(3,6)),X:a3v(a.slice(6,9))})),lim});
       else ops.push({k:'erase',pts:o.pts.map(a3v),R:o.R,h:o.h,s:o.s,sym:o.sym==null?-1:o.sym,mc:o.mc,lim});}
     decalOps=ops;st.bake=!!P.bake;$('bakeChk').checked=st.bake;
     renderParts();layKey='';toast('Проект открыт: '+fname);
@@ -1611,7 +1717,7 @@ function paintSample(){
     let lo=Infinity,hi=-Infinity;for(let i=0;i<d.n;i++){const y=d.world[i*3+1];if(y<lo)lo=y;if(y>hi)hi=y;}
     const a=toOk(hexToRgb(gr[0])),b=toOk(hexToRgb(gr[1]));const col=d.mesh.geometry.attributes.color.array;
     for(let i=0;i<d.n;i++){const t=(d.world[i*3+1]-lo)/Math.max(1e-6,hi-lo);const c=fromOk([a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t]);col[i*3]=c[0];col[i*3+1]=c[1];col[i*3+2]=c[2];}
-    d.mesh.geometry.attributes.color.needsUpdate=true;});
+    colFull(d.mesh.geometry.attributes.color);});
 }
 
 /* ---------- boot ---------- */
@@ -1624,7 +1730,8 @@ if(window.krDesktop&&typeof window.krDesktop.onOpenFile==='function'){
 }
 (function loop(){requestAnimationFrame(loop);
   if(pendingMove&&ddrag){const p=pendingMove;pendingMove=null;decalPlace(p[0],p[1]);}
+  processMove();
   if(gradDirty){gradDirty=false;redrawEdit();}
-  stepView();controls.update();drawGizmo();drawHilite();drawDecalFrame();drawGradHandles();renderLayers();renderer.render(scene,camera);})();
+  stepView();controls.update();drawGizmo();drawHilite();drawDecalFrame();drawGradHandles();renderLayers();flushTex();renderer.render(scene,camera);meshes.forEach(d=>{d.mesh.geometry.attributes.color._full=false;});})();
 })();
 </script>
