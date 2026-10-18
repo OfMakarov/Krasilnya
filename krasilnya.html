@@ -47,7 +47,9 @@ header{grid-column:1/-1;display:flex;align-items:center;gap:12px;padding-inline:
 .tsep{height:1px;background:var(--line);margin:2px 4px}
 .stage{position:relative;min-width:0;min-height:0;background:radial-gradient(circle at 50% 40%,var(--stage-a),var(--stage-b) 70%)}
 .stage canvas{display:block;width:100%;height:100%;touch-action:none}
-#gradSvg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+#gradSvg,#hiSvg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+#hiSvg path{fill:none;stroke:#fff;stroke-width:2.5;stroke-dasharray:5 7;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+:root[data-theme="light"] #hiSvg path{stroke:#16171c}
 .gizmo{position:absolute;top:10px;right:10px;width:104px;height:104px;border-radius:50%;user-select:none;-webkit-user-select:none}
 .gizmo:hover{background:var(--sw-line)}
 .gizmo g{cursor:pointer}
@@ -148,6 +150,7 @@ input[type=file]{display:none}
   <main class="stage" id="stage">
     <canvas id="cv"></canvas>
     <svg id="gradSvg"></svg>
+    <svg id="hiSvg" preserveAspectRatio="none"></svg>
     <svg class="gizmo" id="gizmo" viewBox="-52 -52 104 104" role="group" aria-label="Виды камеры"></svg>
     <div class="hud">
       <div class="pill" id="statPill">Загрузка…</div>
@@ -238,7 +241,7 @@ input[type=file]{display:none}
         <button class="btn" id="partsAll">Показать все</button>
         <button class="btn" id="partsInv">Инвертировать</button>
       </div>
-      <p class="hint">Наведи на строку (на телефоне — нажми) — деталь обведётся на модели, наведи на модель — подсветится её строка. Скрытые детали не красятся. «Только» оставляет одну деталь, повторное нажатие возвращает все. H — скрыть деталь под курсором.</p>
+      <p class="hint">Наведи на строку (на телефоне — нажми) — деталь обведётся пунктиром, наведи на модель — подсветится её строка. Скрытые детали не красятся. «Только» оставляет одну деталь, повторное нажатие возвращает все. H — скрыть деталь под курсором.</p>
     </section>
 
     <section class="sec">
@@ -461,27 +464,47 @@ function updStats(){let t=0;meshes.forEach(d=>{t+=d.tris;});
 /* ---------- parts (show / hide separate objects) ---------- */
 const shown=d=>d.mesh.visible;
 function partName(d,i){return (d.mesh.name||'').trim()||('Деталь '+(i+1));}
-/* hovering a row outlines the part on the model; the surface colors stay untouched.
-   A hidden part shows as a faint ghost so you can find it. */
-const hiLine=new THREE.MeshBasicMaterial({color:0xff8a3d,side:THREE.BackSide});
-const hiGhost=new THREE.MeshBasicMaterial({color:0xff8a3d,transparent:true,opacity:0.3,depthWrite:false,side:THREE.DoubleSide});
-let hiMesh=null,hiObj=null,hotRow=-1,hiTimer=0;
-function hullGeo(obj){ /* copy of the mesh pushed out along smoothed normals: drawn back-face only it reads as an outline */
-  const g=obj.geometry,c=obj.userData.hull;if(c&&c.src===g.uuid)return c.geo;if(c)c.geo.dispose();
-  const P=g.attributes.position.array,n=P.length/3,acc=new Map(),key=i=>Math.round(P[i*3]*1e4)+','+Math.round(P[i*3+1]*1e4)+','+Math.round(P[i*3+2]*1e4);
-  const a=new THREE.Vector3(),b=new THREE.Vector3(),e=new THREE.Vector3(),f=new THREE.Vector3();
-  for(let t=0;t<n;t+=3){a.fromArray(P,t*3);b.fromArray(P,t*3+3).sub(a);e.fromArray(P,t*3+6).sub(a);f.crossVectors(b,e);
-    for(let k=0;k<3;k++){const id=key(t+k),v=acc.get(id);if(v)v.add(f);else acc.set(id,f.clone());}}
-  acc.forEach(v=>v.normalize());
-  const s=obj.matrixWorld.getMaxScaleOnAxis()||1,off=modelSize*0.012/s,out=new Float32Array(P.length);
-  for(let i=0;i<n;i++){const v=acc.get(key(i));out[i*3]=P[i*3]+v.x*off;out[i*3+1]=P[i*3+1]+v.y*off;out[i*3+2]=P[i*3+2]+v.z*off;}
-  const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.BufferAttribute(out,3));
-  obj.userData.hull={src:g.uuid,geo};return geo;
-}
+/* hovering a row draws a dashed outline of the part's silhouette over the view; the model's colors stay untouched.
+   The part is rendered alone into a small mask, its edge traced with marching squares and drawn as an SVG path. */
+const hiScene=new THREE.Scene(),hiMat=new THREE.MeshBasicMaterial({color:0xffffff,side:THREE.DoubleSide});
+const hiRT=new THREE.WebGLRenderTarget(4,4),HI_SC=0.5;
+let hiObj=null,hotRow=-1,hiTimer=0,hiKey='';
 function hilite(obj,keepTimer){
-  if(!keepTimer)clearTimeout(hiTimer);if(hiMesh){scene.remove(hiMesh);hiMesh=null;}hiObj=obj||null;if(!obj)return;
-  obj.updateMatrixWorld(true);hiMesh=obj.visible?new THREE.Mesh(hullGeo(obj),hiLine):new THREE.Mesh(obj.geometry,hiGhost);
-  hiMesh.matrixAutoUpdate=false;hiMesh.matrix.copy(obj.matrixWorld);hiMesh.raycast=()=>{};hiMesh.renderOrder=10;scene.add(hiMesh);
+  if(!keepTimer)clearTimeout(hiTimer);hiObj=obj||null;hiKey='';if(!obj)$('hiSvg').innerHTML='';
+}
+function traceMask(px,W,H){ /* px: RGBA rows bottom-up; returns SVG path data in mask pixels, top-down */
+  const on=(x,y)=>x>=0&&y>=0&&x<W&&y<H&&px[((H-1-y)*W+x)*4]>127;
+  const nb=new Map(),link=(a,b)=>{(nb.get(a)||nb.set(a,[]).get(a)).push(b);(nb.get(b)||nb.set(b,[]).get(b)).push(a);};
+  /* edge ids: top edge of cell (x,y) = h:x,y ; left edge = v:x,y */
+  const T=(x,y)=>'h'+x+','+y,B=(x,y)=>'h'+x+','+(y+1),L=(x,y)=>'v'+x+','+y,R=(x,y)=>'v'+(x+1)+','+y;
+  for(let y=-1;y<H;y++)for(let x=-1;x<W;x++){
+    const c=(on(x,y)?8:0)|(on(x+1,y)?4:0)|(on(x+1,y+1)?2:0)|(on(x,y+1)?1:0);
+    switch(c){case 1:case 14:link(L(x,y),B(x,y));break;case 2:case 13:link(B(x,y),R(x,y));break;case 3:case 12:link(L(x,y),R(x,y));break;
+      case 4:case 11:link(T(x,y),R(x,y));break;case 6:case 9:link(T(x,y),B(x,y));break;case 7:case 8:link(L(x,y),T(x,y));break;
+      case 5:link(L(x,y),T(x,y));link(B(x,y),R(x,y));break;case 10:link(T(x,y),R(x,y));link(L(x,y),B(x,y));break;}}
+  const pt=k=>{const [a,b]=k.slice(1).split(',').map(Number);return k[0]==='h'?[a+1,b+0.5]:[a+0.5,b+1];};
+  const seen=new Set();let d='';
+  nb.forEach((_,start)=>{if(seen.has(start))return;const loop=[];let prev=null,cur=start;
+    while(cur&&!seen.has(cur)){seen.add(cur);loop.push(pt(cur));const n=nb.get(cur);const nx=n[0]!==prev?n[0]:n[1];prev=cur;cur=nx;}
+    if(loop.length<8)return; /* skip specks */
+    /* light smoothing so the stair-steps of the mask don't show */
+    const sm=loop.map((p,i)=>{const a=loop[(i-1+loop.length)%loop.length],b=loop[(i+1)%loop.length];return [(a[0]+2*p[0]+b[0])/4,(a[1]+2*p[1]+b[1])/4];});
+    d+='M'+sm.map(p=>p[0].toFixed(1)+' '+p[1].toFixed(1)).join('L')+'Z';});
+  return d;
+}
+function drawHilite(){
+  if(!hiObj)return;
+  const r=canvas.getBoundingClientRect(),W=Math.max(4,Math.round(r.width*HI_SC)),H=Math.max(4,Math.round(r.height*HI_SC));
+  hiObj.updateMatrixWorld(true);
+  const key=W+'x'+H+camera.matrixWorld.elements.join(',')+hiObj.matrixWorld.elements.join(',')+hiObj.geometry.uuid;if(key===hiKey)return;hiKey=key;
+  if(hiRT.width!==W||hiRT.height!==H)hiRT.setSize(W,H);
+  const m=new THREE.Mesh(hiObj.geometry,hiMat);m.matrixAutoUpdate=false;m.matrix.copy(hiObj.matrixWorld);hiScene.add(m);
+  const prevCol=renderer.getClearColor(new THREE.Color()),prevA=renderer.getClearAlpha();
+  renderer.setRenderTarget(hiRT);renderer.setClearColor(0x000000,1);renderer.clear();renderer.render(hiScene,camera);
+  const px=new Uint8Array(W*H*4);renderer.readRenderTargetPixels(hiRT,0,0,W,H,px);
+  renderer.setRenderTarget(null);renderer.setClearColor(prevCol,prevA);hiScene.remove(m);
+  const svg=$('hiSvg');svg.setAttribute('viewBox','0 0 '+W+' '+H);
+  svg.innerHTML='<path d="'+traceMask(px,W,H)+'"/>';
 }
 function markRow(i){if(i===hotRow)return;const rows=$('parts').children;
   if(rows[hotRow])rows[hotRow].classList.remove('hot');hotRow=i;const r=rows[i];if(!r)return;r.classList.add('hot');
@@ -1050,6 +1073,6 @@ if(window.krDesktop&&typeof window.krDesktop.onOpenFile==='function'){
 }
 (function loop(){requestAnimationFrame(loop);
   if(pendingMove&&ddrag){const p=pendingMove;pendingMove=null;decalPlace(p[0],p[1]);}
-  stepView();controls.update();drawGizmo();renderer.render(scene,camera);})();
+  stepView();controls.update();drawGizmo();drawHilite();renderer.render(scene,camera);})();
 })();
 </script>
