@@ -261,15 +261,16 @@ body.qson .qs{display:flex}
   .btn.primary .lbl{display:inline}
   #hintPill{display:none}
 }
-/* phones: canvas on the whole screen, tools at the bottom, settings in a sheet that slides up */
+/* phones: tools right under the header, canvas below, settings in a sheet that drops down from the tools.
+   Nothing important sits at the bottom: some app viewers (iOS) cut off the lower part of the page */
 @media (max-width:760px){
   body{overflow:hidden}
-  .app,body.nopanel .app{grid-template-columns:1fr;grid-template-rows:48px 1fr auto;padding:0}
+  .app,body.nopanel .app{grid-template-columns:1fr;grid-template-rows:48px auto 1fr;padding:0}
   header{padding-left:max(8px,env(safe-area-inset-left,0px));padding-right:max(8px,env(safe-area-inset-right,0px));gap:2px}
   .logo span,.btn .lbl,.btn.primary .lbl,.caret,#panelBtn{display:none}
   .logo{margin-right:2px}
-  .stage{grid-row:2}
-  .tools{grid-row:3;flex-direction:row;border-right:0;border-top:1px solid var(--line);overflow:hidden;padding:6px max(8px,env(safe-area-inset-left,0px)) calc(6px + max(env(safe-area-inset-bottom,0px),var(--botPad,0px)));gap:4px;scrollbar-width:none}
+  .stage{grid-row:3}
+  .tools{grid-row:2;position:relative;z-index:21;flex-direction:row;border-right:0;border-bottom:1px solid var(--line);overflow:hidden;padding:6px max(8px,env(safe-area-inset-left,0px));gap:4px;scrollbar-width:none}
   .tools::-webkit-scrollbar{display:none}
   .tsep{width:1px;height:28px;margin:0 2px;align-self:center}
   .tool kbd{display:none}
@@ -280,22 +281,23 @@ body.qson .qs{display:flex}
   .tscroll::-webkit-scrollbar{display:none}
   .qsl input{height:110px}
   .sheetbtn[aria-pressed="true"]{color:var(--accent);background:var(--surface-2)}
-  .panel,body.nopanel .panel{display:flex;position:fixed;left:0;right:0;bottom:var(--tbh,62px);height:min(62dvh,560px);z-index:20;border:1px solid var(--line);border-bottom:0;border-radius:16px 16px 0 0;box-shadow:0 -12px 40px rgba(0,0,0,.35);transform:translateY(calc(100% + var(--tbh,62px)));transition:transform .22s ease;visibility:hidden}
+  .panel,body.nopanel .panel{display:flex;position:fixed;left:0;right:0;top:calc(48px + var(--tbh,52px));height:min(58%,calc(var(--appH,100dvh) - 48px - var(--tbh,52px) - 90px),560px);z-index:20;border:1px solid var(--line);border-top:0;border-radius:0 0 16px 16px;box-shadow:0 12px 40px rgba(0,0,0,.35);transform:translateY(calc(-100% - 48px - var(--tbh,52px)));transition:transform .22s ease;visibility:hidden}
   body.sheet .panel{transform:none;visibility:visible}
-  .sheetgrab{display:flex;justify-content:center;align-items:center;height:20px;border:0;background:transparent;cursor:pointer;flex:0 0 auto;touch-action:none}
+  .sheetgrab{display:flex;order:99;justify-content:center;align-items:center;height:22px;border:0;border-top:1px solid var(--line);background:transparent;cursor:pointer;flex:0 0 auto;touch-action:none}
   .sheetgrab i{width:40px;height:5px;border-radius:3px;background:var(--hover-line)}
   .mtab{display:inline-flex}
   .laydock{max-height:none}
   .panel[data-tab="paint"] .laydock{display:none}
   .gizmo{width:76px;height:76px;top:8px;right:8px}
-  .hud{left:8px;right:8px;bottom:8px}
+  .hud{left:8px;right:92px;top:8px;bottom:auto}
   .pill{font-size:11px}
   #autoPill{display:none}
-  .rbar{bottom:10px;flex-wrap:nowrap;overflow-x:auto;justify-content:flex-start;max-width:calc(100% - 16px)}
+  .rbar{top:40px;bottom:auto;left:8px;transform:none;flex-wrap:nowrap;overflow-x:auto;justify-content:flex-start;max-width:calc(100% - 100px)}
   .rbar .chips{flex-wrap:nowrap}
   .rbar .chip{white-space:nowrap}
-  .qs{left:6px}
-  .menu{position:fixed;right:8px;left:8px;top:52px;min-width:0}
+  .qs{left:6px;top:44px;transform:none}
+  .qsl input{height:96px}
+  .menu{position:fixed;right:8px;left:8px;top:52px;min-width:0;z-index:30}
   .toast{top:8px}
 }
 @media (prefers-reduced-motion:reduce){.sw:hover{transform:none}}
@@ -1661,10 +1663,10 @@ function isPhone(){return mqPhone.matches;}
 function setSheet(on,tab){if(tab)setTab(tab);document.body.classList.toggle('sheet',on);$('sheetBtn').setAttribute('aria-pressed',on);}
 $('sheetBtn').addEventListener('click',()=>setSheet(!document.body.classList.contains('sheet')));
 $('sheetGrab').addEventListener('click',()=>setSheet(false));
-/* swipe the sheet down to close it */
-(()=>{let y0=null;const g=$('sheetGrab');g.addEventListener('pointerdown',e=>{y0=e.clientY;g.setPointerCapture(e.pointerId);});
-  g.addEventListener('pointermove',e=>{if(y0==null)return;const dy=Math.max(0,e.clientY-y0);$('panel').style.transform=dy?'translateY('+dy+'px)':'';});
-  g.addEventListener('pointerup',e=>{if(y0==null)return;const dy=e.clientY-y0;y0=null;$('panel').style.transform='';if(dy>60)setSheet(false);});})();
+/* swipe the sheet up to close it */
+(()=>{let y0=null;const g=$('sheetGrab');g.addEventListener('pointerdown',e=>{y0=e.clientY;try{g.setPointerCapture(e.pointerId);}catch(_){}});
+  g.addEventListener('pointermove',e=>{if(y0==null)return;const dy=Math.min(0,e.clientY-y0);$('panel').style.transform=dy?'translateY('+dy+'px)':'';});
+  g.addEventListener('pointerup',e=>{if(y0==null)return;const dy=e.clientY-y0;y0=null;$('panel').style.transform='';if(dy<-60)setSheet(false);});})();
 function setPanelShown(on){document.body.classList.toggle('nopanel',!on);$('panelBtn').setAttribute('aria-pressed',on);try{localStorage.setItem('kr_nopanel',on?'0':'1');}catch(e){}}
 $('panelBtn').addEventListener('click',()=>setPanelShown(document.body.classList.contains('nopanel')));
 try{if(localStorage.getItem('kr_nopanel')==='1')setPanelShown(false);}catch(e){}
@@ -1677,8 +1679,7 @@ canvas.addEventListener('pointerdown',()=>{if(isPhone()&&document.body.classList
 /* the real visible height: in some app viewers (iOS) 100dvh is taller than what is on screen, and the home bar covers the bottom */
 const IOS=/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 function fitHeight(){const vv=window.visualViewport,h=Math.min(window.innerHeight,vv?vv.height:Infinity,document.documentElement.clientHeight||Infinity);
-  document.documentElement.style.setProperty('--appH',Math.round(h)+'px');
-  document.documentElement.style.setProperty('--botPad',IOS?(window.top!==window.self?'40px':'22px'):'0px');}
+  document.documentElement.style.setProperty('--appH',Math.round(h)+'px');}
 fitHeight();window.addEventListener('resize',()=>{fitHeight();layoutChanged();});if(window.visualViewport)visualViewport.addEventListener('resize',fitHeight);
 function layoutChanged(){
   if(!isPhone()){document.body.classList.remove('sheet');if($('panel').dataset.tab==='layers')setTab('paint');}
