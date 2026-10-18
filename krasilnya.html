@@ -134,6 +134,14 @@ header{grid-column:1/-1;display:flex;align-items:center;gap:12px;padding-inline:
 .layer span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .layer small{font-family:var(--f-mono);color:var(--muted);font-size:11px}
 .layer:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.layer .eye{flex:0 0 22px;width:22px;height:22px;padding:0;border:0;border-radius:4px;background:transparent;color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+.layer .eye:hover{color:var(--fg);background:var(--surface)}
+.layer.off img,.layer.off span{opacity:.45}
+.layer.base{border-top:1px dashed var(--line);border-radius:0 0 4px 4px;margin-top:2px}
+.layer .bthumb{width:24px;height:24px;border-radius:3px;background:conic-gradient(#ff7e5f,#ffd23f,#71b280,#4c8dff,#a23b72,#ff7e5f);flex:0 0 24px}
+.layer .lname{flex:1;min-width:0;height:22px;border:1px solid var(--accent);border-radius:3px;background:var(--surface);padding:0 4px;font-size:12.5px}
+.layprops{display:grid;grid-template-columns:auto 1fr;gap:8px;align-items:center}
+.layprops .sl{grid-template-columns:auto 1fr 30px}
 .dc.add{background:var(--surface-2);color:var(--muted);font-size:22px}
 input[type=file]{display:none}
 :root[data-theme="light"] #themeBtn .sun,:root:not([data-theme="light"]) #themeBtn .moon{display:none}
@@ -251,18 +259,23 @@ body{font-size:13px}
       <p class="hint">Выбери наклейку и веди по модели: она едет за пальцем и приклеивается, когда отпускаешь. Только что поставленную наклейку можно сразу двигать и менять ползунками. Любую другую — инструментом «Правка наклеек» (T). Свои PNG с прозрачным фоном добавляй через «+» или перетаскиванием.</p>
     </section>
 
-    <section class="sec" data-tab="paint" data-tools="decal dedit gradient">
+    <section class="sec" data-tab="paint" data-tools="brush erase fill decal dedit gradient recolor">
       <h3>Слои</h3>
-      <p class="hint" id="layersEmpty">Слоёв пока нет: их создают наклейки и градиенты.</p>
+      <div class="layprops">
+        <select class="palsel" id="layMode" aria-label="Режим наложения"><option value="normal">Обычный</option><option value="multiply">Умножение</option><option value="screen">Экран</option><option value="add">Добавление</option></select>
+        <div class="sl"><label for="layOp">Непрозр.</label><input type="range" id="layOp" min="0" max="100" value="100"><output id="layOpO">100</output></div>
+      </div>
       <div class="layers" id="layers"></div>
+      <p class="hint" id="layersEmpty">Слоёв пока нет. Их создают кисти, наклейки и градиенты, а «+» добавляет пустой слой краски.</p>
       <div class="row">
+        <button class="btn icon" id="layNew" title="Новый слой краски над выбранным" aria-label="Новый слой краски"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg></button>
         <button class="btn icon" id="layTop" title="На самый верх" aria-label="На самый верх"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h14"/><path d="m7 14 5-5 5 5"/><path d="M12 9v11"/></svg></button>
         <button class="btn icon" id="layUp" title="Выше" aria-label="Выше"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 11 5-5 5 5"/><path d="M12 6v13"/></svg></button>
         <button class="btn icon" id="layDown" title="Ниже" aria-label="Ниже"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 13 5 5 5-5"/><path d="M12 18V5"/></svg></button>
         <button class="btn icon" id="layBottom" title="В самый низ" aria-label="В самый низ"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20h14"/><path d="m7 10 5 5 5-5"/><path d="M12 15V4"/></svg></button>
           <button class="btn icon" id="layDel" title="Удалить выбранный слой (Delete)" aria-label="Удалить выбранный слой"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M6 7l1 13h10l1-13"/><path d="M9 7V4h6v3"/></svg></button>
       </div>
-      <p class="hint">Верхние слои перекрывают нижние: царапины вниз, пластырь наверх. Наклейки и градиенты лежат в одном списке. Выбери слой и нажми корзину или Delete, чтобы удалить его. Чтобы заменить картинку у выбранной наклейки, нажми на другую картинку в библиотеке (в режиме «Правка наклеек»).</p>
+      <p class="hint">Как в Photoshop: верхние слои перекрывают нижние, глаз прячет слой, двойной клик переименовывает. Кисти рисуют на выбранном слое краски, а если выбрано другое — создают новый. Ластик стирает выбранный слой. «Основа» — цвета самой модели, их красят круглая кисть и заливка.</p>
     </section>
     <section class="sec" data-tab="paint" data-tools="gradient">
       <h3>Градиент</h3>
@@ -391,7 +404,7 @@ const GPRESETS=[
 
 /* ---------- state ---------- */
 const st={tool:'brush',color:[1,0.824,0.247],grad:{type:'linear',stops:[{p:0,c:'#FF7E5F',a:1},{p:1,c:'#FEB47B',a:1}],sel:0,mode:'smooth',steps:3,pat:'dots',scale:0.03},
-  radius:0.08,hard:0.6,brush:'round',sym:-1,pixel:0.012,strength:1,angle:30,recent:[],lit:true,wire:false,
+  radius:0.08,hard:0.6,brush:'round',sym:-1,pixel:0.012,bp:{pat:'dots',cell:0.025,den:0.45},pr:{size:true,alpha:true},strength:1,angle:30,recent:[],lit:true,wire:false,
   decal:{list:[],cur:0,size:0.22,rot:0,op:1,flip:false,wrap:true},bake:false};
 let LUT=new Float32Array(256*4);
 
@@ -421,20 +434,19 @@ const ringIn=new THREE.Mesh(new THREE.RingGeometry(0.97,1,64),new THREE.MeshBasi
 ringIn.renderOrder=999;ringIn.visible=false;scene.add(ringIn);
 const ring2=ring.clone(),ringIn2=ringIn.clone();scene.add(ring2,ringIn2);
 
-/* vertex colors + decal layer: final = mix(vertexColor, decal.rgb, decal.a) */
-function patchMat(mat){
-  mat.onBeforeCompile=sh=>{
-    sh.fragmentShader=sh.fragmentShader.replace('#include <map_fragment>','').replace('#include <color_fragment>',
+/* vertex colors + layers: final = vertexColor * M + A (M in kMul, A in map; see the layers section) */
+function patchMat(mat,mul){
+  mat.onBeforeCompile=sh=>{sh.uniforms.kMul={value:mul};
+    sh.fragmentShader='uniform sampler2D kMul;\n'+sh.fragmentShader.replace('#include <map_fragment>','').replace('#include <color_fragment>',
 `vec3 kBase=vec3(1.0);
 #ifdef USE_COLOR
 kBase=vColor.rgb;
 #endif
 #ifdef USE_MAP
-vec4 kD=texture2D(map,vUv);
-kBase=mix(kBase,kD.rgb,kD.a);
+kBase=kBase*texture2D(kMul,vUv).rgb+texture2D(map,vUv).rgb;
 #endif
 diffuseColor.rgb*=kBase;`);};
-  mat.customProgramCacheKey=()=>'kr-decal';
+  mat.customProgramCacheKey=()=>'kr-layers';
   return mat;
 }
 
@@ -533,11 +545,12 @@ function clampRect(r,W){return [Math.max(0,Math.floor(r[0])),Math.max(0,Math.flo
 const upTex=new THREE.DataTexture(new Uint8Array(4),1,1,THREE.RGBAFormat),upPos=new THREE.Vector2();
 function flushTex(){
   for(const d of meshes){const kr=d.mesh.userData.kr;
-    if(kr.full){kr.full=false;kr.dr=null;kr.tex.needsUpdate=true;continue;}
+    if(kr.full){kr.full=false;kr.dr=null;kr.tex.needsUpdate=true;kr.texM.needsUpdate=true;continue;}
     if(!kr.dr)continue;const W=kr.W,[x0,y0,x1,y1]=clampRect(kr.dr,W),w=x1-x0,h=y1-y0;kr.dr=null;if(w<=0||h<=0)continue;
-    if(w*h>W*W*0.45){kr.tex.needsUpdate=true;continue;}
-    const buf=new Uint8Array(w*h*4);for(let y=0;y<h;y++)buf.set(kr.data.subarray(((y0+y)*W+x0)*4,((y0+y)*W+x1)*4),y*w*4);
-    upTex.image={data:buf,width:w,height:h};upPos.set(x0,y0);renderer.copyTextureToTexture(upPos,upTex,kr.tex);}
+    if(w*h>W*W*0.45){kr.tex.needsUpdate=true;kr.texM.needsUpdate=true;continue;}
+    const N4=W*W*4;
+    for(const [tx,off] of [[kr.texM,0],[kr.tex,N4]]){const buf=new Uint8Array(w*h*4);for(let y=0;y<h;y++)buf.set(kr.MA.subarray(off+((y0+y)*W+x0)*4,off+((y0+y)*W+x1)*4),y*w*4);
+      upTex.image={data:buf,width:w,height:h};upPos.set(x0,y0);renderer.copyTextureToTexture(upPos,upTex,tx);}}
 }
 /* vertex colours: upload only the touched range of the colour buffer */
 function colDirty(ca,lo,hi){ca.needsUpdate=true;if(ca._full)return;const r=ca.updateRange,off=lo*3,end=(hi+1)*3;
@@ -573,11 +586,13 @@ function prepMesh(m){
   else if(uv.itemSize!==2||!(uv.array instanceof Float32Array)){g.setAttribute('uv',new THREE.BufferAttribute(uvArray(g),2));}
   m.geometry=g;
   const W=Math.min(2048,Math.max(512,Math.pow(2,Math.ceil(Math.log2(Math.sqrt(T)*26)))));
-  const data=new Uint8Array(W*W*4);
-  const dt=new THREE.DataTexture(data,W,W,THREE.RGBAFormat);dt.magFilter=THREE.LinearFilter;dt.minFilter=THREE.LinearFilter;dt.generateMipmaps=false;dt.needsUpdate=true;
-  const mLit=patchMat(new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.85,metalness:0,side:THREE.DoubleSide,map:dt}));
-  const mFlat=patchMat(new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.DoubleSide,map:dt}));
-  m.userData.kr={W,data,tex:dt,mLit,mFlat,uvGen,uv:null,has:false};
+  /* data: one layer drawn alone (straight RGBA); MA: the composite, multiplier M then addend A */
+  const N4=W*W*4,data=new Uint8Array(N4),MA=new Uint8ClampedArray(N4*2);MA.fill(255,0,N4);
+  const mkT=off=>{const t=new THREE.DataTexture(new Uint8Array(MA.buffer,off,N4),W,W,THREE.RGBAFormat);t.magFilter=THREE.LinearFilter;t.minFilter=THREE.LinearFilter;t.generateMipmaps=false;t.needsUpdate=true;return t;};
+  const dt=mkT(N4),dm=mkT(0);
+  const mLit=patchMat(new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.85,metalness:0,side:THREE.DoubleSide,map:dt}),dm);
+  const mFlat=patchMat(new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.DoubleSide,map:dt}),dm);
+  m.userData.kr={W,data,MA,tex:dt,texM:dm,mLit,mFlat,uvGen,uv:null,has:false};
   m.material=st.lit?mLit:mFlat;
 }
 function buildData(m){
@@ -601,7 +616,7 @@ function buildData(m){
 function addWire(d){const w=new THREE.Mesh(d.mesh.geometry,wireMat);w.visible=st.wire;w.raycast=()=>{};d.mesh.add(w);d.wire=w;}
 function setModel(obj,name){
   while(root.children.length)root.remove(root.children[0]);
-  meshes=[];decalOps=[];bakedBase=null;selDec=null;selGrad=null;edOp=null;editSnap=null;gradNo=0;modelName=(name||'model').replace(/\.[^.]+$/,'');
+  commitRecolor(true);meshes=[];decalOps=[];bakedBase=null;selDec=null;selGrad=null;selLay=null;sess=null;edOp=null;editSnap=null;gradNo=0;paintNo=0;modelName=(name||'model').replace(/\.[^.]+$/,'');
   root.add(obj);root.updateMatrixWorld(true);
   const list=[];obj.traverse(o=>{if(o.isMesh)list.push(o);});
   if(!list.length){toast('В файле нет мешей');return;}
@@ -698,8 +713,8 @@ function escapeHtml(s){return s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>
 const undo=[],redo=[];
 function snapCols(){return meshes.map(d=>d.mesh.geometry.attributes.color.array.slice());}
 function restoreCols(s){meshes.forEach((d,i)=>{const a=d.mesh.geometry.attributes.color;if(s[i]&&s[i].length===a.array.length){a.array.set(s[i]);colFull(a);}});}
-function snapTexLike(map){const m=new Map();map.forEach((_,i)=>{if(meshes[i])m.set(i,meshes[i].mesh.userData.kr.data.slice());});return m;}
-function restoreTex(map){map.forEach((arr,i)=>{const d=meshes[i];if(!d)return;const kr=d.mesh.userData.kr;if(arr.length===kr.data.length){kr.data.set(arr);texFull(kr);}});}
+function snapTexLike(map){const m=new Map();map.forEach((_,i)=>{if(meshes[i])m.set(i,meshes[i].mesh.userData.kr.MA.slice());});return m;}
+function restoreTex(map){map.forEach((arr,i)=>{const d=meshes[i];if(!d)return;const kr=d.mesh.userData.kr;if(arr.length===kr.MA.length){kr.MA.set(arr);texFull(kr);}});}
 function entryBytes(e){let b=0;if(e.cols)e.cols.forEach(a=>b+=a.byteLength);if(e.tex)e.tex.forEach(a=>b+=a.byteLength);return b;}
 function pushUndo(e){undo.push(e);redo.length=0;
   let total=undo.reduce((s,x)=>s+entryBytes(x),0);while(undo.length>1&&(undo.length>40||total>220e6)){total-=entryBytes(undo.shift());}updUndo();}
@@ -709,7 +724,7 @@ function doUndo(){commitEdit();if(!undo.length)return;const e=undo.pop();redo.pu
 function doRedo(){commitEdit();if(!redo.length)return;const e=redo.pop();undo.push(mirror(e));apply(e);updUndo();}
 function updUndo(){$('undoBtn').disabled=!undo.length;$('redoBtn').disabled=!redo.length;}
 let texOp=null; /* Map meshIndex -> data before this operation */
-function touchTex(i){if(texOp&&!texOp.has(i))texOp.set(i,meshes[i].mesh.userData.kr.data.slice());}
+function touchTex(i){if(texOp&&!texOp.has(i))texOp.set(i,meshes[i].mesh.userData.kr.MA.slice());}
 
 /* ---------- selection ---------- */
 function hasSel(){return meshes.some(d=>shown(d)&&d.sel.some(v=>v));}
@@ -822,7 +837,7 @@ function stampGrad(o){
       else{t=along/len;if(o.type==='mirror')t=Math.abs(t);}
       t=t<0?0:t>1?1:t;
       const q=o.mode==='pattern'?gradQ(o,tile,t,along/cell,(rx*Q.x+ry*Q.y+rz*Q.z)/cell):gradQ(o,tile,t,0,0);
-      const li=Math.round(q*255)*4,sa=L[li+3]*o.alpha;if(sa<=0.002)continue;
+      const li=Math.round(q*255)*4,sa=L[li+3];if(sa<=0.002)continue;
       const o4=idx[k]*4,da=out[o4+3]/255,oa=sa+da*(1-sa),k1=sa/oa,k2=da*(1-sa)/oa;
       out[o4]=L[li]*255*k1+out[o4]*k2;out[o4+1]=L[li+1]*255*k1+out[o4+1]*k2;out[o4+2]=L[li+2]*255*k1+out[o4+2]*k2;out[o4+3]=oa*255;}
     kr.has=true;});
@@ -851,24 +866,24 @@ function gradStart(cx,cy,hit){
   const V=camDir(),P0=hit?hit.point.clone():controls.target.clone(),A=planeHit(cx,cy,P0,V)||P0,ts=targets(hit);
   const lim={shown:meshes.map(d=>ts.some(x=>x.d===d)),sel:meshes.map(d=>{const x=ts.find(y=>y.d===d);return x&&x.mask?x.mask.slice():null;})};
   const g=st.grad,o={k:'grad',A,B:A.clone(),V,stops:cloneStops(g.stops),type:g.type,mode:g.mode,steps:g.steps,pat:g.pat,scale:g.scale,alpha:st.strength,lim,name:'Градиент '+(gradNo+1)};
-  editSnap={tex:snapAllTex(),decals:decalOps.slice(),baked:bakedBase};setEditBase();
-  decalOps.push(o);edOp=o;
+  editSnap={tex:snapAllTex(),decals:decalOps.slice(),baked:bakedBase};
+  const idx=newLayerIdx();edOp=o;setEditBase(idx);decalOps.splice(idx,0,o);
   gdrag={h:'B',P:A.clone(),N:V,fresh:true,prev:selGrad,hit,sx:cx,sy:cy};
 }
 function gradMove(cx,cy){
   if(!gdrag||!edOp)return;
   if(!gdrag.moved&&Math.hypot(cx-gdrag.sx,cy-gdrag.sy)<6)return;
   const p=planeHit(cx,cy,gdrag.P,gdrag.N);if(!p)return;
-  if(gdrag.fresh&&!gdrag.moved){selGrad=edOp;gradNo++;}
+  if(gdrag.fresh&&!gdrag.moved){selGrad=selLay=edOp;gradNo++;}
   gdrag.moved=true;edOp[gdrag.h]=p;gradDirty=true;
 }
 function gradEnd(){
   const g=gdrag;gdrag=null;if(!g)return;
   if(g.moved){if(gradDirty){gradDirty=false;redrawEdit();}commitEdit();updGradSel();applyControlMode();return;}
   /* a click without dragging: pick the gradient under the cursor, or drop the selection */
-  if(g.fresh){restoreTex(editSnap.tex);decalOps=editSnap.decals;bakedBase=editSnap.baked;editSnap=null;editBase=null;edOp=null;
+  if(g.fresh){restoreTex(editSnap.tex);decalOps=editSnap.decals;bakedBase=editSnap.baked;editSnap=null;sess=null;edOp=null;
     const o=gradHitTest(g.hit);if(o)selectGrad(o);else{selGrad=null;updGradSel();}}
-  else{restoreTex(editSnap.tex);decalOps=editSnap.decals;bakedBase=editSnap.baked;editSnap=null;editBase=null;edOp=null;selGrad=g.orig;}
+  else{restoreTex(editSnap.tex);decalOps=editSnap.decals;bakedBase=editSnap.baked;editSnap=null;sess=null;edOp=null;selGrad=selLay=g.orig;}
   applyControlMode();
 }
 let ghKey='';
@@ -898,10 +913,10 @@ function rotFrame(b,deg){const a=deg*Math.PI/180,c=Math.cos(a),s=Math.sin(a);
    An op is {k:'decal',P,N,base,rot,dec,size,alpha,flip,wrap,lim} or {k:'erase',pts,R,h,s,lim};
    lim freezes which parts were visible and what was selected when the op was made.
    The texture is the replay of all ops on top of bakedBase (decals that can no longer be edited, e.g. after subdividing). */
-let decalOps=[],bakedBase=null,selDec=null,selGrad=null,edOp=null,editSnap=null,editBase=null;
+let decalOps=[],bakedBase=null,selDec=null,selGrad=null,edOp=null,editSnap=null;
 function curLim(){return {shown:meshes.map(shown),sel:hasSel()?meshes.map(d=>d.sel.slice()):null};}
 function stampDecal(o){
-  const P=o.P,N=o.N,fr=rotFrame(o.base,o.rot),dec=o.dec,op=o.alpha,flip=o.flip,lim=o.lim,size=o.size*modelSize;
+  const P=o.P,N=o.N,fr=rotFrame(o.base,o.rot),dec=o.dec,op=1,flip=o.flip,lim=o.lim,size=o.size*modelSize;
   const asp=dec.h/dec.w,hw=size/2,hh=size*asp/2,R=Math.hypot(hw,hh),depthLim=size*0.6,minDot=o.wrap?0.05:0.55;
   const X=fr.X,Y=fr.Y,img=dec.data,iw=dec.w,ih=dec.h;
   meshes.forEach((d,mi)=>{if(!lim.shown[mi])return;const sel=lim.sel&&lim.sel[mi];
@@ -938,7 +953,7 @@ function eraseDab(P,o){
 }
 function eraseAt(hit){if(!stroke||!stroke.op)return;const o=stroke.op,last=stroke.last;stroke.last={P:hit.point.clone(),N:hit.normal.clone()};
   const dab=P=>{P=P.clone();o.pts.push(P);eraseDab(P,o);if(o.sym>=0)eraseDab(mirrorV(P,o),o);};
-  if(!last)dab(hit.point);else fillGap(last,hit.point,hit.normal,o.R*0.3,o.R*8,P=>dab(P));}
+  liveStamp(()=>{if(!last)dab(hit.point);else fillGap(last,hit.point,hit.normal,o.R*0.3,o.R*8,P=>dab(P));});}
 /* ---------- textured brushes: each stroke is a layer op painted into the decal texture ---------- */
 const BRUSHES={round:'Круглая',water:'Акварель',blot:'Клякса',dry:'Сухая',chalk:'Мел',spray:'Брызги',pixel:'Пиксели'};
 /* value noise in world space, so a stroke stays seamless across UV islands */
@@ -1021,7 +1036,7 @@ function paintAt(hit){
   const gap=o.R*(o.shape==='spray'?0.5:o.shape==='pixel'?0.35:0.25);
   if(!last)o.pts.push({P,N,X:baseFrame(N).X});
   else if(!fillGap(last,P,N,gap,o.R*8,(Pk,Nk,X)=>o.pts.push({P:Pk,N:Nk,X:X||baseFrame(Nk).X})))return;
-  paintDabs(o,stroke.ss,i0);
+  liveStamp(()=>paintDabs(o,stroke.ss,i0));
 }
 /* small stroke previews for the brush buttons, drawn with the same dab code on a flat strip */
 function brushPreview(c,shape){
@@ -1037,57 +1052,197 @@ function brushPreview(c,shape){
   x.putImageData(img,0,0);
 }
 
-function snapAllTex(){const m=new Map();meshes.forEach((d,i)=>m.set(i,d.mesh.userData.kr.data.slice()));return m;}
-function stampOp(o){if(o.k==='decal')stampDecal(o);else if(o.k==='grad')stampGrad(o);else if(o.k==='paint')paintDabs(o,strokeState(),0);else o.pts.forEach(P=>{eraseDab(P,o);if(o.sym>=0)eraseDab(mirrorV(P,o),o);});}
-function replay(list){
-  meshes.forEach((d,i)=>{const kr=d.mesh.userData.kr;if(bakedBase&&bakedBase[i])kr.data.set(bakedBase[i]);else kr.data.fill(0);kr.has=!!bakedBase;texFull(kr);});
-  const keep=texOp;texOp=null;
-  list.forEach(stampOp);texOp=keep;
+function snapAllTex(){const m=new Map();meshes.forEach((d,i)=>m.set(i,d.mesh.userData.kr.MA.slice()));return m;}
+/* ---------- layers ----------
+   decalOps is the layer stack, bottom first. A decal or a gradient is a layer by itself (its eraser strokes in .er),
+   a paint layer {k:'layer',ops} holds brush and eraser strokes. Every layer is drawn alone into kr.data and then
+   blended into the composite kr.MA with its mode and opacity. Per texel and channel the shown colour is
+   vertexColour·M + A: normal, multiply, screen and add blending all keep that form, so everything below an edited
+   layer and everything above it each fold into one M,A pair and an edit only re-blends three buffers. */
+const BLEND={normal:'Обычный',multiply:'Умножение',screen:'Экран',add:'Добавление'},BLEND_I={normal:0,multiply:1,screen:2,add:3};
+let selLay=null,sess=null,paintNo=0;
+const layOpacity=L=>(L.vis===false?0:1)*(L.k==='layer'?(L.opacity==null?1:L.opacity):(L.alpha==null?1:L.alpha));
+function layName(L){return L.name||(L.k==='decal'?L.dec.name:L.k==='grad'?'Градиент':'Краска');}
+function cloneLayer(L){const c=Object.assign({},L);if(L.ops)c.ops=L.ops.slice();if(L.k!=='layer')c.er=(L.er||[]).slice();return c;} /* the pixel cache _c is shared: it is never changed in place */
+function swapSel(a,b){if(selDec===a)selDec=b;if(selGrad===a)selGrad=b;if(selLay===a)selLay=b;}
+function newLayerIdx(){const i=decalOps.indexOf(selLay);return i>=0?i+1:decalOps.length;}
+function stampOp(o){
+  if(o.k==='decal'){if(o.P)stampDecal(o);}else if(o.k==='grad')stampGrad(o);else if(o.k==='paint')paintDabs(o,strokeState(),0);
+  else o.pts.forEach(P=>{eraseDab(P,o);if(o.sym>=0)eraseDab(mirrorV(P,o),o);});}
+function stampLayer(L){if(L.k==='layer')L.ops.forEach(stampOp);else{stampOp(L);if(L.er)L.er.forEach(stampOp);}}
+const emptyRect=()=>[Infinity,Infinity,-Infinity,-Infinity];
+const rectOk=r=>r&&r[2]>r[0]&&r[3]>r[1];
+function unionRect(a,b){if(!rectOk(a))return rectOk(b)?b:null;if(!rectOk(b))return a;return [Math.min(a[0],b[0]),Math.min(a[1],b[1]),Math.max(a[2],b[2]),Math.max(a[3],b[3])];}
+function blankMA(kr){const N4=kr.W*kr.W*4,T=new Uint8ClampedArray(N4*2);T.fill(255,0,N4);return T;}
+/* blend one texel of a layer (straight colour v 0..1, alpha sa) into multiplier m and addend q (0..255) */
+function blendTexel(mode,m,q,v,sa){
+  switch(mode){case 1:{const k=1-sa+sa*v;return [m*k,q*k];}case 2:{const k=1-sa*v;return [m*k,q*k+v*sa*255];}case 3:return [m,q+v*sa*255];}
+  const k=1-sa;return [m*k,q*k+v*sa*255];}
+/* Each layer keeps its pixels in L._c: per part, 32×32 tiles of straight RGBA that hold any paint, so stacking
+   layers never has to draw strokes again. A new version of a layer shares the tiles its edit did not touch. */
+const TS=32;
+function captureLayer(L,base){
+  L._c=meshes.map((d,mi)=>{const kr=d.mesh.userData.kr,W=kr.W,D=kr.data,r=kr.er,chg=kr.chg,old=base&&base[mi],tiles=new Map(old?old.tiles:undefined);
+    const scan=unionRect(r,chg);if(!scan)return {tiles,rect:old?old.rect:null};
+    const [x0,y0,x1,y1]=clampRect(scan,W),n=W/TS,[cx0,cy0,cx1,cy1]=rectOk(chg)?clampRect(chg,W):[x0,y0,x1,y1];
+    for(let ty=Math.floor(y0/TS);ty*TS<y1;ty++)for(let tx=Math.floor(x0/TS);tx*TS<x1;tx++){
+      if(old&&((tx+1)*TS<=cx0||tx*TS>=cx1||(ty+1)*TS<=cy0||ty*TS>=cy1))continue; /* untouched: keep the shared tile */
+      let any=false;const t=new Uint8Array(TS*TS*4);
+      for(let y=0;y<TS;y++){const s=((ty*TS+y)*W+tx*TS)*4;t.set(D.subarray(s,s+TS*4),y*TS*4);if(!any)for(let k=3;k<TS*4;k+=4)if(D[s+k]){any=true;break;}}
+      if(any)tiles.set(ty*n+tx,t);else tiles.delete(ty*n+tx);}
+    for(let y=y0;y<y1;y++)for(let p=(y*W+x0)*4+3,e=(y*W+x1)*4;p<e;p+=4)D[p]=0;
+    return {tiles,rect:tiles.size?unionRect(old&&old.rect,rectOk(r)?clampRect(r,W):null):null};});
 }
-/* editing session: the edited decal keeps its layer; everything under it is rendered once into editBase,
-   and on each change it is stamped again with the layers above it replayed on top */
+function ensureCache(L){
+  if(L._c&&L._c.length===meshes.length)return;const keep=texOp;texOp=null;
+  meshes.forEach(d=>{d.mesh.userData.kr.rec=emptyRect();});stampLayer(L);
+  meshes.forEach(d=>{const kr=d.mesh.userData.kr;kr.er=kr.rec;kr.chg=null;kr.rec=null;});captureLayer(L,null);
+  meshes.forEach(d=>{d.mesh.userData.kr.er=null;});texOp=keep;
+}
+/* a layer's tiles -> composite T */
+function blendCache(L,mi,T){
+  const c=L._c[mi],W=meshes[mi].mesh.userData.kr.W,N4=W*W*4,n=W/TS,mode=BLEND_I[L.blend]|0,op=layOpacity(L);if(op<=0)return;
+  c.tiles.forEach((t,ti)=>{const tx=ti%n,ty=(ti-tx)/n;
+    for(let y=0;y<TS;y++)for(let x=0;x<TS;x++){const s=(y*TS+x)*4,a=t[s+3];if(!a)continue;const p=((ty*TS+y)*W+tx*TS+x)*4,sa=a/255*op;
+      for(let k=0;k<3;k++){const r=blendTexel(mode,T[p+k],T[N4+p+k],t[s+k]/255,sa);T[p+k]=r[0];T[N4+p+k]=r[1];}}});
+}
+function loadCache(L,mi){const c=L._c[mi],kr=meshes[mi].mesh.userData.kr,W=kr.W,n=W/TS,D=kr.data;
+  c.tiles.forEach((t,ti)=>{const tx=ti%n,ty=(ti-tx)/n;for(let y=0;y<TS;y++)D.set(t.subarray(y*TS*4,(y+1)*TS*4),((ty*TS+y)*W+tx*TS)*4);});return c.rect;}
+/* draws each visible layer of list into the per-part composites T */
+function compositeInto(list,T){
+  for(const L of list){if(L.vis===false)continue;ensureCache(L);meshes.forEach((d,mi)=>blendCache(L,mi,T[mi]));}
+}
+function replay(list){
+  const T=meshes.map((d,i)=>{const kr=d.mesh.userData.kr,N4=kr.W*kr.W*4;kr.data.fill(0);
+    if(bakedBase&&bakedBase[i])kr.MA.set(bakedBase[i]);else{kr.MA.fill(255,0,N4);kr.MA.fill(0,N4);}
+    kr.has=!!bakedBase||list.length>0;texFull(kr);return kr.MA;});
+  compositeInto(list,T);
+}
+/* editing session on one layer (edOp), which sits or will sit at index idx of decalOps: the layers below and above
+   are folded once into sess.below / sess.above, the layer itself stays drawn in kr.data, kr.er is its footprint */
+function setEditBase(idx){
+  const L=edOp,rest=decalOps.filter(o=>o!==L);if(idx==null)idx=decalOps.indexOf(L);if(idx<0)idx=rest.length;
+  meshes.forEach(d=>d.mesh.userData.kr.data.fill(0));
+  const below=meshes.map((d,i)=>bakedBase&&bakedBase[i]?bakedBase[i].slice():blankMA(d.mesh.userData.kr));compositeInto(rest.slice(0,idx),below);
+  const up=rest.slice(idx);let above=null;
+  if(up.some(o=>o.vis!==false)){above=meshes.map(d=>blankMA(d.mesh.userData.kr));compositeInto(up,above);}
+  sess={idx,below,above,base:L&&L._c&&L._c.length===meshes.length?L._c:null};
+  if(sess.base)meshes.forEach((d,mi)=>{const kr=d.mesh.userData.kr;kr.er=loadCache(L,mi);kr.chg=null;});
+  else{const keep=texOp;texOp=null;meshes.forEach(d=>{d.mesh.userData.kr.rec=emptyRect();});if(L)stampLayer(L);texOp=keep;
+    meshes.forEach(d=>{const kr=d.mesh.userData.kr;kr.er=rectOk(kr.rec)?kr.rec:null;kr.rec=null;kr.chg=kr.er;});}
+}
+function touchMA(mi){const t=editSnap&&editSnap.tex;if(t&&!t.has(mi))t.set(mi,meshes[mi].mesh.userData.kr.MA.slice());}
+/* shown = below, then the edited layer, then above; over rect only */
+function recombine(mi,rect){
+  const kr=meshes[mi].mesh.userData.kr,W=kr.W,N4=W*W*4,D=kr.data,B=sess.below[mi],U=sess.above&&sess.above[mi],T=kr.MA,L=edOp;
+  const mode=BLEND_I[L.blend]|0,op=layOpacity(L),[x0,y0,x1,y1]=clampRect(rect,W);if(x1<=x0||y1<=y0)return;touchMA(mi);
+  for(let y=y0;y<y1;y++)for(let p=(y*W+x0)*4,e=(y*W+x1)*4;p<e;p+=4){const sa=D[p+3]/255*op;
+    for(let c=0;c<3;c++){let m=B[p+c],q=B[N4+p+c];if(sa>0){const r=blendTexel(mode,m,q,D[p+c]/255,sa);m=r[0];q=r[1];}
+      if(U){const um=U[p+c]/255;q=q*um+U[N4+p+c];m*=um;}T[p+c]=m;T[N4+p+c]=q;}}
+  const rec=kr.rec;kr.rec=null;dirtyRect(kr,x0,y0,x1,y1);kr.rec=rec;kr.has=true;kr.chg=unionRect(kr.chg,[x0,y0,x1,y1]);
+}
+/* the edited layer changed as a whole (moved, resized, recoloured): draw it again and re-blend old and new footprint */
+function redrawEdit(){
+  if(!sess||!edOp)return;
+  meshes.forEach(d=>{const kr=d.mesh.userData.kr,W=kr.W;
+    if(kr.er){const [x0,y0,x1,y1]=clampRect(kr.er,W);for(let y=y0;y<y1;y++)for(let p=(y*W+x0)*4+3,e=(y*W+x1)*4;p<e;p+=4)kr.data[p]=0;}
+    kr.rec=emptyRect();});
+  const keep=texOp;texOp=null;stampLayer(edOp);texOp=keep;
+  meshes.forEach((d,mi)=>{const kr=d.mesh.userData.kr,r=kr.rec;kr.rec=null;const u=unionRect(kr.er,r);if(u)recombine(mi,u);kr.er=rectOk(r)?r:null;});
+}
+/* only opacity, mode or visibility changed: the layer's pixels stay, just blend them again */
+function relightEdit(){if(!sess||!edOp)return;meshes.forEach((d,mi)=>{const kr=d.mesh.userData.kr;if(kr.er){const c=kr.chg;recombine(mi,kr.er);kr.chg=c;}});}
+/* a stroke adds to the edited layer: fn draws the new dabs, only their area is re-blended */
+function liveStamp(fn){
+  if(!sess)return;meshes.forEach(d=>{d.mesh.userData.kr.rec=emptyRect();});const keep=texOp;texOp=null;fn();texOp=keep;
+  meshes.forEach((d,mi)=>{const kr=d.mesh.userData.kr,r=kr.rec;kr.rec=null;if(rectOk(r)){recombine(mi,r);kr.er=unionRect(kr.er,r);}});
+}
 function beginEdit(sel){
   sel=sel||selDec;if(editSnap&&edOp!==sel)commitEdit();
   if(editSnap||!sel)return;
   editSnap={tex:snapAllTex(),decals:decalOps.slice(),baked:bakedBase};
-  const i=decalOps.indexOf(sel);const c=Object.assign({},sel);delete sel._px;
-  if(i>=0)decalOps[i]=c;else decalOps.push(c);if(sel===selDec)selDec=c;if(sel===selGrad)selGrad=c;edOp=c;
-  replay(decalOps.slice(0,decalOps.indexOf(c)));setEditBase();
+  const i=decalOps.indexOf(sel);const c=cloneLayer(sel);delete sel._px;
+  if(i>=0)decalOps[i]=c;else decalOps.push(c);swapSel(sel,c);edOp=c;
+  setEditBase(decalOps.indexOf(c));
 }
-function setEditBase(){editBase=meshes.map(d=>{const kr=d.mesh.userData.kr;kr.er=null;return kr.data.slice();});}
-function redrawEdit(){
-  if(!editBase||!edOp)return;
-  meshes.forEach((d,i)=>{const kr=d.mesh.userData.kr,W=kr.W;
-    if(kr.er){const [x0,y0,x1,y1]=clampRect(kr.er,W);for(let y=y0;y<y1;y++){const a=(y*W+x0)*4,b=(y*W+x1)*4;kr.data.set(editBase[i].subarray(a,b),a);}dirtyRect(kr,x0,y0,x1,y1);}
-    else{kr.data.set(editBase[i]);texFull(kr);}
-    kr.rec=[Infinity,Infinity,-Infinity,-Infinity];});
-  const i=decalOps.indexOf(edOp);
-  if(i>=0){const keep=texOp;texOp=null;decalOps.slice(i).forEach(stampOp);texOp=keep;}
-  meshes.forEach(d=>{const kr=d.mesh.userData.kr;kr.er=kr.rec;kr.rec=null;});
-}
-/* layer order: 'up'/'down' swap with the neighbouring decal, 'top'/'bottom' move to the end */
-function curLayer(){return st.tool==='gradient'?selGrad:selDec;}
+function abortEdit(){if(!editSnap)return;restoreTex(editSnap.tex);decalOps=editSnap.decals;bakedBase=editSnap.baked;editSnap=null;sess=null;edOp=null;}
+/* layer order: 'up'/'down' swap with the neighbour, 'top'/'bottom' move to the end */
+function curLayer(){if(st.tool==='gradient'&&selGrad&&decalOps.includes(selGrad))return selGrad;if((st.tool==='decal'||st.tool==='dedit')&&selDec&&decalOps.includes(selDec))return selDec;return decalOps.includes(selLay)?selLay:null;}
 function moveLayer(dir){
   commitEdit();const sel=curLayer();
-  if(!sel||!decalOps.includes(sel)){toast('Сначала выбери слой: наклейку или градиент');return;}
-  const ops=decalOps.slice(),i=ops.indexOf(sel);let j=i;
-  if(dir==='up'||dir==='down'){const st_=dir==='up'?1:-1;for(let k=i+st_;k>=0&&k<ops.length;k+=st_)if(ops[k].k==='decal'||ops[k].k==='grad'){j=k;break;}}
-  else j=dir==='top'?ops.length-1:0;
+  if(!sel){toast('Сначала выбери слой в списке');return;}
+  const ops=decalOps.slice(),i=ops.indexOf(sel);
+  const j=dir==='up'?Math.min(ops.length-1,i+1):dir==='down'?Math.max(0,i-1):dir==='top'?ops.length-1:0;
   if(j===i)return;
   pushUndo({tex:snapAllTex(),decals:decalOps.slice(),baked:bakedBase});
   ops.splice(i,1);ops.splice(j,0,sel);decalOps=ops;replay(decalOps);
 }
-let layKey='';
-function renderLayers(){
-  const list=decalOps.filter(o=>o.k==='decal'||o.k==='grad'),sel=curLayer();
-  const key=list.map(o=>o.k==='grad'?o.name+gradKey(o):o.dec.name).join('|')+'#'+list.indexOf(sel);if(key===layKey)return;layKey=key;
-  const box=$('layers');box.innerHTML='';$('layersEmpty').hidden=!!list.length;
-  list.slice().reverse().forEach((o,k)=>{const row=document.createElement('button');row.className='layer'+(o===sel?' on':'');const g=o.k==='grad',name=g?o.name:o.dec.name;
-    const im=new Image();im.src=g?gradThumb(o):o.dec.url;im.alt='';const nm=document.createElement('span');nm.textContent=name;
-    const no=document.createElement('small');no.textContent=list.length-k;row.append(im,nm,no);row.title=(g?'Выбрать градиент «':'Выбрать наклейку «')+name+'»';
-    row.addEventListener('click',()=>{commitEdit();if(g){if(st.tool!=='gradient')setTool('gradient');selectGrad(o);}else{selectDecal(o);if(st.tool!=='dedit'&&st.tool!=='decal')setTool('dedit');}layKey='';renderLayers();});box.appendChild(row);});
+function deleteLayer(L){
+  commitEdit();const i=decalOps.indexOf(L);if(i<0)return;
+  pushUndo({tex:snapAllTex(),decals:decalOps.slice(),baked:bakedBase});decalOps=decalOps.filter(o=>o!==L);
+  if(selDec===L)selDec=null;if(selGrad===L){selGrad=null;updGradSel();}selLay=decalOps[Math.min(i,decalOps.length-1)]||null;replay(decalOps);
+  toast('Слой «'+layName(L)+'» удалён');
 }
-function commitEdit(){if(!editSnap)return;if(edOp)delete edOp._px;edOp=null;pushUndo(editSnap);editSnap=null;editBase=null;if(!st.bake){st.bake=true;$('bakeChk').checked=true;}}
+/* live change of the selected layer's opacity, mode or visibility; committed once changes pause */
+let layT=0;
+function layerLive(L,fn,now){
+  if(!L||!decalOps.includes(L)&&L!==edOp)return;beginEdit(L);fn(edOp);
+  if(edOp.k==='decal'){st.decal.op=edOp.alpha;const v=Math.round(edOp.alpha*100);$('dOp').value=v;$('dOpO').textContent=v;}
+  if(edOp.k==='grad'&&selGrad===edOp){st.strength=edOp.alpha;const v=Math.round(edOp.alpha*100);$('strength').value=v;$('strengthO').textContent=v;}
+  relightEdit();layKey='';clearTimeout(layT);if(now)commitEdit();else layT=setTimeout(commitEdit,600);
+}
+function renameLayer(L,name){
+  commitEdit();const i=decalOps.indexOf(L);name=name.trim();if(i<0||!name||name===layName(L))return;
+  pushUndo({decals:decalOps.slice()});const c=cloneLayer(L);c.name=name;decalOps[i]=c;swapSel(L,c);if(selGrad===c)updGradSel();layKey='';
+}
+let layKey='';
+function paintThumb(L){const cs=[];for(const o of L.ops)if(o.k==='paint'){const h=rgbToHex(o.c);if(!cs.includes(h))cs.push(h);if(cs.length>=4)break;}
+  const k=cs.join();if(L._thumb&&L._thumbK===k)return L._thumb;const [c,x]=mkCanvas(48,24);
+  if(!cs.length){x.strokeStyle='#888';x.setLineDash([3,3]);x.strokeRect(4.5,4.5,39,15);}
+  cs.forEach((h,i)=>{x.fillStyle=h;x.beginPath();x.ellipse(12+i*8,12+(i%2?3:-3),10,7,i*0.7,0,7);x.fill();});
+  L._thumbK=k;return L._thumb=c.toDataURL();}
+const EYE='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
+  EYE_OFF='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"/><path d="M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4"/><path d="M6.6 6.6C3.7 8.4 2 12 2 12s3.6 7 10 7a9.6 9.6 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>';
+function pickLayer(o){
+  commitEdit();const edit=st.tool==='decal'||st.tool==='dedit'||st.tool==='gradient';
+  if(o==='base'){selLay='base';selDec=null;selGrad=null;updGradSel();if(edit)setTool('brush');}
+  else if(o.k==='grad'){if(edit&&st.tool!=='gradient')setTool('gradient');selectGrad(o);}
+  else if(o.k==='decal'){selectDecal(o);if(edit&&st.tool==='gradient')setTool('dedit');}
+  else{selLay=o;selDec=null;if(edit)setTool('brush');}
+}
+function renderLayers(){
+  const list=decalOps,sel=curLayer();
+  const key=list.map(o=>[layName(o),o.vis,o.blend,layOpacity(o).toFixed(2),o.k==='grad'?gradKey(o):o.k==='layer'?o.ops.length:o.dec.url.length].join()).join('|');
+  const box=$('layers'),sk=key+'#'+list.indexOf(sel);if(sk===layKey)return;
+  /* only the selection moved: keep the rows (a double click to rename must land on the same element) */
+  if(layKey.slice(0,layKey.lastIndexOf('#'))===key&&box.children.length===list.length+1){layKey=sk;
+    [...box.children].forEach(r=>r.classList.toggle('on',r._o===sel||(r._o==='base'&&!sel)));layProps(sel);return;}
+  layKey=sk;box.innerHTML='';$('layersEmpty').hidden=!!list.length;
+  list.slice().reverse().forEach(o=>{const row=document.createElement('div');row.className='layer'+(o===sel?' on':'')+(o.vis===false?' off':'');row.tabIndex=0;row.setAttribute('role','button');
+    const name=layName(o),eye=document.createElement('button');eye.className='eye';eye.innerHTML=o.vis===false?EYE_OFF:EYE;eye.title=o.vis===false?'Показать слой':'Скрыть слой';eye.setAttribute('aria-label',eye.title);
+    eye.addEventListener('click',ev=>{ev.stopPropagation();layerLive(o,L=>{L.vis=L.vis===false;},true);});
+    const im=new Image();im.src=o.k==='grad'?gradThumb(o):o.k==='decal'?o.dec.url:paintThumb(o);im.alt='';
+    const nm=document.createElement('span');nm.textContent=name;nm.title='Двойной клик — переименовать';
+    nm.addEventListener('dblclick',ev=>{ev.stopPropagation();const inp=document.createElement('input');inp.className='lname';inp.value=name;nm.replaceWith(inp);inp.focus();inp.select();
+      let done=false;const fin=ok=>{if(done)return;done=true;if(ok)renameLayer(o,inp.value);layKey='';renderLayers();};
+      inp.addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Enter')fin(true);if(e.key==='Escape')fin(false);});inp.addEventListener('blur',()=>fin(true));inp.addEventListener('click',e=>e.stopPropagation());});
+    const meta=document.createElement('small');const op=Math.round(layOpacity(Object.assign({},o,{vis:true}))*100);
+    meta.textContent=(o.blend&&o.blend!=='normal'?BLEND[o.blend]+' ':'')+(op<100?op+'%':'');
+    row.append(eye,im,nm,meta);row._o=o;row.title=(o.k==='grad'?'Градиент':o.k==='decal'?'Наклейка':'Слой краски')+' «'+name+'»';
+    row.addEventListener('click',()=>{pickLayer(o);renderLayers();});
+    row.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();pickLayer(o);renderLayers();}});
+    box.appendChild(row);});
+  const base=document.createElement('div');base.className='layer base'+(!sel?' on':'');base.tabIndex=0;base.setAttribute('role','button');
+  base.innerHTML='<i class="eye"></i><b class="bthumb"></b><span>Основа — цвета модели</span>';base.title='Круглая кисть и заливка красят саму модель';
+  base.addEventListener('click',()=>{pickLayer('base');renderLayers();});base._o='base';box.appendChild(base);layProps(sel);
+}
+/* properties of the selected layer */
+function layProps(sel){
+  const on=!!sel;$('layMode').disabled=$('layOp').disabled=!on;
+  if(on){$('layMode').value=sel.blend||'normal';const v=Math.round((sel.k==='layer'?(sel.opacity==null?1:sel.opacity):sel.alpha)*100);$('layOp').value=v;$('layOpO').textContent=v;}
+  else{$('layMode').value='normal';$('layOp').value=100;$('layOpO').textContent='—';}
+}
+function commitEdit(){commitRecolor();if(!editSnap)return;clearTimeout(layT);if(edOp){delete edOp._px;if(sess)captureLayer(edOp,sess.base);}edOp=null;pushUndo(editSnap);editSnap=null;sess=null;layKey='';if(!st.bake){st.bake=true;$('bakeChk').checked=true;}}
 function decalHitTest(hit){ /* topmost decal whose opaque pixels are under the hit point */
   if(!hit)return null;
   for(let i=decalOps.length-1;i>=0;i--){const o=decalOps[i];if(o.k!=='decal')continue;
@@ -1098,19 +1253,19 @@ function decalHitTest(hit){ /* topmost decal whose opaque pixels are under the h
     if(o.dec.data[(iy*iw+ix)*4+3]>25)return o;}
   return null;
 }
-function selectDecal(o){selDec=o;if(!o)return;
+function selectDecal(o){selDec=o;if(!o)return;selLay=o;
   const set=(id,v)=>{const el=$(id);el.value=v;$(id+'O').textContent=id==='dSize'?v+'%':id==='dRot'?v+'°':v;};
   set('dSize',Math.round(o.size*100));set('dRot',Math.round(o.rot));set('dOp',Math.round(o.alpha*100));$('dFlip').checked=o.flip;$('dWrap').checked=o.wrap;
   Object.assign(st.decal,{size:o.size,rot:o.rot,op:o.alpha,flip:o.flip,wrap:o.wrap});
   const di=st.decal.list.indexOf(o.dec);if(di>=0&&di!==st.decal.cur){st.decal.cur=di;renderDecals();}}
-function deleteDecal(){if(!selDec)return;beginEdit();decalOps.splice(decalOps.indexOf(selDec),1);selDec=null;replay(decalOps);editBase=null;commitEdit();toast('Наклейка удалена');}
-function deleteGrad(){if(!selGrad||!decalOps.includes(selGrad))return;beginEdit(selGrad);decalOps.splice(decalOps.indexOf(selGrad),1);selGrad=null;replay(decalOps);editBase=null;commitEdit();updGradSel();toast('Градиент удалён');}
+function deleteDecal(){if(selDec&&decalOps.includes(selDec))deleteLayer(selDec);}
+function deleteGrad(){if(selGrad&&decalOps.includes(selGrad))deleteLayer(selGrad);}
 let ddrag=null,pendingMove=null;
 function decalPlace(cx,cy){
   if(!ddrag||!selDec)return;const hit=pick(cx,cy);if(!hit)return;
   if(ddrag.move&&!editSnap)beginEdit();
   const o=selDec;o.P=hit.point.clone().add(ddrag.off||new THREE.Vector3());o.N=hit.normal.clone();o.base=baseFrame(o.N);
-  if(!decalOps.includes(o))decalOps.push(o);
+  if(!decalOps.includes(o)){decalOps.splice(sess.idx,0,o);selLay=o;}
   redrawEdit();ddrag.placed=true;
 }
 /* dashed frame around the selected decal */
@@ -1179,9 +1334,9 @@ function applyControlMode(){
   canvas.style.cursor=cam?'grab':(st.tool==='dedit'?'default':st.tool==='gradient'||st.tool==='decal'?'crosshair':(st.tool==='pick'?'copy':'default'));
 }
 function cancelOps(){
-  if(stroke){if(stroke.cols)restoreCols(stroke.cols);if(stroke.tex)restoreTex(stroke.tex);if(stroke.decals)decalOps=stroke.decals;stroke=null;texOp=null;}
-  if(gdrag){if(editSnap){restoreTex(editSnap.tex);decalOps=editSnap.decals;bakedBase=editSnap.baked;editSnap=null;editBase=null;edOp=null;if(gdrag.fresh)selGrad=gdrag.prev;else selGrad=decalOps.find(o=>o===gdrag.orig)||null;}gdrag=null;updGradSel();}
-  if(ddrag){if(editSnap){restoreTex(editSnap.tex);decalOps=editSnap.decals;bakedBase=editSnap.baked;editSnap=null;editBase=null;edOp=null;selDec=null;}ddrag=null;}
+  if(stroke){if(stroke.cols)restoreCols(stroke.cols);else{abortEdit();if(!decalOps.includes(selLay))selLay=null;}stroke=null;}
+  if(gdrag){if(editSnap){restoreTex(editSnap.tex);decalOps=editSnap.decals;bakedBase=editSnap.baked;editSnap=null;sess=null;edOp=null;if(gdrag.fresh)selGrad=gdrag.prev;else selGrad=decalOps.find(o=>o===gdrag.orig)||null;}gdrag=null;updGradSel();}
+  if(ddrag){if(editSnap){restoreTex(editSnap.tex);decalOps=editSnap.decals;bakedBase=editSnap.baked;editSnap=null;sess=null;edOp=null;selDec=null;}ddrag=null;}
   activePtr=null;
 }
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
@@ -1191,13 +1346,26 @@ canvas.addEventListener('pointerdown',e=>{
   if(e.button!==0||effTool()==='camera')return;
   activePtr=e.pointerId;try{canvas.setPointerCapture(e.pointerId);}catch(_){}
   const tool=st.tool,hit=pick(e.clientX,e.clientY);
-  if(tool==='brush'){if(!hit){activePtr=null;return;}
-    if(st.brush==='round'){stroke={cols:snapCols()};brushAt(hit);}
-    else{commitEdit();selDec=null;texOp=new Map();
-      const o={k:'paint',shape:st.brush,px:st.pixel*modelSize,c:st.color.slice(),R:st.radius*modelSize,s:st.strength,h:st.hard,seed:(Math.random()*1e9)|0,sym:st.sym,mc:modelCenter.toArray(),pts:[],lim:curLim()};
-      stroke={tex:texOp,decals:decalOps.slice(),op:o,ss:strokeState()};decalOps.push(o);paintAt(hit);}}
-  else if(tool==='erase'){if(!hit){activePtr=null;return;}commitEdit();selDec=null;texOp=new Map();
-    stroke={tex:texOp,decals:decalOps.slice(),op:{k:'erase',pts:[],R:st.radius*modelSize,h:st.hard,s:st.strength,sym:st.sym,mc:modelCenter.toArray(),lim:curLim()}};decalOps.push(stroke.op);eraseAt(hit);}
+  if(tool==='brush'){if(!hit){activePtr=null;return;}commitEdit();
+    let L=decalOps.includes(selLay)?selLay:null;
+    if(!(L&&L.k==='layer')&&!L&&st.brush==='round'){stroke={cols:snapCols()};brushAt(hit);return;} /* «Основа»: the round brush paints the model's own colours */
+    if(L&&L.vis===false&&L.k==='layer'){toast('Слой «'+layName(L)+'» скрыт: включи глаз, чтобы рисовать на нём');activePtr=null;return;}
+    const decs=decalOps.slice();let idx;
+    if(L&&L.k==='layer')idx=decalOps.indexOf(L);
+    else{idx=newLayerIdx();L={k:'layer',name:'Краска '+(++paintNo),vis:true,opacity:1,blend:'normal',ops:[]};decalOps.splice(idx,0,L);toast('Новый слой «'+L.name+'»');}
+    const o={k:'paint',shape:st.brush,px:st.pixel*modelSize,c:st.color.slice(),R:st.radius*modelSize,s:st.strength,h:st.hard,seed:(Math.random()*1e9)|0,sym:st.sym,mc:modelCenter.toArray(),pts:[],lim:curLim()};
+    if(o.shape==='pattern')Object.assign(o,{pat:st.bp.pat,cell:st.bp.cell*modelSize,den:st.bp.den});
+    const c=cloneLayer(L);c.ops.push(o);decalOps[idx]=c;selDec=null;selLay=c;
+    editSnap={tex:new Map(),decals:decs,baked:bakedBase};edOp=c;setEditBase(idx);
+    stroke={layer:true,op:o,ss:strokeState()};paintAt(hit);}
+  else if(tool==='erase'){if(!hit){activePtr=null;return;}commitEdit();
+    const L=decalOps.includes(selLay)?selLay:null;
+    if(!L){toast('Ластик стирает выбранный слой: выбери его в списке «Слои»');activePtr=null;return;}
+    if(L.vis===false){toast('Слой «'+layName(L)+'» скрыт');activePtr=null;return;}
+    const idx=decalOps.indexOf(L),decs=decalOps.slice(),c=cloneLayer(L),o={k:'erase',pts:[],R:st.radius*modelSize,h:st.hard,s:st.strength,sym:st.sym,mc:modelCenter.toArray(),lim:curLim()};
+    (c.k==='layer'?c.ops:c.er).push(o);decalOps[idx]=c;swapSel(L,c);delete L._px;
+    editSnap={tex:new Map(),decals:decs,baked:bakedBase};edOp=c;setEditBase(idx);
+    stroke={layer:true,op:o};eraseAt(hit);}
   else if(tool==='fill'){if(hit){pushUndo({cols:snapCols()});fillAt(hit);addRecent();}activePtr=null;}
   else if(tool==='select'){if(hit){const m=region(hit.d,hit.tri);const add=!hit.d.sel[hit.tri];for(let t=0;t<hit.d.tris;t++)if(m[t])hit.d.sel[t]=add?1:0;rebuildSel(hit.d);}else if(!e.shiftKey){selectAll(false);}activePtr=null;}
   else if(tool==='pick'){if(hit){const col=hit.d.mesh.geometry.attributes.color.array,o=hit.tri*9;setColor([(col[o]+col[o+3]+col[o+6])/3,(col[o+1]+col[o+4]+col[o+7])/3,(col[o+2]+col[o+5]+col[o+8])/3]);toast('Цвет взят: '+rgbToHex(st.color));}activePtr=null;}
@@ -1207,8 +1375,8 @@ canvas.addEventListener('pointerdown',e=>{
     if(o&&(tool==='dedit'||o===selDec)){selectDecal(o);ddrag={move:true,off:o.P.clone().sub(hit.point)};canvas.style.cursor='grabbing';return;}
     if(tool==='dedit'){selDec=null;activePtr=null;return;}
     const dec=curDecal();if(!dec){activePtr=null;toast('Сначала выбери наклейку');return;}
-    editSnap={tex:snapAllTex(),decals:decalOps.slice(),baked:bakedBase};setEditBase();
-    selDec={k:'decal',P:null,N:null,base:null,rot:st.decal.rot,dec,size:st.decal.size,alpha:st.decal.op,flip:st.decal.flip,wrap:st.decal.wrap,lim:curLim()};edOp=selDec;
+    editSnap={tex:snapAllTex(),decals:decalOps.slice(),baked:bakedBase};
+    selDec={k:'decal',P:null,N:null,base:null,rot:st.decal.rot,dec,size:st.decal.size,alpha:st.decal.op,flip:st.decal.flip,wrap:st.decal.wrap,lim:curLim(),er:[]};edOp=selDec;setEditBase(newLayerIdx());
     ddrag={};decalPlace(e.clientX,e.clientY);}
 });
 let lastPtr=null;
@@ -1229,10 +1397,11 @@ function processMove(){
   if(paint&&stroke&&hit){if(stroke.cols)brushAt(hit);else if(stroke.op.k==='paint')paintAt(hit);else eraseAt(hit);}
 }
 function endPtr(e){ptrs.delete(e.pointerId);if(e.pointerId!==activePtr)return;if(movePend)processMove();activePtr=null;
-  if(stroke){if(stroke.cols){pushUndo({cols:stroke.cols});addRecent();}else if(stroke.tex.size){pushUndo({tex:stroke.tex,decals:stroke.decals});if(stroke.op.k==='paint')addRecent();}else decalOps=stroke.decals;stroke=null;texOp=null;}
+  if(stroke){if(stroke.cols){pushUndo({cols:stroke.cols});addRecent();}
+    else if(stroke.op.pts.length){commitEdit();if(stroke.op.k==='paint')addRecent();}else{abortEdit();if(!decalOps.includes(selLay))selLay=null;}stroke=null;}
   if(gdrag)gradEnd(e.clientX,e.clientY);
   if(ddrag){if(pendingMove){decalPlace(pendingMove[0],pendingMove[1]);pendingMove=null;}
-    if(ddrag.placed)commitEdit();else if(!ddrag.move){editSnap=null;editBase=null;edOp=null;selDec=null;}
+    if(ddrag.placed)commitEdit();else if(!ddrag.move){editSnap=null;sess=null;edOp=null;selDec=null;}
     ddrag=null;applyControlMode();}
   if(e.pointerType==='touch')ring.visible=ringIn.visible=ring2.visible=ringIn2.visible=false;}
 canvas.addEventListener('pointerup',endPtr);canvas.addEventListener('pointercancel',e=>{ptrs.delete(e.pointerId);if(e.pointerId===activePtr)cancelOps();});
@@ -1249,7 +1418,7 @@ function updRing(hit){
 /* ---------- UI: tools ---------- */
 const HINTS={dedit:'Нажми на наклейку на модели и тяни, чтобы двигать. Колесо над ней — размер, Shift+колесо — поворот, Delete — удалить.',brush:'Рисуй по модели. Акварель, клякса и другие фигурные кисти кладут краску слоем поверх цвета, ластик её стирает. Правая кнопка или два пальца — вращать камеру.',fill:'Нажми на область — она зальётся цветом. Границу области задаёт ползунок.',
   gradient:'Проведи линию — появится новый слой градиента. Кружки на концах выбранного градиента можно двигать.',decal:'Нажми и веди по модели — наклейка едет следом и приклеивается, когда отпускаешь.',
-  erase:'Стирает наклейки и градиенты. Цвета вершин не трогает.',select:'Нажимай по областям, чтобы выделить. Пустое место — снять выделение.',
+  erase:'Стирает выбранный слой: краску, наклейку или градиент. Основу (цвета модели) не трогает.',select:'Нажимай по областям, чтобы выделить. Пустое место — снять выделение.',
   pick:'Нажми на модель, чтобы взять цвет.',camera:'Тяни, чтобы вращать. Колесо — приближение, средняя кнопка — сдвиг.'};
 function showPanel(t){const on=el=>el.dataset.tools.split(' ').includes(t);
   document.querySelectorAll('.panel [data-tools]').forEach(el=>{if(el.classList.contains('sec')&&!el.querySelector('[data-tools]'))el.hidden=!on(el);else if(!el.classList.contains('sec'))el.hidden=!on(el);});
@@ -1321,12 +1490,12 @@ function gradLive(){
   gradDirty=true;clearTimeout(gradT);gradT=setTimeout(commitEdit,600);
 }
 function selectGrad(o){
-  commitEdit();selGrad=o;const g=st.grad;
+  commitEdit();selGrad=selLay=o;const g=st.grad;
   Object.assign(g,{stops:cloneStops(o.stops),sel:0,type:o.type||'linear',mode:o.mode||'smooth',steps:o.steps||3,pat:o.pat||'dots',scale:o.scale||0.03});
   st.strength=o.alpha;$('strength').value=Math.round(o.alpha*100);$('strengthO').textContent=Math.round(o.alpha*100);
   renderGrad(true);updGradSel();
 }
-function updGradSel(){const on=!!selGrad&&decalOps.includes(selGrad);$('gSelRow').hidden=!on;if(on)$('gSelName').textContent=selGrad.name;layKey='';}
+function updGradSel(){const on=!!selGrad&&decalOps.includes(selGrad);$('gSelRow').hidden=!on;if(on)$('gSelName').textContent=selGrad.name;}
 const gcv=$('gcv'),gctx=gcv.getContext('2d');
 /* paints a gradient with its steps or pattern over a checkerboard: the bar, the pattern buttons and layer thumbnails */
 function gradPreview(ctx,w,h,g,L,cell){
@@ -1408,7 +1577,11 @@ bindSlider('dRot',v=>liveSet('rot',v),v=>v+'°');
 bindSlider('dOp',v=>liveSet('op',v/100),v=>v);
 $('dFlip').addEventListener('change',e=>{liveSet('flip',e.target.checked);commitEdit();});
 $('dWrap').addEventListener('change',e=>{liveSet('wrap',e.target.checked);commitEdit();});
-$('layDel').addEventListener('click',()=>{const o=curLayer();if(!o||!decalOps.includes(o)){toast('Сначала выбери слой в списке');return;}if(o.k==='grad')deleteGrad();else deleteDecal();});
+$('layDel').addEventListener('click',()=>{const o=curLayer();if(!o){toast('Сначала выбери слой в списке');return;}deleteLayer(o);});
+$('layNew').addEventListener('click',()=>{commitEdit();const idx=newLayerIdx(),L={k:'layer',name:'Краска '+(++paintNo),vis:true,opacity:1,blend:'normal',ops:[]};
+  pushUndo({decals:decalOps.slice()});decalOps.splice(idx,0,L);selLay=L;selDec=null;selGrad=null;updGradSel();if(st.tool!=='brush'&&st.tool!=='erase')setTool('brush');layKey='';});
+$('layMode').addEventListener('change',e=>{const L=curLayer();if(L)layerLive(L,x=>{x.blend=e.target.value;},true);});
+$('layOp').addEventListener('input',e=>{const L=curLayer(),v=+e.target.value/100;$('layOpO').textContent=e.target.value;if(L)layerLive(L,x=>{if(x.k==='layer')x.opacity=v;else x.alpha=v;});});
 [['layTop','top'],['layUp','up'],['layDown','down'],['layBottom','bottom']].forEach(([id,d])=>$(id).addEventListener('click',()=>moveLayer(d)));
 $('dDel').addEventListener('click',()=>{if(selDec)deleteDecal();else toast('Сначала выбери наклейку на модели');});
 $('decalIn').addEventListener('change',e=>{[...e.target.files].forEach(loadDecalFile);e.target.value='';});
@@ -1447,18 +1620,18 @@ $('subBtn').addEventListener('click',()=>{
     addWire(nd);meshes[mi]=nd;rebuildSel(nd);});
   renderParts();undo.length=0;redo.length=0;updUndo();updStats();
   /* triangle ids changed: existing decals stay as painted but can no longer be edited */
-  bakedBase=meshes.map(d=>d.mesh.userData.kr.data.slice());decalOps=[];selDec=null;selGrad=null;edOp=null;editSnap=null;updGradSel();
+  bakedBase=meshes.map(d=>d.mesh.userData.kr.MA.slice());decalOps=[];selDec=null;selGrad=null;selLay=null;sess=null;edOp=null;editSnap=null;updGradSel();
   toast('Готово: треугольников стало в 4 раза больше. История отмен очищена.');
 });
 
 /* ---------- bake ---------- */
 function bakeCanvas(d){
-  const kr=d.mesh.userData.kr,W=kr.W,col=d.mesh.geometry.attributes.color.array,dec=kr.data;
+  const kr=d.mesh.userData.kr,W=kr.W,col=d.mesh.geometry.attributes.color.array,MA=kr.MA,N4=W*W*4;
   const buf=new Uint8ClampedArray(W*W*4);
   for(let t=0;t<d.tris;t++){const a=t*9;
     rasterTri(kr.uv,t,W,W,1.5,(o,w0,w1,w2)=>{const o4=o*4;
       buf[o4]=(w0*col[a]+w1*col[a+3]+w2*col[a+6])*255;buf[o4+1]=(w0*col[a+1]+w1*col[a+4]+w2*col[a+7])*255;buf[o4+2]=(w0*col[a+2]+w1*col[a+5]+w2*col[a+8])*255;buf[o4+3]=255;});}
-  for(let o4=0;o4<buf.length;o4+=4){const al=dec[o4+3]/255;if(al>0){buf[o4]+= (dec[o4]-buf[o4])*al;buf[o4+1]+=(dec[o4+1]-buf[o4+1])*al;buf[o4+2]+=(dec[o4+2]-buf[o4+2])*al;}}
+  for(let o4=0;o4<buf.length;o4+=4){if(!buf[o4+3])continue;for(let c=0;c<3;c++)buf[o4+c]=buf[o4+c]*MA[o4+c]/255+MA[N4+o4+c];}
   const [c,x]=mkCanvas(W,W);const img=x.createImageData(W,W);
   for(let y=0;y<W;y++)img.data.set(buf.subarray(y*W*4,(y+1)*W*4),(W-1-y)*W*4); /* row 0 (v=0) goes to the bottom of the image */
   x.putImageData(img,0,0);return c;
@@ -1509,69 +1682,101 @@ async function renderPreview(S){flushTex();
   return new Uint8Array(await (await canvasBlob(cv)).arrayBuffer());
 }
 const v3a=v=>[v.x,v.y,v.z],a3v=a=>new THREE.Vector3(a[0],a[1],a[2]);
+/* the project as a zip: shared by .kras files and the autosave */
+let glbCache=null;
+async function modelGLB(){
+  const key=meshes.map(d=>d.mesh.geometry.uuid).join();if(glbCache&&glbCache.key===key)return glbCache.glb;
+  /* geometry: a plain copy of every part with its placement, without our paint materials */
+  const grp=new THREE.Group();root.updateMatrixWorld(true);
+  meshes.forEach(d=>{const g=new THREE.BufferGeometry();['position','normal','uv'].forEach(n=>{if(d.mesh.geometry.attributes[n])g.setAttribute(n,d.mesh.geometry.attributes[n]);});
+    const m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:0xffffff}));m.name=d.mesh.name;d.mesh.matrixWorld.decompose(m.position,m.quaternion,m.scale);grp.add(m);});
+  const glb=await new Promise((ok,bad)=>{const ex=new THREE.GLTFExporter(),o={binary:true};if(ex.parseAsync)ex.parseAsync(grp,o).then(ok,bad);else ex.parse(grp,ok,bad,o);});
+  glbCache={key,glb};return glb;
+}
+async function buildProjectZip(level){
+  const z=new JSZip();z.file('model.glb',await modelGLB());
+  const decs=[];const decId=dec=>{let i=decs.indexOf(dec);if(i<0){i=decs.length;decs.push(dec);}return i;};
+  let n=0;const lim=o=>{const id=n++,L={shown:o.lim.shown,sel:!!o.lim.sel,id};if(o.lim.sel)o.lim.sel.forEach((a,mi)=>{if(a)z.file('sel/'+id+'_'+mi+'.bin',a);});return L;};
+  const lay=o=>({name:o.name,vis:o.vis!==false,blend:o.blend||'normal',er:(o.er||[]).map(one)});
+  function one(o){
+    if(o.k==='layer')return {k:'layer',name:o.name,vis:o.vis!==false,opacity:o.opacity,blend:o.blend||'normal',ops:o.ops.map(one)};
+    if(o.k==='grad')return Object.assign({k:'grad',A:v3a(o.A),B:v3a(o.B),V:v3a(o.V),stops:o.stops,type:o.type,mode:o.mode,steps:o.steps,pat:o.pat,scale:o.scale,alpha:o.alpha,lim:lim(o)},lay(o));
+    if(o.k==='decal')return Object.assign({k:'decal',P:v3a(o.P),N:v3a(o.N),X:v3a(o.base.X),Y:v3a(o.base.Y),rot:o.rot,size:o.size,alpha:o.alpha,flip:o.flip,wrap:o.wrap,dec:decId(o.dec),lim:lim(o)},lay(o));
+    if(o.k==='paint'){const r={k:'paint',shape:o.shape,px:o.px,c:o.c,R:o.R,s:o.s,h:o.h,seed:o.seed,sym:o.sym,mc:o.mc,pts:o.pts.map(q=>v3a(q.P).concat(v3a(q.N),v3a(q.X),q.w==null?[]:[q.w])),lim:lim(o)};
+      if(o.shape==='pattern')Object.assign(r,{pat:o.pat,cell:o.cell,den:o.den});if(o.prS!=null)Object.assign(r,{prS:o.prS,prA:o.prA});return r;}
+    return {k:'erase',pts:o.pts.map(v3a),R:o.R,h:o.h,s:o.s,sym:o.sym,mc:o.mc,lim:lim(o)};}
+  const ops=decalOps.map(one),layered=decalOps.length>0||!!bakedBase;
+  meshes.forEach((d,i)=>{const kr=d.mesh.userData.kr;
+    z.file('parts/'+i+'/colors.bin',new Uint8Array(d.mesh.geometry.attributes.color.array.buffer.slice(0)));
+    if(layered&&kr.has)z.file('parts/'+i+'/ma.bin',new Uint8Array(kr.MA.buffer));
+    if(bakedBase&&bakedBase[i])z.file('parts/'+i+'/baked.bin',new Uint8Array(bakedBase[i].buffer));});
+  decs.forEach((d,i)=>z.file('stickers/'+i+'.png',d.url.split(',')[1],{base64:true}));
+  z.file('project.json',JSON.stringify({app:'Krasilnya',v:2,name:modelName,
+    parts:meshes.map((d,i)=>({name:d.mesh.name,visible:shown(d),W:d.mesh.userData.kr.W})),
+    stickers:decs.map(d=>({name:d.name})),ops,baked:!!bakedBase,bake:st.bake,gradNo,paintNo},null,1));
+  busy++; /* the zip is packed in small steps between tasks: drawing frames in between would stretch it out a lot */
+  try{return await z.generateAsync({type:'uint8array',compression:'DEFLATE',compressionOptions:{level:level||6}});}finally{busy--;}
+}
 async function saveProject(){
   if(!meshes.length)return;if(typeof JSZip==='undefined'){toast('Не загрузился архиватор');return;}
   commitEdit();toast('Сохраняю проект…');await new Promise(r=>setTimeout(r,30));
-  const z=new JSZip();
-  /* geometry: a plain copy of every part with its placement, without our paint materials */
-  const grp=new THREE.Group();
-  meshes.forEach(d=>{const g=new THREE.BufferGeometry();['position','normal','uv'].forEach(n=>{if(d.mesh.geometry.attributes[n])g.setAttribute(n,d.mesh.geometry.attributes[n]);});
-    const m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:0xffffff}));m.name=d.mesh.name;
-    root.updateMatrixWorld(true);d.mesh.matrixWorld.decompose(m.position,m.quaternion,m.scale);grp.add(m);});
-  const glb=await new Promise((ok,bad)=>{const ex=new THREE.GLTFExporter(),o={binary:true};if(ex.parseAsync)ex.parseAsync(grp,o).then(ok,bad);else ex.parse(grp,ok,bad,o);});
-  z.file('model.glb',glb);
-  const decs=[];const decId=dec=>{let i=decs.indexOf(dec);if(i<0){i=decs.length;decs.push(dec);}return i;};
-  const ops=decalOps.map((o,oi)=>{
-    const lim={shown:o.lim.shown,sel:!!o.lim.sel};if(o.lim.sel)o.lim.sel.forEach((a,mi)=>{if(a)z.file('sel/'+oi+'_'+mi+'.bin',a);});
-    if(o.k==='grad')return {k:'grad',A:v3a(o.A),B:v3a(o.B),V:v3a(o.V),stops:o.stops,type:o.type,mode:o.mode,steps:o.steps,pat:o.pat,scale:o.scale,alpha:o.alpha,name:o.name,lim};
-    if(o.k==='decal')return {k:'decal',P:v3a(o.P),N:v3a(o.N),X:v3a(o.base.X),Y:v3a(o.base.Y),rot:o.rot,size:o.size,alpha:o.alpha,flip:o.flip,wrap:o.wrap,dec:decId(o.dec),lim};
-    if(o.k==='paint')return {k:'paint',shape:o.shape,px:o.px,c:o.c,R:o.R,s:o.s,h:o.h,seed:o.seed,sym:o.sym,mc:o.mc,pts:o.pts.map(q=>v3a(q.P).concat(v3a(q.N),v3a(q.X))),lim};
-    return {k:'erase',pts:o.pts.map(v3a),R:o.R,h:o.h,s:o.s,sym:o.sym,mc:o.mc,lim};});
-  meshes.forEach((d,i)=>{const kr=d.mesh.userData.kr;
-    z.file('parts/'+i+'/colors.bin',new Uint8Array(d.mesh.geometry.attributes.color.array.buffer.slice(0)));
-    if(kr.has)z.file('parts/'+i+'/decals.bin',kr.data);
-    if(bakedBase&&bakedBase[i])z.file('parts/'+i+'/baked.bin',bakedBase[i]);});
-  decs.forEach((d,i)=>z.file('stickers/'+i+'.png',d.url.split(',')[1],{base64:true}));
-  z.file('project.json',JSON.stringify({app:'Krasilnya',v:1,name:modelName,
-    parts:meshes.map((d,i)=>({name:d.mesh.name,visible:shown(d),W:d.mesh.userData.kr.W,decals:d.mesh.userData.kr.has})),
-    stickers:decs.map(d=>({name:d.name})),ops,baked:!!bakedBase,bake:st.bake},null,1));
-  const data=await z.generateAsync({type:'uint8array',compression:'DEFLATE',compressionOptions:{level:6}});
-  const png=await renderPreview(512);
+  const data=await buildProjectZip(3),png=await renderPreview(512);
   await saveBlob((modelName||'model')+'.kras',new Blob([pngWithChunk(png,'krAs',data)],{type:'image/png'}));
+  autoClean();
 }
 async function loadProject(buf,fname){
   const chunk=pngChunk(buf,'krAs');if(!chunk){toast('Это не проект Красильни');return;}
   if(typeof JSZip==='undefined'){toast('Не загрузился архиватор');return;}
-  try{
-    const z=await JSZip.loadAsync(chunk),P=JSON.parse(await z.file('project.json').async('string'));
-    const glb=await z.file('model.glb').async('arraybuffer');
-    const scene_=await new Promise((ok,bad)=>new THREE.GLTFLoader().parse(glb,'',g=>ok(g.scene),bad));
-    setModel(scene_,P.name||fname);if(meshes.length!==P.parts.length)throw new Error('части модели не совпали');
-    const bin=async(path,Ctor)=>{const f=z.file(path);return f?new Ctor((await f.async('uint8array')).slice().buffer):null;};
-    const stickers=[];for(let i=0;i<P.stickers.length;i++){
-      const b64=await z.file('stickers/'+i+'.png').async('base64'),url='data:image/png;base64,'+b64;
-      let dec=st.decal.list.find(d=>d.url===url);
-      if(!dec){const im=new Image();await new Promise((ok,bad)=>{im.onload=ok;im.onerror=bad;im.src=url;});
-        const [c,x]=mkCanvas(im.width,im.height);x.drawImage(im,0,0);dec=decalFromCanvas(P.stickers[i].name,c);dec.url=url;st.decal.list.push(dec);}
-      stickers.push(dec);}
-    renderDecals();
-    for(let i=0;i<meshes.length;i++){const d=meshes[i],kr=d.mesh.userData.kr,pp=P.parts[i];
-      const col=await bin('parts/'+i+'/colors.bin',Float32Array),ca=d.mesh.geometry.attributes.color;
-      if(col&&col.length===ca.array.length){ca.array.set(col);colFull(ca);}
-      const dd=await bin('parts/'+i+'/decals.bin',Uint8Array);if(dd&&dd.length===kr.data.length){kr.data.set(dd);kr.has=true;texFull(kr);}
-      d.mesh.visible=pp.visible!==false;}
-    if(P.baked){bakedBase=[];for(let i=0;i<meshes.length;i++){const b=await bin('parts/'+i+'/baked.bin',Uint8Array);bakedBase[i]=b&&b.length===meshes[i].mesh.userData.kr.data.length?b:null;}}
-    const ops=[];for(let oi=0;oi<P.ops.length;oi++){const o=P.ops[oi];
-      const lim={shown:o.lim.shown,sel:null};
-      if(o.lim.sel){lim.sel=[];for(let mi=0;mi<meshes.length;mi++){const m=await bin('sel/'+oi+'_'+mi+'.bin',Uint8Array);lim.sel[mi]=m||(o.k==='grad'?null:new Uint8Array(meshes[mi].tris));}}
-      if(o.k==='grad'){ops.push({k:'grad',A:a3v(o.A),B:a3v(o.B),V:a3v(o.V),stops:o.stops,type:o.type,mode:o.mode,steps:o.steps,pat:o.pat,scale:o.scale,alpha:o.alpha,name:o.name,lim});gradNo=Math.max(gradNo,+(/\d+$/.exec(o.name)||[0])[0]);continue;}
-      if(o.k==='decal')ops.push({k:'decal',P:a3v(o.P),N:a3v(o.N),base:{X:a3v(o.X),Y:a3v(o.Y)},rot:o.rot,size:o.size,alpha:o.alpha,flip:o.flip,wrap:o.wrap,dec:stickers[o.dec],lim});
-      else if(o.k==='paint')ops.push({k:'paint',shape:o.shape,px:o.px,c:o.c,R:o.R,s:o.s,h:o.h,seed:o.seed,sym:o.sym,mc:o.mc,pts:o.pts.map(a=>({P:a3v(a.slice(0,3)),N:a3v(a.slice(3,6)),X:a3v(a.slice(6,9))})),lim});
-      else ops.push({k:'erase',pts:o.pts.map(a3v),R:o.R,h:o.h,s:o.s,sym:o.sym==null?-1:o.sym,mc:o.mc,lim});}
-    decalOps=ops;st.bake=!!P.bake;$('bakeChk').checked=st.bake;
-    renderParts();layKey='';toast('Проект открыт: '+fname);
-  }catch(e){toast('Проект не открылся: '+(e&&e.message||e));}
+  try{await loadProjectZip(chunk,fname);toast('Проект открыт: '+fname);}catch(e){toast('Проект не открылся: '+(e&&e.message||e));}
 }
+/* old composite (straight RGBA over the vertex colours) -> multiplier and addend */
+function straightToMA(src,N4){const T=new Uint8ClampedArray(N4*2);for(let p=0;p<N4;p+=4){const a=src[p+3]/255;for(let c=0;c<3;c++){T[p+c]=255*(1-a);T[N4+p+c]=src[p+c]*a;}T[p+3]=255;}return T;}
+async function loadProjectZip(chunk,fname){
+  const z=await JSZip.loadAsync(chunk),P=JSON.parse(await z.file('project.json').async('string')),v2=P.v>=2;
+  const glb=await z.file('model.glb').async('arraybuffer');
+  const scene_=await new Promise((ok,bad)=>new THREE.GLTFLoader().parse(glb,'',g=>ok(g.scene),bad));
+  setModel(scene_,P.name||fname);if(meshes.length!==P.parts.length)throw new Error('части модели не совпали');
+  const bin=async(path,Ctor)=>{const f=z.file(path);return f?new Ctor((await f.async('uint8array')).slice().buffer):null;};
+  const stickers=[];for(let i=0;i<P.stickers.length;i++){
+    const b64=await z.file('stickers/'+i+'.png').async('base64'),url='data:image/png;base64,'+b64;
+    let dec=st.decal.list.find(d=>d.url===url);
+    if(!dec){const im=new Image();await new Promise((ok,bad)=>{im.onload=ok;im.onerror=bad;im.src=url;});
+      const [c,x]=mkCanvas(im.width,im.height);x.drawImage(im,0,0);dec=decalFromCanvas(P.stickers[i].name,c);dec.url=url;if(P.stickers[i].lib!==false)st.decal.list.push(dec);}
+    stickers.push(dec);}
+  renderDecals();
+  for(let i=0;i<meshes.length;i++){const d=meshes[i],kr=d.mesh.userData.kr,pp=P.parts[i],N4=kr.W*kr.W*4;
+    const col=await bin('parts/'+i+'/colors.bin',Float32Array),ca=d.mesh.geometry.attributes.color;
+    if(col&&col.length===ca.array.length){ca.array.set(col);colFull(ca);}
+    const ma=await bin('parts/'+i+'/ma.bin',Uint8ClampedArray);if(ma&&ma.length===kr.MA.length){kr.MA.set(ma);kr.has=true;texFull(kr);}
+    d.mesh.visible=pp.visible!==false;}
+  if(P.baked){bakedBase=[];for(let i=0;i<meshes.length;i++){const N4=meshes[i].mesh.userData.kr.W**2*4;
+    if(v2){const b=await bin('parts/'+i+'/baked.bin',Uint8ClampedArray);bakedBase[i]=b&&b.length===N4*2?b:null;}
+    else{const b=await bin('parts/'+i+'/baked.bin',Uint8Array);bakedBase[i]=b&&b.length===N4?straightToMA(b,N4):null;}}}
+  async function one(o,oi){
+    if(o.k==='layer'){const ops=[];for(const x of o.ops)ops.push(await one(x));return {k:'layer',name:o.name,vis:o.vis!==false,opacity:o.opacity==null?1:o.opacity,blend:o.blend||'normal',ops};}
+    const key=o.lim.id!=null?o.lim.id:oi,lim={shown:o.lim.shown,sel:null};
+    if(o.lim.sel){lim.sel=[];for(let mi=0;mi<meshes.length;mi++){const m=await bin('sel/'+key+'_'+mi+'.bin',Uint8Array);lim.sel[mi]=m||(o.k==='grad'?null:new Uint8Array(meshes[mi].tris));}}
+    const er=[];if(o.er)for(const x of o.er)er.push(await one(x));
+    const lay={name:o.name,vis:o.vis!==false,blend:o.blend||'normal',er};
+    if(o.k==='grad'){gradNo=Math.max(gradNo,+(/\d+$/.exec(o.name||'')||[0])[0]);
+      return Object.assign({k:'grad',A:a3v(o.A),B:a3v(o.B),V:a3v(o.V),stops:o.stops,type:o.type,mode:o.mode,steps:o.steps,pat:o.pat,scale:o.scale,alpha:o.alpha,lim},lay);}
+    if(o.k==='decal')return Object.assign({k:'decal',P:a3v(o.P),N:a3v(o.N),base:{X:a3v(o.X),Y:a3v(o.Y)},rot:o.rot,size:o.size,alpha:o.alpha,flip:o.flip,wrap:o.wrap,dec:stickers[o.dec],lim},lay);
+    if(o.k==='paint'){const r={k:'paint',shape:o.shape,px:o.px,c:o.c,R:o.R,s:o.s,h:o.h,seed:o.seed,sym:o.sym,mc:o.mc,pts:o.pts.map(a=>({P:a3v(a.slice(0,3)),N:a3v(a.slice(3,6)),X:a3v(a.slice(6,9)),w:a.length>9?a[9]:undefined})),lim};
+      ['pat','cell','den','prS','prA'].forEach(k=>{if(o[k]!=null)r[k]=o[k];});return r;}
+    return {k:'erase',pts:o.pts.map(a3v),R:o.R,h:o.h,s:o.s,sym:o.sym==null?-1:o.sym,mc:o.mc,lim};}
+  const ops=[];for(let oi=0;oi<P.ops.length;oi++)ops.push(await one(P.ops[oi],oi));
+  decalOps=v2?ops:toLayers(ops);gradNo=Math.max(gradNo,P.gradNo||0);paintNo=Math.max(paintNo,P.paintNo||0);
+  if(!v2)replay(decalOps); /* v2 keeps the composite; layer pixels are drawn again only when a layer is edited */
+  st.bake=!!P.bake;$('bakeChk').checked=st.bake;
+  renderParts();layKey='';
+}
+/* projects saved before layers: strokes in a row become one paint layer, an eraser stroke joins the layer under it */
+function toLayers(flat){const out=[];
+  for(const o of flat){
+    if(o.k==='paint'){let L=out[out.length-1];if(!L||L.k!=='layer'){L={k:'layer',name:'Краска '+(++paintNo),vis:true,opacity:1,blend:'normal',ops:[]};out.push(L);}L.ops.push(o);}
+    else if(o.k==='erase'){const L=out[out.length-1];if(L)(L.k==='layer'?L.ops:(L.er=L.er||[])).push(o);}
+    else out.push(o);}
+  return out;}
 function loadFile(f){
   if(!f)return;const ext=f.name.split('.').pop().toLowerCase();
   if(/^(png|webp|gif|jpe?g|svg)$/.test(ext)){loadDecalFile(f);return;}
@@ -1689,6 +1894,7 @@ window.addEventListener('keydown',e=>{
   if(e.code==='Space'&&!spaceHeld){e.preventDefault();spaceHeld=true;applyControlMode();return;}
   if((e.key==='Delete'||e.key==='Backspace')&&selDec&&(st.tool==='dedit'||st.tool==='decal')){e.preventDefault();deleteDecal();return;}
   if((e.key==='Delete'||e.key==='Backspace')&&selGrad&&st.tool==='gradient'){e.preventDefault();deleteGrad();return;}
+  if((e.key==='Delete'||e.key==='Backspace')&&curLayer()&&(st.tool==='brush'||st.tool==='erase'||st.tool==='fill')){e.preventDefault();deleteLayer(curLayer());return;}
   const map={b:'brush',f:'fill',g:'gradient',d:'decal',t:'dedit',e:'erase',s:'select',i:'pick',v:'camera'};
   if(map[k]&&!e.ctrlKey&&!e.metaKey){setTool(map[k]);return;}
   if(e.key==='['||e.key===']'){const id=st.tool==='decal'?'dSize':'radius';const el=$(id);el.value=+el.value+(e.key===']'?1:-1);el.dispatchEvent(new Event('input'));el.dispatchEvent(new Event('change'));}
@@ -1720,6 +1926,8 @@ function paintSample(){
     colFull(d.mesh.geometry.attributes.color);});
 }
 
+function commitRecolor(){}
+function autoClean(){}
 /* ---------- boot ---------- */
 builtinDecals().forEach(d=>st.decal.list.push(decalFromCanvas(d.name,d.c)));renderDecals();
 renderGrad();resize();setModel(sampleModel(),'Пример');paintSample();setTool('brush');updUndo();
@@ -1728,7 +1936,8 @@ if(window.krDesktop&&typeof window.krDesktop.onOpenFile==='function'){
   window.krDesktop.onOpenFile((name,bytes)=>{try{loadFile(new File([bytes],name));}catch(e){toast('Не удалось открыть '+name);}});
   window.krDesktop.ready&&window.krDesktop.ready();
 }
-(function loop(){requestAnimationFrame(loop);
+let busy=0;
+(function loop(){requestAnimationFrame(loop);if(busy)return;
   if(pendingMove&&ddrag){const p=pendingMove;pendingMove=null;decalPlace(p[0],p[1]);}
   processMove();
   if(gradDirty){gradDirty=false;redrawEdit();}
