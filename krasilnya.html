@@ -48,7 +48,7 @@ header{grid-column:1/-1;display:flex;align-items:center;gap:12px;padding-inline:
 .stage{position:relative;min-width:0;min-height:0;background:radial-gradient(circle at 50% 40%,var(--stage-a),var(--stage-b) 70%)}
 .stage canvas{display:block;width:100%;height:100%;touch-action:none}
 #gradSvg,#hiSvg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
-#hiSvg path{fill:none;stroke:#fff;stroke-width:2.5;stroke-dasharray:5 7;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+#hiSvg path{fill:none;stroke:#fff;stroke-width:4;stroke-dasharray:12 14;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}
 :root[data-theme="light"] #hiSvg path{stroke:#16171c}
 .gizmo{position:absolute;top:10px;right:10px;width:104px;height:104px;border-radius:50%;user-select:none;-webkit-user-select:none}
 .gizmo:hover{background:var(--sw-line)}
@@ -467,7 +467,7 @@ function partName(d,i){return (d.mesh.name||'').trim()||('Деталь '+(i+1));
 /* hovering a row draws a dashed outline of the part's silhouette over the view; the model's colors stay untouched.
    The part is rendered alone into a small mask, its edge traced with marching squares and drawn as an SVG path. */
 const hiScene=new THREE.Scene(),hiMat=new THREE.MeshBasicMaterial({color:0xffffff,side:THREE.DoubleSide});
-const hiRT=new THREE.WebGLRenderTarget(4,4),HI_SC=0.5;
+const hiRT=new THREE.WebGLRenderTarget(4,4),HI_SC=0.75;
 let hiObj=null,hotRow=-1,hiTimer=0,hiKey='';
 function hilite(obj,keepTimer){
   if(!keepTimer)clearTimeout(hiTimer);hiObj=obj||null;hiKey='';if(!obj)$('hiSvg').innerHTML='';
@@ -488,7 +488,8 @@ function traceMask(px,W,H){ /* px: RGBA rows bottom-up; returns SVG path data in
     while(cur&&!seen.has(cur)){seen.add(cur);loop.push(pt(cur));const n=nb.get(cur);const nx=n[0]!==prev?n[0]:n[1];prev=cur;cur=nx;}
     if(loop.length<8)return; /* skip specks */
     /* light smoothing so the stair-steps of the mask don't show */
-    const sm=loop.map((p,i)=>{const a=loop[(i-1+loop.length)%loop.length],b=loop[(i+1)%loop.length];return [(a[0]+2*p[0]+b[0])/4,(a[1]+2*p[1]+b[1])/4];});
+    const smooth=L=>L.map((p,i)=>{const a=L[(i-1+L.length)%L.length],b=L[(i+1)%L.length];return [(a[0]+2*p[0]+b[0])/4,(a[1]+2*p[1]+b[1])/4];});
+    const sm=smooth(smooth(smooth(loop)));
     d+='M'+sm.map(p=>p[0].toFixed(1)+' '+p[1].toFixed(1)).join('L')+'Z';});
   return d;
 }
