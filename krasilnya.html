@@ -2756,30 +2756,71 @@ function computeWeights(){
   const segDist=(j,out)=>{const s=S[j];ab.subVectors(s.e,s.a);const L2=ab.lengthSq();let t=L2>0?_v1.subVectors(v,s.a).dot(ab)/L2:0;t=Math.max(0,Math.min(1,t));out.copy(s.a).addScaledVector(ab,t);return out.distanceTo(v);};
   const seen=c=>{dir.subVectors(v,c);for(const d of meshes){const h=rayGrid(d,c,dir);if(h&&h.t<0.995)return false;}return true;};
   const defs=B.map((b,i)=>i).filter(i=>isDef[i]);
-  return meshes.map((d,mi)=>{
+  /* points along each bone, to find which pieces of the model a bone runs inside. A piece only takes weights from
+     its own bones, so the body doesn't stretch after the arms; a piece with no bone inside (ear, eye, hat) is stuck on */
+  const tp=[];defs.forEach(j=>{for(let k=1;k<=3;k++)tp.push([j,S[j].a.clone().lerp(S[j].e,k/4)]);});
+  const RD=[[0.577,0.5774,0.5778],[-0.31,0.42,-0.853],[0.71,-0.48,0.515]].map(a=>new THREE.Vector3(...a).normalize());
+  const e1=new THREE.Vector3(),e2=new THREE.Vector3(),pv=new THREE.Vector3(),tv=new THREE.Vector3(),qv=new THREE.Vector3();
+  const hitT=(w,t,o,D)=>{const i=t*9;e1.set(w[i+3]-w[i],w[i+4]-w[i+1],w[i+5]-w[i+2]);e2.set(w[i+6]-w[i],w[i+7]-w[i+1],w[i+8]-w[i+2]);pv.crossVectors(D,e2);
+    const det=e1.dot(pv);if(Math.abs(det)<1e-14)return false;const inv=1/det;tv.set(o.x-w[i],o.y-w[i+1],o.z-w[i+2]);const u=tv.dot(pv)*inv;if(u<0||u>1)return false;
+    qv.crossVectors(tv,e1);const vv=D.dot(qv)*inv;if(vv<0||u+vv>1)return false;return e2.dot(qv)*inv>0;};
+  const inBone=new Set();
+  const M=meshes.map((d,mi)=>{
     const n=d.n,w=d.world,eps=modelSize*1e-5,keyMap=new Map(),vid=new Int32Array(n),U=[];
     for(let i=0;i<n;i++){const k=Math.round(w[i*3]/eps)+','+Math.round(w[i*3+1]/eps)+','+Math.round(w[i*3+2]/eps);let id=keyMap.get(k);if(id===undefined){id=U.length/3;keyMap.set(k,id);U.push(w[i*3],w[i*3+1],w[i*3+2]);}vid[i]=id;}
-    const nu=U.length/3,Wt=new Float32Array(nu*nb),forced=RG.bind[mi]!=null?boneIdx(RG.bind[mi]):-1;
-    if(forced>=0){for(let u=0;u<nu;u++)Wt[u*nb+forced]=1;}
-    else{
-      /* neighbours and connected pieces */
-      const nbr=[...Array(nu)].map(()=>[]),par=new Int32Array(nu).map((_,i)=>i),find=x=>{while(par[x]!==x){par[x]=par[par[x]];x=par[x];}return x;};
-      for(let t=0;t<d.tris;t++){const a=vid[t*3],b=vid[t*3+1],c=vid[t*3+2];for(const [p,q] of [[a,b],[b,c],[c,a]]){if(p===q)continue;nbr[p].push(q);nbr[q].push(p);par[find(p)]=find(q);}}
-      const b0=new Int32Array(nu),dd=new Float32Array(nb);
-      for(let u=0;u<nu;u++){v.set(U[u*3],U[u*3+1],U[u*3+2]);
-        const order=defs.map(j=>[segDist(j,cp),j]).sort((p,q)=>p[0]-q[0]);order.forEach(([dist,j])=>dd[j]=dist);
-        let pick=order[0][1];for(let k=0;k<Math.min(4,order.length);k++){segDist(order[k][1],cp);if(seen(cp)){pick=order[k][1];break;}}
-        b0[u]=pick;const d0=dd[pick];
-        for(const j of near[pick]){const sg=sig0*Math.sqrt((B[j].soft||1)*(B[pick].soft||1)),x=dd[j]-d0;Wt[u*nb+j]=j===pick?1:Math.exp(-Math.max(0,x)/sg);}}
-      /* a piece that sits almost entirely on one bone moves rigidly with it */
-      const votes=new Map();for(let u=0;u<nu;u++){const r=find(u);let m=votes.get(r);if(!m){m=new Map();votes.set(r,m);}m.set(b0[u],(m.get(b0[u])||0)+1);}
-      const rigid=new Map();votes.forEach((m,r)=>{let tot=0,bb=-1,bc=0;m.forEach((c,j)=>{tot+=c;if(c>bc){bc=c;bb=j;}});if(bc>=tot*0.9)rigid.set(r,bb);});
-      for(let u=0;u<nu;u++){const rb=rigid.get(find(u));if(rb!==undefined){Wt.fill(0,u*nb,u*nb+nb);Wt[u*nb+rb]=1;}}
-      /* smooth the blends a little along the surface */
-      const it=Math.round(1+RG.soft*2),tmp=new Float32Array(nu*nb);
-      for(let k=0;k<it;k++){tmp.set(Wt);for(let u=0;u<nu;u++){if(rigid.has(find(u))||!nbr[u].length)continue;const N=nbr[u],o=u*nb;
-        for(let j=0;j<nb;j++){let s=0;for(const q of N)s+=tmp[q*nb+j];Wt[o+j]=tmp[o+j]*0.5+s/N.length*0.5;}}}
-    }
+    const nu=U.length/3,Wt=new Float32Array(nu*nb),forced=RG.bind[mi]!=null?boneIdx(RG.bind[mi]):-1,m={d,U,vid,nu,Wt,forced,acc:new Map(),find:null};
+    if(forced>=0){for(let u=0;u<nu;u++)Wt[u*nb+forced]=1;return m;}
+    /* neighbours and connected pieces */
+    const nbr=[...Array(nu)].map(()=>[]),par=new Int32Array(nu).map((_,i)=>i),find=x=>{while(par[x]!==x){par[x]=par[par[x]];x=par[x];}return x;};m.find=find;
+    for(let t=0;t<d.tris;t++){const a=vid[t*3],b=vid[t*3+1],c=vid[t*3+2];for(const [p,q] of [[a,b],[b,c],[c,a]]){if(p===q)continue;nbr[p].push(q);nbr[q].push(p);par[find(p)]=find(q);}}
+    const boxes=new Map();for(let u=0;u<nu;u++){const r=find(u);let bx=boxes.get(r);if(!bx){bx=new THREE.Box3();boxes.set(r,bx);}bx.expandByPoint(v.set(U[u*3],U[u*3+1],U[u*3+2]));}
+    const own=new Map();boxes.forEach((bx,r)=>own.set(r,new Set()));
+    if(defs.length>1){
+      for(const [j,p] of tp){const rs=[...boxes].filter(([r,bx])=>bx.containsPoint(p)).map(([r])=>r);if(!rs.length)continue;
+        const cnt=new Map(rs.map(r=>[r,[0,0,0]]));
+        for(let t=0;t<d.tris;t++){const c=cnt.get(find(vid[t*3]));if(!c)continue;for(let k=0;k<3;k++)if(hitT(w,t,p,RD[k]))c[k]++;}
+        cnt.forEach((c,r)=>{if((c[0]&1)+(c[1]&1)+(c[2]&1)>=2){own.get(r).add(j);inBone.add(j);}});}
+      own.forEach((s,r)=>{if(!s.size)m.acc.set(r,[]);});}
+    m.own=own;
+    for(let u=0;u<nu;u++){const l=m.acc.get(find(u));if(l)l.push(u);}
+    m.nbr=nbr;return m;});
+  /* a bone that runs inside no piece at all (placed outside the model) may weigh on any piece, as before */
+  const loose=defs.filter(j=>!inBone.has(j));
+  M.forEach(m=>{if(m.forced>=0)return;const {d,U,nu,Wt,find,nbr}=m;
+    const b0=new Int32Array(nu),dd=new Float32Array(nb).fill(Infinity),okC=new Map();
+    m.own.forEach((s,r)=>{if(!m.acc.has(r))okC.set(r,s.size?[...s,...loose]:defs);});
+    for(let u=0;u<nu;u++){const r=find(u);if(m.acc.has(r))continue;v.set(U[u*3],U[u*3+1],U[u*3+2]);const ok=okC.get(r)||defs;
+      dd.fill(Infinity);const order=ok.map(j=>[segDist(j,cp),j]).sort((p,q)=>p[0]-q[0]);order.forEach(([dist,j])=>dd[j]=dist);
+      let pick=order[0][1];for(let k=0;k<Math.min(4,order.length);k++){segDist(order[k][1],cp);if(seen(cp)){pick=order[k][1];break;}}
+      b0[u]=pick;const d0=dd[pick];
+      for(const j of near[pick]){if(dd[j]===Infinity)continue;const sg=sig0*Math.sqrt((B[j].soft||1)*(B[pick].soft||1)),x=dd[j]-d0;Wt[u*nb+j]=j===pick?1:Math.exp(-Math.max(0,x)/sg);}}
+    /* a piece that sits almost entirely on one bone moves rigidly with it */
+    const votes=new Map();for(let u=0;u<nu;u++){const r=find(u);if(m.acc.has(r))continue;let mm=votes.get(r);if(!mm){mm=new Map();votes.set(r,mm);}mm.set(b0[u],(mm.get(b0[u])||0)+1);}
+    const rigid=new Map();votes.forEach((mm,r)=>{let tot=0,bb=-1,bc=0;mm.forEach((c,j)=>{tot+=c;if(c>bc){bc=c;bb=j;}});if(bc>=tot*0.9)rigid.set(r,bb);});
+    for(let u=0;u<nu;u++){const rb=rigid.get(find(u));if(rb!==undefined){Wt.fill(0,u*nb,u*nb+nb);Wt[u*nb+rb]=1;}}
+    /* smooth the blends a little along the surface */
+    const it=Math.round(1+RG.soft*2),tmp=new Float32Array(nu*nb);
+    for(let k=0;k<it;k++){tmp.set(Wt);for(let u=0;u<nu;u++){const r=find(u);if(rigid.has(r)||m.acc.has(r)||!nbr[u].length)continue;const N=nbr[u],o=u*nb;
+      for(let j=0;j<nb;j++){let s=0;for(const q of N)s+=tmp[q*nb+j];Wt[o+j]=tmp[o+j]*0.5+s/N.length*0.5;}}}
+  });
+  /* stuck-on pieces follow the bone at the spot where they touch the rest of the model */
+  if(M.some(m=>m.acc.size)){
+    const cs=modelSize*0.04,G=new Map(),ck=(x,y,z)=>x+','+y+','+z;
+    M.forEach((m,mi)=>{for(let u=0;u<m.nu;u++){if(m.find&&m.acc.has(m.find(u)))continue;
+      const k=ck(Math.floor(m.U[u*3]/cs),Math.floor(m.U[u*3+1]/cs),Math.floor(m.U[u*3+2]/cs));let l=G.get(k);if(!l){l=[];G.set(k,l);}l.push(mi,u);}});
+    const best=(x,y,z,o)=>{const cx=Math.floor(x/cs),cy=Math.floor(y/cs),cz=Math.floor(z/cs);
+      for(let r=0;r<=5;r++){for(let i=-r;i<=r;i++)for(let j=-r;j<=r;j++)for(let k=-r;k<=r;k++){if(Math.max(Math.abs(i),Math.abs(j),Math.abs(k))!==r)continue;const l=G.get(ck(cx+i,cy+j,cz+k));if(!l)continue;
+          for(let q=0;q<l.length;q+=2){const mm=M[l[q]],u=l[q+1],dx=mm.U[u*3]-x,dy=mm.U[u*3+1]-y,dz=mm.U[u*3+2]-z,d2=dx*dx+dy*dy+dz*dz;if(d2<o.d2){o.d2=d2;o.m=mm;o.u=u;}}}
+        if(o.m&&Math.sqrt(o.d2)<r*cs)return;}};
+    M.forEach(m=>m.acc.forEach(us=>{const o={d2:Infinity,m:null,u:-1},step=Math.max(1,Math.floor(us.length/400));
+      for(let k=0;k<us.length;k+=step){const u=us[k];best(m.U[u*3],m.U[u*3+1],m.U[u*3+2],o);}
+      let bone=-1;
+      if(o.m){const W=o.m.Wt,base=o.u*nb;let bw=0;for(let j=0;j<nb;j++)if(W[base+j]>bw){bw=W[base+j];bone=j;}}
+      if(bone<0){v.set(0,0,0);us.forEach(u=>v.x+=m.U[u*3]);us.forEach(u=>v.y+=m.U[u*3+1]);us.forEach(u=>v.z+=m.U[u*3+2]);v.multiplyScalar(1/us.length);
+        let bd=Infinity;defs.forEach(j=>{const x=segDist(j,cp);if(x<bd){bd=x;bone=j;}});}
+      us.forEach(u=>{m.Wt.fill(0,u*nb,u*nb+nb);m.Wt[u*nb+bone]=1;});}));
+  }
+  return M.map(({d,vid,nu,Wt})=>{const n=d.n;
     /* the four strongest bones per vertex */
     const ui=new Uint16Array(nu*4),uw=new Float32Array(nu*4),top=[0,0,0,0],tw=[0,0,0,0];
     for(let u=0;u<nu;u++){top.fill(0);tw.fill(0);const o=u*nb;
