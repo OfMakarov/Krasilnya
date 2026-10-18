@@ -38,6 +38,10 @@ header{grid-column:1/-1;display:flex;align-items:center;gap:12px;padding-inline:
 .stage{position:relative;min-width:0;min-height:0;background:radial-gradient(circle at 50% 40%,#23252e,#16171c 70%)}
 .stage canvas{display:block;width:100%;height:100%;touch-action:none}
 #gradSvg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.gizmo{position:absolute;top:10px;right:10px;width:104px;height:104px;border-radius:50%;user-select:none;-webkit-user-select:none}
+.gizmo:hover{background:rgba(255,255,255,.06)}
+.gizmo g{cursor:pointer}
+.gizmo text{font-family:var(--f-mono);font-size:11px;font-weight:700;fill:#16171c;text-anchor:middle;dominant-baseline:central;pointer-events:none}
 .hud{position:absolute;left:12px;bottom:12px;right:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;pointer-events:none}
 .pill{pointer-events:auto;background:rgba(22,23,28,.82);border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:12.5px;color:var(--muted)}
 .pill b{color:var(--fg);font-weight:600}
@@ -132,6 +136,7 @@ input[type=file]{display:none}
   <main class="stage" id="stage">
     <canvas id="cv"></canvas>
     <svg id="gradSvg"></svg>
+    <svg class="gizmo" id="gizmo" viewBox="-52 -52 104 104" role="group" aria-label="Виды камеры"></svg>
     <div class="hud">
       <div class="pill" id="statPill">Загрузка…</div>
       <div class="pill" id="hintPill"></div>
@@ -918,12 +923,55 @@ $('shotBtn').addEventListener('click',()=>{
   renderer.render(scene,camera);canvas.toBlob(b=>{meshes.forEach(d=>{if(d.selMesh)d.selMesh.visible=true;});if(grid)grid.visible=true;if(b)saveBlob((modelName||'model')+'.png',b);},'image/png');
 });
 
+/* ---------- view gizmo: click an axis to look straight along it ---------- */
+const GZ=[
+  {v:[1,0,0],c:'#ff5d6c',l:'X',t:'Справа'},{v:[-1,0,0],c:'#ff5d6c',t:'Слева'},
+  {v:[0,1,0],c:'#8ad94a',l:'Y',t:'Сверху'},{v:[0,-1,0],c:'#8ad94a',t:'Снизу'},
+  {v:[0,0,1],c:'#4d9bff',l:'Z',t:'Спереди'},{v:[0,0,-1],c:'#4d9bff',t:'Сзади'}];
+const NS='http://www.w3.org/2000/svg',gzSvg=$('gizmo');
+const mkS=(tag,at)=>{const e=document.createElementNS(NS,tag);for(const k in at)e.setAttribute(k,at[k]);return e;};
+GZ.forEach(a=>{
+  if(a.l){a.line=mkS('line',{x1:0,y1:0,stroke:a.c,'stroke-width':2.5,'stroke-linecap':'round'});gzSvg.appendChild(a.line);}
+  a.g=mkS('g',{tabindex:0,role:'button','aria-label':a.t});const ti=mkS('title',{});ti.textContent=a.t;a.g.appendChild(ti);
+  a.g.appendChild(a.l?mkS('circle',{r:10,fill:a.c}):mkS('circle',{r:8,fill:a.c,'fill-opacity':.28,stroke:a.c,'stroke-width':1.5}));
+  if(a.l){const tx=mkS('text',{});tx.textContent=a.l;a.g.appendChild(tx);}
+  a.g.addEventListener('click',()=>viewFrom(a.v));
+  a.g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();viewFrom(a.v);}});
+  gzSvg.appendChild(a.g);});
+let gzKey='';
+function drawGizmo(){
+  const q=camera.quaternion,k=q.x.toFixed(4)+q.y.toFixed(4)+q.z.toFixed(4)+q.w.toFixed(4);if(k===gzKey)return;gzKey=k;
+  const inv=q.clone().invert(),v=new THREE.Vector3();
+  GZ.forEach(a=>{v.set(a.v[0],a.v[1],a.v[2]).applyQuaternion(inv);a.x=v.x*36;a.y=-v.y*36;a.z=v.z;
+    a.g.setAttribute('transform','translate('+a.x.toFixed(2)+' '+a.y.toFixed(2)+')');
+    if(a.line){a.line.setAttribute('x2',(a.x*0.72).toFixed(2));a.line.setAttribute('y2',(a.y*0.72).toFixed(2));}});
+  /* far side first so the near circles cover it */
+  GZ.slice().sort((p,r)=>p.z-r.z).forEach(a=>{if(a.line)gzSvg.appendChild(a.line);gzSvg.appendChild(a.g);});
+}
+let viewAnim=null;
+function viewFrom(dir){
+  const off=camera.position.clone().sub(controls.target),dist=off.length();
+  const to=new THREE.Vector3(dir[0],dir[1],dir[2]);if(Math.abs(to.y)>0.99)to.z+=1e-3; /* OrbitControls can't look exactly down the up axis */
+  to.normalize();
+  viewAnim={from:off.normalize(),q:new THREE.Quaternion().setFromUnitVectors(off,to),dist,t0:performance.now()};
+  controls.enableDamping=false;
+}
+function stepView(){
+  if(!viewAnim)return;const a=viewAnim;let t=Math.min(1,(performance.now()-a.t0)/280);t=t*t*(3-2*t);
+  const q=new THREE.Quaternion().slerp(a.q,t);
+  camera.position.copy(controls.target).addScaledVector(a.from.clone().applyQuaternion(q),a.dist);
+  if(t>=1){viewAnim=null;controls.enableDamping=true;}
+}
+canvas.addEventListener('pointerdown',()=>{if(viewAnim){viewAnim=null;controls.enableDamping=true;}},true);
+
 /* ---------- keyboard ---------- */
 window.addEventListener('keydown',e=>{
   if(e.target.matches('input,select,textarea'))return;
   const k=e.key.toLowerCase();
   if((e.ctrlKey||e.metaKey)&&k==='z'){e.preventDefault();e.shiftKey?doRedo():doUndo();return;}
   if((e.ctrlKey||e.metaKey)&&k==='y'){e.preventDefault();doRedo();return;}
+  const np={Numpad1:[0,0,1],Numpad3:[1,0,0],Numpad7:[0,1,0]}[e.code];
+  if(np){e.preventDefault();viewFrom(e.ctrlKey||e.metaKey?np.map(x=>-x):np);return;}
   if(e.code==='Space'&&!spaceHeld){e.preventDefault();spaceHeld=true;applyControlMode();return;}
   const map={b:'brush',f:'fill',g:'gradient',d:'decal',e:'erase',s:'select',i:'pick',v:'camera'};
   if(map[k]&&!e.ctrlKey&&!e.metaKey){setTool(map[k]);return;}
@@ -973,6 +1021,6 @@ if(window.krDesktop&&typeof window.krDesktop.onOpenFile==='function'){
 }
 (function loop(){requestAnimationFrame(loop);
   if(pendingMove&&ddrag){const p=pendingMove;pendingMove=null;decalPlace(p[0],p[1]);}
-  controls.update();renderer.render(scene,camera);})();
+  stepView();controls.update();drawGizmo();renderer.render(scene,camera);})();
 })();
 </script>
