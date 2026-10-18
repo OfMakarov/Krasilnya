@@ -23,7 +23,7 @@
   --chk-a:#f0f2f5; --chk-b:#e1e4e9;
   color-scheme:light;
 }
-html,body{height:100%}
+html,body{height:100%;margin:0}
 body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:14px;overflow:hidden}
 *{box-sizing:border-box}
 button,input,select{font:inherit;color:inherit}
@@ -151,7 +151,7 @@ input[type=file]{display:none}
 :root[data-theme="light"] #themeBtn .sun,:root:not([data-theme="light"]) #themeBtn .moon{display:none}
 /* Студия: плотная компоновка в духе 3D-редакторов */
 body{font-size:13px}
-.app{height:100vh;height:100dvh;grid-template-columns:52px 1fr 300px;grid-template-rows:46px 1fr}
+.app{height:100vh;height:100dvh;height:var(--appH,100dvh);grid-template-columns:52px 1fr 300px;grid-template-rows:46px 1fr}
 body.nopanel .app{grid-template-columns:52px 1fr 0}
 body.nopanel .panel{display:none}
 .logo{font-weight:600;font-size:14px;letter-spacing:0;margin-right:6px}
@@ -269,7 +269,7 @@ body.qson .qs{display:flex}
   .logo span,.btn .lbl,.btn.primary .lbl,.caret,#panelBtn{display:none}
   .logo{margin-right:2px}
   .stage{grid-row:2}
-  .tools{grid-row:3;flex-direction:row;border-right:0;border-top:1px solid var(--line);overflow:hidden;padding:6px max(8px,env(safe-area-inset-left,0px)) calc(6px + env(safe-area-inset-bottom,0px));gap:4px;scrollbar-width:none}
+  .tools{grid-row:3;flex-direction:row;border-right:0;border-top:1px solid var(--line);overflow:hidden;padding:6px max(8px,env(safe-area-inset-left,0px)) calc(6px + max(env(safe-area-inset-bottom,0px),var(--botPad,0px)));gap:4px;scrollbar-width:none}
   .tools::-webkit-scrollbar{display:none}
   .tsep{width:1px;height:28px;margin:0 2px;align-self:center}
   .tool kbd{display:none}
@@ -1674,6 +1674,12 @@ $('colBtn').addEventListener('click',()=>{if(isPhone())setSheet(true,'paint');el
   const sec=$('colorIn').closest('.sec');sec.classList.remove('closed');sec.scrollIntoView({block:'start',behavior:'smooth'});});
 /* touching the model closes the sheet so the whole canvas is free */
 canvas.addEventListener('pointerdown',()=>{if(isPhone()&&document.body.classList.contains('sheet'))setSheet(false);},true);
+/* the real visible height: in some app viewers (iOS) 100dvh is taller than what is on screen, and the home bar covers the bottom */
+const IOS=/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+function fitHeight(){const vv=window.visualViewport,h=Math.min(window.innerHeight,vv?vv.height:Infinity,document.documentElement.clientHeight||Infinity);
+  document.documentElement.style.setProperty('--appH',Math.round(h)+'px');
+  document.documentElement.style.setProperty('--botPad',IOS?(window.top!==window.self?'40px':'22px'):'0px');}
+fitHeight();window.addEventListener('resize',()=>{fitHeight();layoutChanged();});if(window.visualViewport)visualViewport.addEventListener('resize',fitHeight);
 function layoutChanged(){
   if(!isPhone()){document.body.classList.remove('sheet');if($('panel').dataset.tab==='layers')setTab('paint');}
   document.documentElement.style.setProperty('--tbh',(isPhone()?$('tools').offsetHeight:0)+'px');updQuick();
