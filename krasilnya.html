@@ -98,6 +98,15 @@ header{grid-column:1/-1;display:flex;align-items:center;gap:12px;padding-inline:
   background-color:var(--chk-a);background-image:linear-gradient(45deg,var(--chk-b) 25%,transparent 25%,transparent 75%,var(--chk-b) 75%),linear-gradient(45deg,var(--chk-b) 25%,transparent 25%,transparent 75%,var(--chk-b) 75%);background-size:12px 12px;background-position:0 0,6px 6px;display:grid;place-items:center}
 .dc img{max-width:100%;max-height:100%;display:block}
 .dc.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.tabs{position:sticky;top:-14px;z-index:2;display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin:-14px -16px 0;padding:10px 12px;background:var(--surface);border-bottom:1px solid var(--line)}
+.tab{height:32px;border-radius:8px;border:1px solid transparent;background:transparent;color:var(--muted);cursor:pointer;font-size:13px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
+.tab:hover{color:var(--fg);background:var(--surface-2)}
+.tab.on{color:var(--fg);background:var(--surface-2);border-color:var(--line);box-shadow:inset 0 -2px 0 var(--accent)}
+.tab:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.badge{min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:var(--accent);color:var(--accent-ink);font-size:11px;line-height:18px;font-family:var(--f-mono)}
+.panel[data-tab="paint"] [data-tab]:not(.tab):not([data-tab="paint"]),
+.panel[data-tab="parts"] [data-tab]:not(.tab):not([data-tab="parts"]),
+.panel[data-tab="model"] [data-tab]:not(.tab):not([data-tab="model"]){display:none}
 .parts{display:flex;flex-direction:column;gap:2px;max-height:240px;overflow-y:auto}
 .part{display:flex;align-items:center;gap:8px;min-height:32px;padding:0 4px 0 8px;border-radius:8px}
 .part:hover,.part.hot{background:var(--surface-2)}
@@ -160,8 +169,14 @@ input[type=file]{display:none}
     <div class="toast" id="toast" hidden></div>
   </main>
 
-  <aside class="panel">
-    <section class="sec" data-tools="brush fill gradient pick">
+  <aside class="panel" id="panel" data-tab="paint">
+    <div class="tabs" role="tablist" aria-label="Разделы инспектора">
+      <button class="tab on" role="tab" data-tab="paint" aria-selected="true">Рисование</button>
+      <button class="tab" role="tab" data-tab="parts" aria-selected="false">Детали<span class="badge" id="hidBadge" hidden></span></button>
+      <button class="tab" role="tab" data-tab="model" aria-selected="false">Модель</button>
+    </div>
+    <p class="hint" id="paintEmpty" data-tab="paint" hidden>У камеры нет настроек. Выбери инструмент слева, чтобы рисовать.</p>
+    <section class="sec" data-tab="paint" data-tools="brush fill gradient pick">
       <h3>Цвет</h3>
       <div class="cur">
         <input type="color" id="colorIn" value="#ffd23f" aria-label="Текущий цвет">
@@ -174,7 +189,7 @@ input[type=file]{display:none}
       </div>
     </section>
 
-    <section class="sec" data-tools="decal">
+    <section class="sec" data-tab="paint" data-tools="decal">
       <h3>Наклейки</h3>
       <div class="decals" id="decals"></div>
       <input type="file" id="decalIn" accept="image/png,image/webp,image/gif,image/jpeg,image/svg+xml" multiple>
@@ -189,7 +204,7 @@ input[type=file]{display:none}
       <p class="hint">Выбери наклейку и веди по модели: она едет за пальцем и приклеивается, когда отпускаешь. Свои PNG с прозрачным фоном добавляй через «+» или перетаскиванием.</p>
     </section>
 
-    <section class="sec" data-tools="gradient">
+    <section class="sec" data-tab="paint" data-tools="gradient">
       <h3>Градиент</h3>
       <div>
         <div class="gbar" id="gbar" title="Нажми на полосу, чтобы добавить точку"><canvas id="gcv" width="560" height="60"></canvas></div>
@@ -209,7 +224,7 @@ input[type=file]{display:none}
       <p class="hint">Проведи линию по модели: от первой точки градиента ко второй. Красится выделение, а если его нет — область под началом линии.</p>
     </section>
 
-    <section class="sec">
+    <section class="sec" data-tab="paint">
       <h3>Параметры</h3>
       <div data-tools="brush erase">
       <div class="sl"><label for="radius">Размер кисти</label><input type="range" id="radius" min="1" max="40" value="8"><output id="radiusO">8%</output></div>
@@ -224,7 +239,7 @@ input[type=file]{display:none}
       </div>
     </section>
 
-    <section class="sec" data-tools="select">
+    <section class="sec" data-tab="paint" data-tools="select">
       <h3>Выделение</h3>
       <div class="row">
         <button class="btn" id="selAll">Выделить всё</button>
@@ -234,8 +249,9 @@ input[type=file]{display:none}
       <p class="hint">Инструментом «Выделение» нажимай по областям, чтобы добавить или убрать их. Кисть, заливка, градиент и наклейки работают только внутри выделения.</p>
     </section>
 
-    <section class="sec" id="partsSec">
+    <section class="sec" id="partsSec" data-tab="parts">
       <h3>Детали</h3>
+      <p class="hint" id="partsOne" hidden>В этой модели одна деталь — скрывать нечего. Если в файле руки, ноги и тело сохранены отдельными объектами, здесь будет их список.</p>
       <div class="parts" id="parts"></div>
       <div class="row">
         <button class="btn" id="partsAll">Показать все</button>
@@ -244,7 +260,7 @@ input[type=file]{display:none}
       <p class="hint">Наведи на строку (на телефоне — нажми) — деталь обведётся пунктиром, наведи на модель — подсветится её строка. Скрытые детали не красятся. «Только» оставляет одну деталь, повторное нажатие возвращает все. H — скрыть деталь под курсором.</p>
     </section>
 
-    <section class="sec">
+    <section class="sec" data-tab="model">
       <h3>Модель и экспорт</h3>
       <label class="chk"><input type="checkbox" id="litChk" checked> Свет и тени</label>
       <label class="chk"><input type="checkbox" id="wireChk"> Сетка полигонов</label>
@@ -511,7 +527,8 @@ function markRow(i){if(i===hotRow)return;const rows=$('parts').children;
   if(rows[hotRow])rows[hotRow].classList.remove('hot');hotRow=i;const r=rows[i];if(!r)return;r.classList.add('hot');
   const box=$('parts');if(r.offsetTop<box.scrollTop)box.scrollTop=r.offsetTop;else if(r.offsetTop+r.offsetHeight>box.scrollTop+box.clientHeight)box.scrollTop=r.offsetTop+r.offsetHeight-box.clientHeight;}
 function renderParts(){
-  const box=$('parts');box.innerHTML='';hotRow=-1;$('partsSec').hidden=meshes.length<2;
+  const box=$('parts');box.innerHTML='';hotRow=-1;$('partsOne').hidden=meshes.length>1;$('parts').parentElement.querySelector('.row').hidden=meshes.length<2;
+  const nh=meshes.filter(d=>!shown(d)).length;$('hidBadge').hidden=!nh;$('hidBadge').textContent=nh;$('hidBadge').title='Скрыто деталей: '+nh;
   hilite(meshes.some(d=>d.mesh===hiObj)?hiObj:null,true);
   meshes.forEach((d,i)=>{
     const row=document.createElement('div');row.className='part'+(shown(d)?'':' off');
@@ -776,7 +793,7 @@ canvas.addEventListener('pointerdown',e=>{
 let lastPtr=null;
 canvas.addEventListener('pointermove',e=>{
   lastPtr=[e.clientX,e.clientY];const tool=effTool();
-  if(e.pointerType==='mouse'&&meshes.length>1&&!$('partsSec').hidden){const h=pick(e.clientX,e.clientY);markRow(h?meshes.indexOf(h.d):-1);}
+  if(e.pointerType==='mouse'&&meshes.length>1&&$('panel').dataset.tab==='parts'){const h=pick(e.clientX,e.clientY);markRow(h?meshes.indexOf(h.d):-1);}
   if(((tool==='brush'||tool==='erase')&&e.pointerType!=='touch')||stroke){const hit=pick(e.clientX,e.clientY);updRing(hit);
     if(stroke&&e.pointerId===activePtr&&hit){if(stroke.cols)brushAt(hit);else eraseAt(hit);}}
   else {ring.visible=ringIn.visible=false;}
@@ -805,7 +822,13 @@ const HINTS={brush:'Рисуй по модели. Правая кнопка ил
   pick:'Нажми на модель, чтобы взять цвет.',camera:'Тяни, чтобы вращать. Колесо — приближение, средняя кнопка — сдвиг.'};
 function showPanel(t){const on=el=>el.dataset.tools.split(' ').includes(t);
   document.querySelectorAll('.panel [data-tools]').forEach(el=>{if(el.classList.contains('sec')&&!el.querySelector('[data-tools]'))el.hidden=!on(el);else if(!el.classList.contains('sec'))el.hidden=!on(el);});
-  document.querySelectorAll('.panel .sec').forEach(sc=>{if(!sc.dataset.tools)sc.hidden=!!sc.querySelector('[data-tools]')&&![...sc.querySelectorAll('[data-tools]')].some(e=>!e.hidden);});}
+  document.querySelectorAll('.panel .sec').forEach(sc=>{if(!sc.dataset.tools)sc.hidden=!!sc.querySelector('[data-tools]')&&![...sc.querySelectorAll('[data-tools]')].some(e=>!e.hidden);});
+  $('paintEmpty').hidden=[...document.querySelectorAll('.panel .sec[data-tab="paint"]')].some(sc=>!sc.hidden);}
+/* inspector tabs */
+function setTab(t){$('panel').dataset.tab=t;document.querySelectorAll('.tab').forEach(b=>{const on=b.dataset.tab===t;b.classList.toggle('on',on);b.setAttribute('aria-selected',on);});
+  if(t!=='parts')markRow(-1);try{localStorage.setItem('kr_tab',t);}catch(e){}}
+document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.tab)));
+try{const t=localStorage.getItem('kr_tab');if(t==='parts'||t==='model')setTab(t);}catch(e){}
 function setTool(t){st.tool=t;showPanel(t);document.querySelectorAll('.tool').forEach(b=>b.classList.toggle('on',b.dataset.tool===t));$('hintPill').textContent=HINTS[t];ring.visible=ringIn.visible=false;applyControlMode();}
 document.querySelectorAll('.tool').forEach(b=>b.addEventListener('click',()=>setTool(b.dataset.tool)));
 
