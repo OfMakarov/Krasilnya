@@ -239,6 +239,50 @@ body.qson .qs{display:flex}
 .restore{position:absolute;left:50%;top:18px;transform:translateX(-50%);z-index:6;width:min(380px,calc(100% - 32px));background:var(--glass);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:8px;box-shadow:0 10px 30px rgba(0,0,0,.35);backdrop-filter:blur(8px)}
 .restore p{margin:0;font-size:12.5px;color:var(--muted);line-height:1.45}
 @media (min-width:761px){.panel[data-tab="paint"] .laydock{display:flex!important}}
+/* work modes: paint, rig, animate */
+.modes{display:flex;gap:2px;padding:2px;border-radius:8px;background:var(--surface-2);border:1px solid var(--line);flex:0 0 auto}
+.mode{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border:0;border-radius:6px;background:transparent;color:var(--muted);cursor:pointer;font-size:12.5px;font-weight:500;white-space:nowrap}
+.mode svg{flex:0 0 auto}
+.mode:hover{color:var(--fg)}
+.mode.on{background:var(--accent);color:var(--accent-ink)}
+.mode:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.tscroll[hidden]{display:none!important}
+.tool.txt{font:700 12px var(--f-mono);letter-spacing:.02em}
+.tool:disabled{opacity:.35;cursor:default}
+body:not([data-mode="paint"]) #colBtn,body:not([data-mode="paint"]) .qs{display:none!important}
+body[data-mode="paint"] .tab[data-mode]:not([data-mode="paint"]),body[data-mode="rig"] .tab[data-mode]:not([data-mode="rig"]),body[data-mode="anim"] .tab[data-mode]:not([data-mode="anim"]){display:none}
+.panel[data-tab="rig"] [data-tab]:not(.tab):not([data-tab="rig"]),.panel[data-tab="wts"] [data-tab]:not(.tab):not([data-tab="wts"]),
+.panel[data-tab="anim"] [data-tab]:not(.tab):not([data-tab="anim"]),.panel[data-tab="pose"] [data-tab]:not(.tab):not([data-tab="pose"]){display:none}
+.sub{display:flex;flex-direction:column;gap:10px}
+.sub[hidden],.row[hidden],.sec[hidden]{display:none}
+.row.nowrap{flex-wrap:nowrap}
+.kv{display:grid;grid-template-columns:80px 1fr;gap:8px;align-items:center;font-size:13px}
+.hex.nm{width:100%;text-transform:none;font-family:var(--f-body)}
+.kv2{font-size:13px}
+.palsel.fps{flex:0 0 72px}
+.bones{display:flex;flex-direction:column;gap:1px;max-height:300px;overflow-y:auto}
+.bone{display:flex;align-items:center;gap:7px;min-height:26px;padding:0 6px;border:0;border-radius:5px;background:transparent;text-align:left;cursor:pointer;font:12px var(--f-mono);color:var(--fg)}
+.bone:hover{background:var(--surface-2)}
+.bone.on{background:var(--surface-2);box-shadow:inset 3px 0 0 var(--accent)}
+.bone i{width:8px;height:8px;border-radius:50%;flex:0 0 8px}
+.wparts{display:flex;flex-direction:column;gap:6px}
+.wpart{display:grid;grid-template-columns:1fr 132px;gap:8px;align-items:center;font-size:12.5px}
+.wpart span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#pName{font-size:13px}
+/* timeline: under the model on big screens, at the top on phones */
+.tl{position:absolute;left:0;right:0;bottom:0;z-index:6;display:flex;align-items:center;gap:2px;height:46px;padding:0 8px;background:var(--glass);border-top:1px solid var(--line);backdrop-filter:blur(8px)}
+body:not([data-mode="anim"]) .tl{display:none}
+.tlb{width:30px;height:30px;flex:0 0 30px;border:0;border-radius:6px;background:transparent;color:var(--fg);display:grid;place-items:center;cursor:pointer}
+.tlb:hover{background:var(--surface-2)}
+.tlb.key{color:var(--accent)}
+.tlc{flex:1;min-width:0;height:100%;position:relative}
+.tlc canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:pointer}
+.tlf{font:12px var(--f-mono);min-width:58px;text-align:center;color:var(--muted);font-variant-numeric:tabular-nums}
+body[data-mode="anim"] .hud{bottom:56px}
+body[data-mode="anim"] .rbar{bottom:96px}
+.mthm{display:none}
+@media (pointer:coarse){.tl{height:52px}.tlb{width:36px;height:36px;flex-basis:36px}.mode{height:30px}.bone{min-height:34px}}
+
 /* touch screens: bigger targets */
 @media (pointer:coarse){
   .btn,.hex,.palsel{height:36px}
@@ -298,6 +342,17 @@ body.qson .qs{display:flex}
   .qs{left:6px;top:44px;transform:none}
   .qsl input{height:96px}
   .menu{position:fixed;right:8px;left:8px;top:52px;min-width:0;z-index:30}
+  .logo,#themeBtn{display:none}
+  .mthm{display:flex}
+  .modes{padding:1px}
+  .mode{padding:0 8px;height:30px}
+  .mode span{display:none}
+  .tl{top:0;bottom:auto;border-top:0;border-bottom:1px solid var(--line);height:46px;padding:0 4px}
+  .tlf{min-width:46px;font-size:11px}
+  #tlStart{display:none}
+  body[data-mode="anim"] .hud{top:54px;bottom:auto}
+  body[data-mode="anim"] .gizmo{top:54px}
+  body[data-mode="anim"] .rbar{top:54px;bottom:auto}
   .toast{top:8px}
 }
 @media (prefers-reduced-motion:reduce){.sw:hover{transform:none}}
@@ -310,8 +365,13 @@ body.qson .qs{display:flex}
     <input type="file" id="fileIn" accept=".kras,.glb,.gltf,.obj">
     <button class="btn" id="saveBtn" title="Сохранить проект .kras (Ctrl+S)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg><span class="lbl">Сохранить</span></button>
     <div class="hgap"></div>
-    <div class="hgroup"><button class="btn icon" id="undoBtn" title="Отменить (Ctrl+Z)" aria-label="Отменить"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button><button class="btn icon" id="redoBtn" title="Повторить (Ctrl+Shift+Z)" aria-label="Повторить"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg></button></div>
+    <div class="modes" role="tablist" aria-label="Режим работы">
+      <button class="mode on" data-mode="paint" role="tab" aria-selected="true" title="Красить модель"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.4 2.6a2 2 0 0 1 3 3L13 14l-3-3z"/><path d="M10 11c-3 0-5 2-5 5 0 1.5-1 3-3 3 2 2 9 2 11-1 1-1.3 1-3 0-4z"/></svg><span>Красить</span></button>
+      <button class="mode" data-mode="rig" role="tab" aria-selected="false" title="Риггинг: скелет и веса"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 10c.7-.7 1.69 0 2.5 0a2.5 2.5 0 1 0 0-5 .5.5 0 0 1-.5-.5 2.5 2.5 0 1 0-5 0c0 .81.7 1.8 0 2.5l-7 7c-.7.7-1.69 0-2.5 0a2.5 2.5 0 0 0 0 5c.28 0 .5.22.5.5a2.5 2.5 0 1 0 5 0c0-.81-.7-1.8 0-2.5Z"/></svg><span>Риггинг</span></button>
+      <button class="mode" data-mode="anim" role="tab" aria-selected="false" title="Анимации: позы, ключи, таймлайн"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m10 8.5 5.5 3.5-5.5 3.5z"/></svg><span>Анимации</span></button>
+    </div>
     <div class="hgap"></div>
+    <div class="hgroup"><button class="btn icon" id="undoBtn" title="Отменить (Ctrl+Z)" aria-label="Отменить"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button><button class="btn icon" id="redoBtn" title="Повторить (Ctrl+Shift+Z)" aria-label="Повторить"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg></button></div>
     <button class="btn icon" id="themeBtn" title="Светлая / тёмная тема" aria-label="Сменить тему"><svg class="sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><svg class="moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 14.5A8.5 8.5 0 1 1 9.5 3.5a7 7 0 0 0 11 11z"/></svg></button>
     <button class="btn icon" id="panelBtn" title="Скрыть или показать панель справа (Tab)" aria-label="Панель настроек" aria-pressed="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></svg></button>
     <button class="btn" id="rendBtn" title="Предрендер: студийный свет, тени и цветной фон" aria-pressed="false"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg><span class="lbl">Предрендер</span></button>
@@ -324,12 +384,15 @@ body.qson .qs{display:flex}
         <div class="msep"></div>
         <button class="mi" id="texBtn" role="menuitem"><b>Текстура PNG</b><small>Base Color каждой детали</small></button>
         <button class="mi" id="shotBtn" role="menuitem"><b>Снимок PNG</b><small>Кадр как на экране</small></button>
+        <label class="mi misel" id="rigExpRow" hidden>Скелет и анимации в GLB<input type="checkbox" id="rigExp" checked aria-label="Добавлять скелет и анимации в GLB"></label>
+        <div class="msep mthm"></div>
+        <button class="mi mthm" id="themeMi" role="menuitem"><b>Светлая или тёмная тема</b></button>
       </div>
     </div>
   </header>
 
   <nav class="tools" id="tools" aria-label="Инструменты">
-    <div class="tscroll">
+    <div class="tscroll" data-mode="paint">
     <button class="tool on" data-tool="brush" title="Кисть (B)" aria-label="Кисть"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18.4 2.6a2 2 0 0 1 3 3L13 14l-3-3z"/><path d="M10 11c-3 0-5 2-5 5 0 1.5-1 3-3 3 2 2 9 2 11-1 1-1.3 1-3 0-4z"/></svg><kbd>B</kbd></button>
     <button class="tool" data-tool="fill" title="Заливка области (F)" aria-label="Заливка"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m19 11-8-8-8.6 8.6a2 2 0 0 0 0 2.8l5.2 5.2a2 2 0 0 0 2.8 0z"/><path d="m5 2 5 5"/><path d="M2 13h15"/><path d="M22 20a2 2 0 1 1-4 0c0-1.6 1.7-2.4 2-4 .3 1.6 2 2.4 2 4"/></svg><kbd>F</kbd></button>
     <button class="tool" data-tool="recolor" title="Умная перекраска (R)" aria-label="Умная перекраска"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="5"/><circle cx="16" cy="16" r="5"/><path d="M15 3.5a6 6 0 0 1 5.5 5.5"/><path d="m20.5 6.5 0 2.5-2.5 0"/><path d="M9 20.5A6 6 0 0 1 3.5 15"/><path d="m3.5 17.5 0-2.5 2.5 0"/></svg><kbd>R</kbd></button>
@@ -342,6 +405,21 @@ body.qson .qs{display:flex}
     <button class="tool" data-tool="pick" title="Пипетка (I)" aria-label="Пипетка"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m2 22 1-1h3l9-9"/><path d="M3 21v-3l9-9"/><path d="m15 6 3.4-3.4a2.1 2.1 0 1 1 3 3L18 9l.4.4a2.1 2.1 0 1 1-3 3l-3.8-3.8a2.1 2.1 0 1 1 3-3z"/></svg><kbd>I</kbd></button>
     <button class="tool" data-tool="camera" title="Камера (V, или удерживай пробел)" aria-label="Камера"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6a2 2 0 0 0-4 0"/><path d="M14 10V4a2 2 0 0 0-4 0v2"/><path d="M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.9-6-2.4L2.4 16a2 2 0 0 1 2.8-2.8L7 15"/></svg><kbd>V</kbd></button>
       </div>
+    <div class="tscroll" data-mode="rig" hidden>
+      <button class="tool on" title="Суставы: тяни, чтобы подвинуть" aria-label="Суставы"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5"/></svg></button>
+      <button class="tool" id="rAddBtn" title="Добавить кость к выбранному суставу (N)" aria-label="Добавить кость"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg><kbd>N</kbd></button>
+      <div class="tsep"></div>
+      <button class="tool" id="rWBtn" title="Показать веса цветом (W)" aria-label="Показать веса" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="6"/><circle cx="15" cy="12" r="6"/></svg><kbd>W</kbd></button>
+      <button class="tool" id="rTestBtn" title="Пошевелить для проверки (P)" aria-label="Проверка" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg><kbd>P</kbd></button>
+    </div>
+    <div class="tscroll" data-mode="anim" hidden>
+      <button class="tool on" data-atool="translate" title="Двигать (W)" aria-label="Двигать"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20"/></svg><kbd>W</kbd></button>
+      <button class="tool" data-atool="rotate" title="Вращать (E)" aria-label="Вращать"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg><kbd>E</kbd></button>
+      <div class="tsep"></div>
+      <button class="tool" id="aKeyBtn" title="Поставить ключ (K, с Shift — на всю позу)" aria-label="Поставить ключ"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 9-9 9-9-9z"/></svg><kbd>K</kbd></button>
+      <button class="tool txt" id="aIkBtn" title="Переключить IK и FK у выбранной руки или ноги (I)" aria-label="IK или FK">IK<kbd>I</kbd></button>
+      <button class="tool" id="aMirBtn" title="Отразить позу (M)" aria-label="Отразить позу"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 7 5 5-5 5V7"/><path d="m21 7-5 5 5 5V7"/><path d="M12 20v2M12 14v2M12 8v2M12 2v2"/></svg><kbd>M</kbd></button>
+    </div>
     <div class="tgap"></div>
     <button class="tcol" id="colBtn" title="Цвет" aria-label="Цвет"><i id="colDot"></i></button>
     <button class="tool sheetbtn" id="sheetBtn" title="Настройки" aria-label="Настройки" aria-pressed="false"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h10"/><path d="M18 6h2"/><circle cx="16" cy="6" r="2"/><path d="M4 12h4"/><path d="M12 12h8"/><circle cx="10" cy="12" r="2"/><path d="M4 18h12"/><circle cx="18" cy="18" r="2"/></svg></button>
@@ -369,6 +447,15 @@ body.qson .qs{display:flex}
       <button class="chip" id="rShot" title="Сохранить кадр с фоном">Снимок</button>
       <button class="chip" id="rClose" title="Выйти из предрендера">Готово</button>
     </div>
+    <div class="tl" id="tl" aria-label="Таймлайн">
+      <button class="tlb" id="tlStart" title="В начало (Home)" aria-label="В начало"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 5v14"/><path d="m18 6-8 6 8 6z"/></svg></button>
+      <button class="tlb" id="tlPrev" title="Предыдущий ключ (↓)" aria-label="Предыдущий ключ"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>
+      <button class="tlb" id="tlPlay" title="Играть (пробел)" aria-label="Играть"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></svg></button>
+      <button class="tlb" id="tlNext" title="Следующий ключ (↑)" aria-label="Следующий ключ"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></button>
+      <div class="tlc"><canvas id="tlCv"></canvas></div>
+      <span class="tlf" id="tlF">0 / 0</span>
+      <button class="tlb key" id="tlKey" title="Поставить ключ (K)" aria-label="Поставить ключ"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 9-9 9-9-9z"/></svg></button>
+    </div>
     <div class="drop" id="drop" hidden>Отпусти: модель откроется, а картинка PNG станет наклейкой</div>
     <div class="toast" id="toast" hidden></div>
     <div class="restore" id="restore" hidden role="dialog" aria-label="Восстановление работы">
@@ -380,10 +467,14 @@ body.qson .qs{display:flex}
   <aside class="panel" id="panel" data-tab="paint">
     <button class="sheetgrab" id="sheetGrab" aria-label="Закрыть настройки"><i></i></button>
     <div class="tabs" role="tablist" aria-label="Разделы панели">
-      <button class="tab on" role="tab" data-tab="paint" aria-selected="true">Инструмент</button>
-      <button class="tab mtab" role="tab" data-tab="layers" aria-selected="false">Слои</button>
-      <button class="tab" role="tab" data-tab="parts" aria-selected="false">Детали<span class="badge" id="hidBadge" hidden></span></button>
-      <button class="tab" role="tab" data-tab="model" aria-selected="false">Модель</button>
+      <button class="tab on" role="tab" data-tab="paint" data-mode="paint" aria-selected="true">Инструмент</button>
+      <button class="tab mtab" role="tab" data-tab="layers" data-mode="paint" aria-selected="false">Слои</button>
+      <button class="tab" role="tab" data-tab="parts" data-mode="paint" aria-selected="false">Детали<span class="badge" id="hidBadge" hidden></span></button>
+      <button class="tab" role="tab" data-tab="model" data-mode="paint" aria-selected="false">Модель</button>
+      <button class="tab" role="tab" data-tab="rig" data-mode="rig" aria-selected="false">Скелет</button>
+      <button class="tab" role="tab" data-tab="wts" data-mode="rig" aria-selected="false">Веса</button>
+      <button class="tab" role="tab" data-tab="anim" data-mode="anim" aria-selected="false">Анимация</button>
+      <button class="tab" role="tab" data-tab="pose" data-mode="anim" aria-selected="false">Поза</button>
       <button class="helpbtn" id="helpBtn" title="Показать подсказки" aria-label="Подсказки" aria-pressed="false">?</button>
     </div>
     <div class="pscroll" id="pscroll">
@@ -518,6 +609,95 @@ body.qson .qs{display:flex}
       <p class="hint help" id="uvNote">Без наклеек экспорт хранит цвета в вершинах (COLOR_0). С наклейками всё запекается в одну текстуру — её читают Blender и Unreal как обычный Base Color.</p>
       <p class="hint help">«Для Unreal» в меню «Экспорт» всегда запекает текстуру и даёт имена по правилам UE: SM_ для меша, M_ для материала, T_…_BC для текстуры. Перетащи GLB в Content Browser, материал с текстурой создастся сам.</p>
     </section>
+
+    <section class="sec" data-tab="rig">
+      <h3>Скелет</h3>
+      <p class="hint" id="rigEmpty">Скелета пока нет. Красильня сама поставит кости по форме модели, потом их можно подвинуть.</p>
+      <div class="row"><button class="btn primary" id="rAuto">Скелет человека</button><button class="btn" id="rAutoNA" title="Таз, спина, голова и ноги">Без рук</button><button class="btn" id="rAuto1" title="Для предметов: вся модель на одной кости">Одна кость</button></div>
+      <label class="chk"><input type="checkbox" id="rSym" checked> Симметрия: левая и правая сторона вместе</label>
+      <label class="chk"><input type="checkbox" id="rIn" checked> Ставить суставы в середину модели</label>
+      <p class="hint help">Модель должна стоять прямо и смотреть вперёд (+Z). Кости названы как у манекена Unreal: pelvis, spine_01, thigh_l… Суставы двигаются пальцем или мышью; с симметрией парная кость повторяет движение.</p>
+    </section>
+    <section class="sec" data-tab="rig">
+      <h3>Кость</h3>
+      <p class="hint" id="rNoSel">Нажми на сустав на модели или выбери кость в списке.</p>
+      <div id="rBone" class="sub" hidden>
+        <div class="kv"><label for="rName">Имя</label><input class="hex nm" id="rName" spellcheck="false" autocomplete="off"></div>
+        <div class="kv"><label for="rParent">Родитель</label><select class="palsel" id="rParent"></select></div>
+        <div class="row"><button class="btn" id="rAddB">Добавить дочернюю</button><button class="btn" id="rDelB">Удалить</button></div>
+      </div>
+    </section>
+    <section class="sec" data-tab="rig" id="rTree">
+      <h3>Кости</h3>
+      <div class="bones" id="rList"></div>
+      <div class="row"><button class="btn" id="rClear">Удалить скелет</button></div>
+    </section>
+
+    <section class="sec" data-tab="wts">
+      <h3>Веса</h3>
+      <div id="wNoRig" class="row"><p class="hint">Сначала сделай скелет.</p><button class="btn" id="wGoSk">К скелету</button></div>
+      <div id="wBox" class="sub">
+        <p class="hint">Веса считаются сами: каждую часть модели ведёт ближайшая кость, на сгибах соседние кости плавно делят её между собой. Рисовать ничего не нужно.</p>
+        <div class="row"><button class="btn primary" id="wBind">Привязать заново</button></div>
+        <label class="chk"><input type="checkbox" id="wTest"> Пошевелить для проверки</label>
+        <label class="chk"><input type="checkbox" id="wView"> Показать веса цветом</label>
+        <div class="sl"><label for="wSoft">Мягкость сгибов</label><input type="range" id="wSoft" min="20" max="300" value="100"><output id="wSoftO">1.0</output></div>
+        <div class="sl" id="wBoneRow" hidden><label for="wBone" id="wBoneL">Мягкость у кости</label><input type="range" id="wBone" min="20" max="300" value="100"><output id="wBoneO">1.0</output></div>
+        <p class="hint help">Если сгиб мнётся, сделай его мягче; если соседняя часть тянется следом, сделай жёстче. Второй ползунок меняет только выбранный сустав, с симметрией и парный. В цвете весов выбранная кость показывает свою зону: красное двигается с ней полностью, синее не двигается.</p>
+      </div>
+    </section>
+    <section class="sec" data-tab="wts">
+      <h3>Детали целиком</h3>
+      <div class="wparts" id="wParts"></div>
+      <p class="hint help">«Сама» — Красильня решает сама. Деталь, привязанная к кости, двигается с ней целиком и не гнётся: шлем, оружие, глаз.</p>
+    </section>
+
+    <section class="sec" data-tab="anim">
+      <h3>Анимация</h3>
+      <div id="aNoRig" class="row"><p class="hint">Для анимации нужен скелет.</p><button class="btn primary" id="aGoRig">Сделать скелет</button></div>
+      <div id="aBox" class="sub">
+        <div class="row nowrap"><select class="palsel" id="aClip" aria-label="Анимация"></select>
+          <button class="btn icon" id="aNew" title="Новая анимация" aria-label="Новая анимация"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></button>
+          <button class="btn icon" id="aDup" title="Копия анимации" aria-label="Копия анимации"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M4 16V5a1 1 0 0 1 1-1h11"/></svg></button>
+          <button class="btn icon" id="aDel" title="Удалить анимацию" aria-label="Удалить анимацию"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M6 7l1 13h10l1-13"/><path d="M9 7V4h6v3"/></svg></button></div>
+        <div class="kv"><label for="aName">Название</label><input class="hex nm" id="aName" spellcheck="false" autocomplete="off"></div>
+        <div class="sl"><label for="aLen">Длина, кадров</label><input type="range" id="aLen" min="4" max="300" value="48"><output id="aLenO">48</output></div>
+        <div class="row"><label class="kv2" for="aFps">Кадров в секунду</label><select class="palsel fps" id="aFps"><option value="24">24</option><option value="30">30</option><option value="60">60</option></select><span class="hint" id="aSec"></span></div>
+        <label class="chk"><input type="checkbox" id="aLoop" checked> По кругу</label>
+        <label class="chk"><input type="checkbox" id="aAuto" checked> Автоключ: каждое движение ставит ключ</label>
+        <p class="hint help">Двигай контроллеры на модели — на текущем кадре встаёт ключ. Перемести полоску таймлайна на другой кадр и поставь новую позу: движение между ключами посчитается само. Ромбики ключей на таймлайне можно таскать. Пробел — играть.</p>
+      </div>
+    </section>
+    <section class="sec" data-tab="anim" id="aPresetsSec">
+      <h3>Заготовки</h3>
+      <div class="chips" id="aPresets"></div>
+      <p class="hint help">Заготовка создаёт новую анимацию с ключами на контроллерах, её можно править как свою. Нужен скелет человека.</p>
+    </section>
+
+    <section class="sec" data-tab="pose">
+      <h3>Контроллер</h3>
+      <p class="hint" id="pNoSel">Нажми на контроллер на модели: кольца вращают кости, кубики ведут кисти и стопы (IK), ромбики показывают, куда гнутся локоть и колено.</p>
+      <div id="pBox" class="sub" hidden>
+        <b id="pName"></b>
+        <div class="row" id="pIkRow"><span id="pIkName"></span><div class="chips"><button class="chip" data-ik="1" title="Тянешь кисть или стопу, сгиб считается сам">IK</button><button class="chip" data-ik="0" title="Каждую кость крутишь сам">FK</button></div></div>
+        <div class="sl" id="pRollRow" hidden><label for="pRoll">Перекат стопы</label><input type="range" id="pRoll" min="-60" max="60" value="0"><output id="pRollO">0°</output></div>
+        <div class="row"><button class="btn" id="pReset">Сбросить контроллер</button></div>
+      </div>
+    </section>
+    <section class="sec" data-tab="pose">
+      <h3>Поза</h3>
+      <div class="row"><button class="btn" id="pCopy">Копировать</button><button class="btn" id="pPaste">Вставить</button><button class="btn" id="pMirror">Отразить</button></div>
+      <div class="row"><button class="btn" id="pLR">Левую на правую</button><button class="btn" id="pRL">Правую на левую</button></div>
+      <div class="row"><button class="btn" id="pResetAll">Сбросить всю позу</button></div>
+    </section>
+    <section class="sec" data-tab="pose">
+      <h3>Ключ</h3>
+      <p class="hint" id="pKeyInfo"></p>
+      <div class="chips" id="pInterp" aria-label="Переход от этого ключа"><button class="chip" data-i="s" title="Мягкий разгон и торможение">Плавно</button><button class="chip" data-i="l" title="Ровная скорость">Линейно</button><button class="chip" data-i="c" title="Поза держится до следующего ключа">Ступенька</button></div>
+      <div class="row"><button class="btn" id="pKeyAll">Ключ на всю позу</button><button class="btn" id="pDelKey">Удалить ключ</button></div>
+      <p class="hint help">Если выбран контроллер, ключ ставится и удаляется только у него, без выбора — у всей позы.</p>
+    </section>
+
     </div>
     <section class="sec laydock" id="layDock" data-tab="layers">
       <h3>Слои</h3>
@@ -545,6 +725,7 @@ body.qson .qs{display:flex}
 <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/loaders/GLTFLoader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/loaders/OBJLoader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/exporters/GLTFExporter.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/TransformControls.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
 (function(){
@@ -627,6 +808,7 @@ diffuseColor.rgb*=kBase;`);};
   return mat;
 }
 
+let mode='paint';document.body.dataset.mode=mode;
 let meshes=[];   // {mesh,n,tris,world,tn,adj,sel,selMesh,wire}  + mesh.userData.kr = {W,data,tex,mLit,mFlat,uvGen}
 let modelSize=1, modelName='model', modelCenter=new THREE.Vector3();
 
@@ -793,7 +975,7 @@ function buildData(m){
 function addWire(d){const w=new THREE.Mesh(d.mesh.geometry,wireMat);w.visible=st.wire;w.raycast=()=>{};d.mesh.add(w);d.wire=w;}
 function setModel(obj,name){
   while(root.children.length)root.remove(root.children[0]);
-  commitRecolor(true);meshes=[];decalOps=[];bakedBase=null;selDec=null;selGrad=null;selLay=null;sess=null;edOp=null;editSnap=null;gradNo=0;paintNo=0;modelName=(name||'model').replace(/\.[^.]+$/,'');
+  commitRecolor(true);rigReset();meshes=[];decalOps=[];bakedBase=null;selDec=null;selGrad=null;selLay=null;sess=null;edOp=null;editSnap=null;gradNo=0;paintNo=0;modelName=(name||'model').replace(/\.[^.]+$/,'');
   root.add(obj);root.updateMatrixWorld(true);
   const list=[];obj.traverse(o=>{if(o.isMesh)list.push(o);});
   if(!list.length){toast('В файле нет мешей');return;}
@@ -899,9 +1081,9 @@ function pushUndo(e){undo.push(e);redo.length=0;markDirty();
   let total=undo.reduce((s,x)=>s+entryBytes(x),0);while(undo.length>1&&(undo.length>40||total>220e6)){total-=entryBytes(undo.shift());}updUndo();}
 function apply(e){if(e.cols)restoreCols(e.cols);if(e.tex)restoreTex(e.tex);if(e.decals){decalOps=e.decals.slice();selDec=null;selGrad=null;updGradSel();}if('baked' in e)bakedBase=e.baked;}
 function mirror(e){const o={};if(e.cols)o.cols=snapCols();if(e.tex)o.tex=snapTexLike(e.tex);if(e.decals)o.decals=decalOps.slice();if('baked' in e)o.baked=bakedBase;return o;}
-function doUndo(){commitEdit();if(!undo.length)return;const e=undo.pop();redo.push(mirror(e));apply(e);updUndo();markDirty();}
-function doRedo(){commitEdit();if(!redo.length)return;const e=redo.pop();undo.push(mirror(e));apply(e);updUndo();markDirty();}
-function updUndo(){$('undoBtn').disabled=!undo.length;$('redoBtn').disabled=!redo.length;}
+function doUndo(){if(mode!=='paint'){rigUndo();return;}commitEdit();if(!undo.length)return;const e=undo.pop();redo.push(mirror(e));apply(e);updUndo();markDirty();}
+function doRedo(){if(mode!=='paint'){rigRedo();return;}commitEdit();if(!redo.length)return;const e=redo.pop();undo.push(mirror(e));apply(e);updUndo();markDirty();}
+function updUndo(){if(mode!=='paint'){$('undoBtn').disabled=!RU.u.length;$('redoBtn').disabled=!RU.r.length;return;}$('undoBtn').disabled=!undo.length;$('redoBtn').disabled=!redo.length;}
 let texOp=null; /* Map meshIndex -> data before this operation */
 function touchTex(i){if(texOp&&!texOp.has(i))texOp.set(i,meshes[i].mesh.userData.kr.MA.slice());}
 
@@ -1548,10 +1730,10 @@ function loadDecalFile(f){
 let spaceHeld=false,activePtr=null,stroke=null;const ptrs=new Set();
 function effTool(){return spaceHeld?'camera':st.tool;}
 function applyControlMode(){
-  const cam=effTool()==='camera';
+  const cam=effTool()==='camera'||mode!=='paint';
   controls.mouseButtons={LEFT:cam?THREE.MOUSE.ROTATE:-1,MIDDLE:THREE.MOUSE.PAN,RIGHT:THREE.MOUSE.ROTATE};
   controls.touches={ONE:cam?THREE.TOUCH.ROTATE:-1,TWO:THREE.TOUCH.DOLLY_PAN};
-  canvas.style.cursor=cam?'grab':(st.tool==='dedit'?'default':st.tool==='gradient'||st.tool==='decal'?'crosshair':(st.tool==='pick'?'copy':'default'));
+  canvas.style.cursor=mode!=='paint'?'default':cam?'grab':(st.tool==='dedit'?'default':st.tool==='gradient'||st.tool==='decal'?'crosshair':(st.tool==='pick'?'copy':'default'));
 }
 function cancelOps(){
   if(stroke){if(stroke.cols)restoreCols(stroke.cols);else{abortEdit();if(!decalOps.includes(selLay))selLay=null;}stroke=null;}
@@ -1563,7 +1745,7 @@ canvas.addEventListener('contextmenu',e=>e.preventDefault());
 canvas.addEventListener('pointerdown',e=>{
   ptrs.add(e.pointerId);
   if(ptrs.size>1){cancelOps();return;}
-  if(e.button!==0||effTool()==='camera')return;
+  if(mode!=='paint'||e.button!==0||effTool()==='camera')return;
   activePtr=e.pointerId;try{canvas.setPointerCapture(e.pointerId);}catch(_){}
   const tool=st.tool,hit=pick(e.clientX,e.clientY),pen=e.pointerType==='pen';
   if(tool==='brush'){if(!hit){activePtr=null;return;}commitEdit();
@@ -1603,7 +1785,7 @@ canvas.addEventListener('pointerdown',e=>{
 });
 let lastPtr=null;
 canvas.addEventListener('pointermove',e=>{
-  lastPtr=[e.clientX,e.clientY];const tool=effTool();
+  lastPtr=[e.clientX,e.clientY];if(mode!=='paint')return;const tool=effTool();
   if(e.pointerType==='mouse'&&meshes.length>1&&$('panel').dataset.tab==='parts')rowPend=[e.clientX,e.clientY];
   if(((tool==='brush'||tool==='erase')&&e.pointerType!=='touch')||stroke){movePend=[e.clientX,e.clientY,!!(stroke&&e.pointerId===activePtr)];if(stroke&&stroke.pen&&e.pointerId===activePtr)stroke.pw=e.pressure;}
   else {ring.visible=ringIn.visible=ring2.visible=ringIn2.visible=false;}
@@ -1710,7 +1892,7 @@ function mirrorRange(q,id){const a=$(q),b=$(id);a.addEventListener('input',()=>{
   b.addEventListener('input',()=>{a.value=b.value;});a.value=b.value;}
 mirrorRange('qRadius','radius');mirrorRange('qStrength','strength');
 function updQuick(){const t=st.tool,size=t==='brush'||t==='erase',str=size||t==='fill'||t==='gradient';
-  document.body.classList.toggle('qson',(mqTouch.matches||mqMid.matches)&&(size||str)&&!rend.on);$('qsSize').hidden=!size;$('qsStr').hidden=!str;
+  document.body.classList.toggle('qson',mode==='paint'&&(mqTouch.matches||mqMid.matches)&&(size||str)&&!rend.on);$('qsSize').hidden=!size;$('qsStr').hidden=!str;
   $('qRadius').value=$('radius').value;$('qStrength').value=$('strength').value;}
 
 /* ---------- UI: colors ---------- */
@@ -1873,7 +2055,7 @@ function liveSet(k,v){st.decal[k]=v;if(selDec&&decalOps.includes(selDec)&&(st.to
 /* wheel over the selected decal in the edit tool: scale, with Shift rotate (captured before the camera zoom sees it) */
 let wheelT=0;
 stage.addEventListener('wheel',e=>{
-  if(st.tool!=='dedit'||!selDec||e.target!==canvas)return;if(decalHitTest(pick(e.clientX,e.clientY))!==selDec)return;
+  if(mode!=='paint'||st.tool!=='dedit'||!selDec||e.target!==canvas)return;if(decalHitTest(pick(e.clientX,e.clientY))!==selDec)return;
   e.preventDefault();e.stopPropagation();beginEdit();
   const dy=e.deltaY||e.deltaX;
   if(e.shiftKey){let r=selDec.rot+(dy>0?-5:5);if(r>180)r-=360;if(r<-180)r+=360;selDec.rot=r;}
@@ -2024,6 +2206,7 @@ async function modelGLB(){
 /* the project as named files: zipped into a .kras, or kept as they are in the autosave */
 async function projectFiles(){
   const F={'model.glb':await modelGLB()},z={file:(k,v)=>{F[k]=v;}};
+  if(RG.bones.length||AN.clips.length)F['rig.json']=JSON.stringify(rigData());
   const decs=[];const decId=dec=>{let i=decs.indexOf(dec);if(i<0){i=decs.length;decs.push(dec);}return i;};
   let n=0;const lim=o=>{const id=n++,L={shown:o.lim.shown,sel:!!o.lim.sel,id};if(o.lim.sel)o.lim.sel.forEach((a,mi)=>{if(a)z.file('sel/'+id+'_'+mi+'.bin',a);});return L;};
   const lay=o=>({name:o.name,vis:o.vis!==false,blend:o.blend||'normal',er:(o.er||[]).map(one)});
@@ -2104,6 +2287,7 @@ async function loadProjectFiles(get,fname){
   if(!v2)replay(decalOps); /* v2 keeps the composite; layer pixels are drawn again only when a layer is edited */
   st.bake=!!P.bake;$('bakeChk').checked=st.bake;
   renderParts();layKey='';
+  const rj=await get('rig.json','string');if(rj)rigLoad(JSON.parse(rj));
 }
 /* projects saved before layers: strokes in a row become one paint layer, an eraser stroke joins the layer under it */
 function toLayers(flat){const out=[];
@@ -2142,6 +2326,8 @@ async function exportGLB(ue){
 /* frames stay paused while the parts carry export materials and the zip is packed */
 async function exportRun(ue){
   const bake=ue||st.bake,S=ue?+$('ueSize').value||0:0,base=ueName(modelName,'Model'),multi=meshes.length>1;
+  /* the skinned copy is made before the parts get export materials and colours, so it keeps the real ones */
+  const rigOn=RG.bones.length&&$('rigExp').checked;if(rigOn&&(!SK||RG.wkey!==weightsKey()||SK.bones.length!==RG.bones.length))buildSkin();
   const part=(d,i)=>ueName(names[i],'Part'+(i+1));
   toast(bake?'Запекаю текстуру и собираю GLB…':'Собираю GLB…');
   await new Promise(r=>setTimeout(r,30));
@@ -2161,13 +2347,14 @@ async function exportRun(ue){
   /* userData becomes glTF "extras": our paint buffers there made the file hundreds of megabytes */
   const ud=[];root.traverse(o=>{const u=o.userData;if(u.kr||u.ol||u.src){ud.push([o,u]);const k={...u};delete k.kr;delete k.ol;delete k.src;o.userData=k;}});
   try{
-    const res=await new Promise((ok,bad)=>{const opts={binary:true,onlyVisible:true};
-      if(ex.parseAsync)ex.parseAsync(root,opts).then(ok,bad);else ex.parse(root,ok,bad,opts);});
+    const rig=rigOn?rigExport(ue,base):null,input=rig?rig.grp:root;
+    const res=await new Promise((ok,bad)=>{const opts={binary:true,onlyVisible:true};if(rig)opts.animations=rig.clips;
+      if(ex.parseAsync)ex.parseAsync(input,opts).then(ok,bad);else ex.parse(input,ok,bad,opts);});
     done();
     const glb=new Blob([res],{type:'model/gltf-binary'});
     if(ue){if(typeof JSZip==='undefined'){toast('Не загрузился архиватор для экспорта');return;}
       /* the GLB carries its textures; the PNGs are there for reuse in other materials */
-      const z=new JSZip();z.file('SM_'+base+'.glb',glb);for(const [n,cv] of texs)z.file(n+'.png',await canvasBlob(cv));
+      const z=new JSZip();z.file((rig?'SK_':'SM_')+base+'.glb',glb);for(const [n,cv] of texs)z.file(n+'.png',await canvasBlob(cv));
       await saveBlob(base+'_Unreal.zip',await z.generateAsync({type:'blob'}));return;}
     const name=(modelName||'model')+'_painted';
     if(dlNs||inArtifact){if(typeof JSZip==='undefined'){toast('Не загрузился архиватор для экспорта');return;}
@@ -2186,8 +2373,8 @@ $('texBtn').addEventListener('click',async()=>{
   await saveBlob(base+'_textures.zip',await z.generateAsync({type:'blob'}));
 });
 $('shotBtn').addEventListener('click',()=>{
-  meshes.forEach(d=>{if(d.selMesh)d.selMesh.visible=false;});ring.visible=ringIn.visible=ring2.visible=ringIn2.visible=false;if(grid)grid.visible=false;
-  renderer.render(scene,camera);canvas.toBlob(b=>{meshes.forEach(d=>{if(d.selMesh)d.selMesh.visible=true;});if(grid)grid.visible=!rend.on;if(b)saveBlob((modelName||'model')+(rend.on?'_render':'')+'.png',b);},'image/png');
+  meshes.forEach(d=>{if(d.selMesh)d.selMesh.visible=false;});ring.visible=ringIn.visible=ring2.visible=ringIn2.visible=false;if(grid)grid.visible=false;const ov=ovG.visible,tv=tc.visible;ovG.visible=tc.visible=false;
+  renderer.render(scene,camera);ovG.visible=ov;tc.visible=tv;canvas.toBlob(b=>{meshes.forEach(d=>{if(d.selMesh)d.selMesh.visible=true;});if(grid)grid.visible=!rend.on;if(b)saveBlob((modelName||'model')+(rend.on?'_render':'')+'.png',b);},'image/png');
 });
 
 /* ---------- prerender: studio light rig, soft shadows on a shadow catcher, a colourful backdrop ---------- */
@@ -2325,6 +2512,7 @@ function stepView(){
 canvas.addEventListener('pointerdown',()=>{if(viewAnim){viewAnim=null;controls.enableDamping=true;}},true);
 
 /* ---------- theme ---------- */
+$('themeMi').addEventListener('click',()=>$('themeBtn').click());
 $('themeBtn').addEventListener('click',()=>{const t=isLight()?'dark':'light';document.documentElement.dataset.theme=t;
   try{localStorage.setItem('kr_theme',t);}catch(e){}makeGrid();});
 
@@ -2336,9 +2524,10 @@ window.addEventListener('keydown',e=>{
   if((e.ctrlKey||e.metaKey)&&k==='y'){e.preventDefault();doRedo();return;}
   if((e.ctrlKey||e.metaKey)&&k==='s'){e.preventDefault();saveProject();return;}
   if((e.ctrlKey||e.metaKey)&&k==='o'){e.preventDefault();$('fileIn').click();return;}
-  if((e.ctrlKey||e.metaKey)&&(e.code==='BracketRight'||e.code==='BracketLeft')&&curLayer()){e.preventDefault();moveLayer(e.code==='BracketRight'?(e.shiftKey?'top':'up'):(e.shiftKey?'bottom':'down'));return;}
+  if(mode==='paint'&&(e.ctrlKey||e.metaKey)&&(e.code==='BracketRight'||e.code==='BracketLeft')&&curLayer()){e.preventDefault();moveLayer(e.code==='BracketRight'?(e.shiftKey?'top':'up'):(e.shiftKey?'bottom':'down'));return;}
   const np={Numpad1:[0,0,1],Numpad3:[1,0,0],Numpad7:[0,1,0]}[e.code];
   if(np){e.preventDefault();viewFrom(e.ctrlKey||e.metaKey?np.map(x=>-x):np);return;}
+  if(mode!=='paint'&&rigKey(e))return;
   if(e.code==='Space'&&!spaceHeld){e.preventDefault();spaceHeld=true;applyControlMode();return;}
   if((e.key==='Delete'||e.key==='Backspace')&&selDec&&(st.tool==='dedit'||st.tool==='decal')){e.preventDefault();deleteDecal();return;}
   if((e.key==='Delete'||e.key==='Backspace')&&selGrad&&st.tool==='gradient'){e.preventDefault();deleteGrad();return;}
@@ -2365,10 +2554,14 @@ function sampleModel(){
   mk(new THREE.SphereGeometry(0.12,12,8),-0.42,1.7,0,'#FFD23F','Ухо П');
   mk(new THREE.BoxGeometry(0.3,0.36,0.44,3,3,3),0.2,0.18,0.03,'#E63946','Сапог Л');
   mk(new THREE.BoxGeometry(0.3,0.36,0.44,3,3,3),-0.2,0.18,0.03,'#E63946','Сапог П');
+  mk(new THREE.CylinderGeometry(0.1,0.085,0.62,12,10),0.565,0.93,0,'#FFD23F','Рука Л').rotation.z=0.31;
+  mk(new THREE.CylinderGeometry(0.1,0.085,0.62,12,10),-0.565,0.93,0,'#FFD23F','Рука П').rotation.z=-0.31;
+  mk(new THREE.SphereGeometry(0.12,14,10),0.665,0.6,0.01,'#FFD23F','Кисть Л');
+  mk(new THREE.SphereGeometry(0.12,14,10),-0.665,0.6,0.01,'#FFD23F','Кисть П');
   return grp;
 }
 function paintSample(){
-  const grads={'Тело':['#1D3557','#3B82F6'],'Голова':['#FF9F00','#FFE45E'],'Сапог Л':['#8E1B24','#FF5A5F'],'Сапог П':['#8E1B24','#FF5A5F']};
+  const grads={'Тело':['#1D3557','#3B82F6'],'Голова':['#FF9F00','#FFE45E'],'Рука Л':['#FF9F00','#FFE45E'],'Рука П':['#FF9F00','#FFE45E'],'Кисть Л':['#FF9F00','#FFC93C'],'Кисть П':['#FF9F00','#FFC93C'],'Сапог Л':['#8E1B24','#FF5A5F'],'Сапог П':['#8E1B24','#FF5A5F']};
   meshes.forEach(d=>{const gr=grads[d.mesh.name];if(!gr)return;
     let lo=Infinity,hi=-Infinity;for(let i=0;i<d.n;i++){const y=d.world[i*3+1];if(y<lo)lo=y;if(y>hi)hi=y;}
     const a=toOk(hexToRgb(gr[0])),b=toOk(hexToRgb(gr[1]));const col=d.mesh.geometry.attributes.color.array;
@@ -2443,6 +2636,760 @@ $('rcOk').addEventListener('click',()=>{commitRecolor();toast('Перекрас�
 $('rcCancel').addEventListener('click',cancelRecolor);
 bindSlider('rcTol',v=>{if(rc){rc.tol=v;rcDirty=true;}},v=>v+'°');
 ['rcBase','rcLay'].forEach(id=>$(id).addEventListener('change',()=>{if(rc)rcDirty=true;}));
+/* ---------- rigging and animation ----------
+   Bones are joints at rest positions in model space with no rest rotation, so a bone's world rotation is just what the
+   pose turns it by. Weights: every vertex goes to the nearest bone it can see from inside the model and blends with that
+   bone's parent and children near the joints; a separate part that sits on one bone stays rigid.
+   Animation keys live on controllers (root, body, FK rings, IK hands and feet with knee and elbow poles). Bones are
+   solved from them every frame and baked frame by frame on export. */
+const RG={bones:[],sel:-1,symm:true,inside:true,soft:1,bind:{},ikDef:{},W:null,wkey:'',test:false,wview:false};
+const AN={clips:[],cur:0,frame:0,playing:false,auto:true,sel:null,gz:'translate',pose:{},copied:null,tlDirty:true};
+const RU={u:[],r:[]};
+const rigG=new THREE.Group(),ovG=new THREE.Group();rigG.visible=false;ovG.visible=false;scene.add(rigG,ovG);
+const va=a=>new THREE.Vector3(a[0],a[1],a[2]);
+const _v1=new THREE.Vector3(),_v2=new THREE.Vector3(),_q1=new THREE.Quaternion(),_one=new THREE.Vector3(1,1,1);
+const _mA=new THREE.Matrix4(),_mB=new THREE.Matrix4(),_mC=new THREE.Matrix4();
+function boneIdx(n){return RG.bones.findIndex(b=>b.name===n);}
+function kidsOf(i){const o=[];RG.bones.forEach((b,j)=>{if(b.parent===i)o.push(j);});return o;}
+const sideOf=n=>/_l$/.test(n)?1:/_r$/.test(n)?-1:0;
+const mateOf=n=>/_l$/.test(n)?n.slice(0,-2)+'_r':/_r$/.test(n)?n.slice(0,-2)+'_l':null;
+const coarse=()=>matchMedia('(pointer:coarse)').matches;
+function hitAll(o,v){let best=Infinity;for(const d of meshes){if(!shown(d))continue;const h=rayGrid(d,o,v);if(h&&h.t<best)best=h.t;}return best;}
+/* the middle of the model along a ray: halfway between where it goes in and where it comes out */
+function midInside(o,v){const t1=hitAll(o,v);if(!isFinite(t1))return null;const e=modelSize*1e-4,t2=hitAll(o.clone().addScaledVector(v,t1+e),v);
+  if(!isFinite(t2))return null;return o.clone().addScaledVector(v,t1+(e+t2)/2);}
+function modelBox(){const b=new THREE.Box3();meshes.forEach(d=>{if(shown(d))b.expandByObject(d.mesh);});if(b.isEmpty())meshes.forEach(d=>b.expandByObject(d.mesh));return b;}
+/* parents always come before their children, so poses and weights can walk the list in order */
+function topo(){const B=RG.bones,names=B.map(b=>b.name),pn=B.map(b=>b.parent>=0&&B[b.parent]?names[b.parent]:null),out=[];
+  const add=j=>{out.push(j);names.forEach((m,k)=>{if(pn[k]===names[j]&&!out.includes(k))add(k);});};
+  names.forEach((n,j)=>{if(pn[j]==null&&!out.includes(j))add(j);});
+  const sel=RG.sel>=0&&B[RG.sel]?names[RG.sel]:null;
+  RG.bones=out.map(j=>({...B[j],parent:pn[j]==null?-1:out.findIndex(k=>names[k]===pn[j])}));RG.sel=sel?boneIdx(sel):-1;}
+
+/* ---------- automatic skeleton ---------- */
+/* points spread evenly over the visible surface */
+function surfPts(N){
+  const cum=[],ref=[];let tot=0;
+  meshes.forEach(d=>{if(!shown(d))return;const w=d.world;for(let t=0;t<d.tris;t++){const a=t*9,ux=w[a+3]-w[a],uy=w[a+4]-w[a+1],uz=w[a+5]-w[a+2],vx=w[a+6]-w[a],vy=w[a+7]-w[a+1],vz=w[a+8]-w[a+2];
+    const ar=Math.hypot(uy*vz-uz*vy,uz*vx-ux*vz,ux*vy-uy*vx);if(ar>0){tot+=ar;cum.push(tot);ref.push(d,a);}}});
+  if(!cum.length)return new Float32Array(0);
+  const P=new Float32Array(N*3),r=rnd(7);
+  for(let k=0;k<N;k++){const x=r()*tot;let lo=0,hi=cum.length-1;while(lo<hi){const m=(lo+hi)>>1;if(cum[m]<x)lo=m+1;else hi=m;}
+    const w=ref[lo*2].world,a=ref[lo*2+1];let s=r(),t=r();if(s+t>1){s=1-s;t=1-t;}
+    for(let c=0;c<3;c++)P[k*3+c]=w[a+c]+s*(w[a+3+c]-w[a+c])+t*(w[a+6+c]-w[a+c]);}
+  return P;
+}
+/* A humanoid skeleton with Unreal mannequin bone names, placed from horizontal slices of the model: the legs are where
+   a slice has a gap in the middle, the neck is the narrowest slice between body and head, the hands are the arm points
+   farthest from the shoulders. The model is expected to stand upright and face +Z, the glTF convention. */
+function autoSkeleton(kind){
+  if(!meshes.length)return;
+  const P=surfPts(20000),n=P.length/3;if(!n){toast('Нечего риговать: все детали скрыты');return;}
+  let x0=Infinity,x1=-Infinity,y0=Infinity,y1=-Infinity,z0=Infinity,z1=-Infinity;
+  for(let i=0;i<n;i++){const x=P[i*3],y=P[i*3+1],z=P[i*3+2];if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;if(z<z0)z0=z;if(z>z1)z1=z;}
+  const H=y1-y0||1,W=x1-x0||1,cx=(x0+x1)/2,cz=(z0+z1)/2,pos={};
+  rigPush();tc.detach();AN.sel=null;
+  if(kind==='one'){RG.bones=[{name:'root',parent:-1,p:[cx,y0,cz],soft:1},{name:'body',parent:0,p:[cx,y0+H*0.5,cz],soft:1}];
+    RG.bind={};RG.sel=1;afterSkeleton();toast('Готово: одна кость, модель двигается целиком');return;}
+  const NS=48,bin=y=>Math.min(NS-1,Math.max(0,Math.floor((y-y0)/H*NS))),by=i=>y0+(i+0.5)*H/NS;
+  const xs=[...Array(NS)].map(()=>[]);for(let i=0;i<n;i++)xs[bin(P[i*3+1])].push(P[i*3]-cx);
+  const gapW=W*0.03,gap=xs.map(a=>a.length>6&&!a.some(x=>Math.abs(x)<gapW)&&a.some(x=>x>0)&&a.some(x=>x<0));
+  let i0=0;while(i0<NS*0.2&&!gap[i0])i0++;
+  let cb=-1;if(gap[i0]){cb=i0;while(cb+1<NS*0.7&&(gap[cb+1]||(cb+2<NS*0.7&&gap[cb+2])))cb++;}
+  const crotch=cb>=0?y0+(cb+1)*H/NS:y0+H*0.45,leg=crotch-y0;
+  let lx=0,ln=0,fz=-Infinity,az=0,an=0;
+  for(let k=0;k<n;k++){const x=P[k*3]-cx,y=P[k*3+1],z=P[k*3+2];if(y<crotch&&x>0){lx+=x;ln++;if(y<y0+leg*0.3){az+=z;an++;if(z>fz)fz=z;}}}
+  lx=ln?lx/ln:W*0.12;az=an?az/an:cz;if(!isFinite(fz))fz=az+H*0.05;
+  const pelv=crotch+H*0.06;
+  pos.root=[cx,y0,cz];pos.pelvis=[cx,pelv,cz];
+  pos.thigh_l=[cx+lx,crotch+H*0.035,cz];pos.calf_l=[cx+lx,y0+leg*0.5,cz];pos.foot_l=[cx+lx,y0+leg*0.13,az];
+  pos.ball_l=[cx+lx,y0+Math.min(leg*0.05,H*0.025),az+(fz-az)*0.6];
+  /* half-width of the middle cluster of a slice, so arms beside the body don't count */
+  const cw=a=>{if(!a.length)return 0;const s=a.slice().sort((p,q)=>p-q);let k=0;for(let j=1;j<s.length;j++)if(Math.abs(s[j])<Math.abs(s[k]))k=j;
+    let lo=k,hi=k;const g=W*0.025;while(lo>0&&s[lo]-s[lo-1]<g)lo--;while(hi<s.length-1&&s[hi+1]-s[hi]<g)hi++;return Math.max(-s[lo],s[hi]);};
+  const cws=xs.map(cw),b0=bin(crotch+(y1-crotch)*0.45),b1=bin(y1-(y1-crotch)*0.1);
+  let nb=-1,best=Infinity;
+  for(let k=b0;k<=b1;k++){if(!xs[k].length)continue;let up=0,dn=0;for(let j=k+1;j<NS;j++)up=Math.max(up,cws[j]);for(let j=bin(crotch);j<k;j++)dn=Math.max(dn,cws[j]);
+    if(cws[k]<up*0.87&&cws[k]<dn*0.87&&cws[k]<best){best=cws[k];nb=k;}}
+  const neckY=nb>=0?by(nb):crotch+(y1-crotch)*0.78;
+  pos.neck_01=[cx,neckY-H*0.015,cz];pos.head=[cx,neckY+(y1-neckY)*0.12,cz];
+  const sp=t=>[cx,pelv+(neckY-pelv)*t,cz];pos.spine_01=sp(0.2);pos.spine_02=sp(0.45);pos.spine_03=sp(0.7);
+  let armsFound=true;
+  if(kind==='human'){
+    const tb=[];for(let k=bin(pelv);k<=bin(neckY);k++)if(cws[k])tb.push(cws[k]);tb.sort((p,q)=>p-q);
+    const th=tb.length?tb[tb.length>>1]:W*0.2,shY=neckY-(neckY-pelv)*0.12,sh=[cx+th*0.85,shY,cz];
+    const arm=[];for(let k=0;k<n;k++){const x=P[k*3]-cx,y=P[k*3+1];if(x>th*1.12&&y>crotch-H*0.15&&y<neckY+H*0.05)arm.push(k);}
+    let tip;
+    if(arm.length>n*0.01){const ds=arm.map(k=>Math.hypot(P[k*3]-sh[0],P[k*3+1]-sh[1],P[k*3+2]-sh[2])),mx=Math.max(...ds);let sx=0,sy=0,sz=0,c=0;
+      arm.forEach((k,j)=>{if(ds[j]>mx*0.94){sx+=P[k*3];sy+=P[k*3+1];sz+=P[k*3+2];c++;}});tip=[sx/c,sy/c,sz/c];}
+    else{armsFound=false;tip=[cx+th*1.3,pelv,cz];}
+    const L=t=>[sh[0]+(tip[0]-sh[0])*t,sh[1]+(tip[1]-sh[1])*t,sh[2]+(tip[2]-sh[2])*t];
+    pos.clavicle_l=[cx+th*0.25,shY,cz];pos.upperarm_l=sh;const el=L(0.45);el[2]-=H*0.012;pos.lowerarm_l=el;pos.hand_l=L(0.84);
+  }
+  const down=new THREE.Vector3(0,0,-1);
+  for(const k in pos){if(k==='root'||k==='ball_l')continue;const p=pos[k],m=midInside(new THREE.Vector3(p[0],p[1],z1+H),down);if(m)p[2]=m.z;}
+  for(const k of Object.keys(pos))if(/_l$/.test(k)){const p=pos[k];pos[k.slice(0,-2)+'_r']=[2*cx-p[0],p[1],p[2]];}
+  const T=[['root',null],['pelvis','root'],['spine_01','pelvis'],['spine_02','spine_01'],['spine_03','spine_02'],['neck_01','spine_03'],['head','neck_01']];
+  for(const s of ['l','r']){if(kind==='human')T.push(['clavicle_'+s,'spine_03'],['upperarm_'+s,'clavicle_'+s],['lowerarm_'+s,'upperarm_'+s],['hand_'+s,'lowerarm_'+s]);
+    T.push(['thigh_'+s,'pelvis'],['calf_'+s,'thigh_'+s],['foot_'+s,'calf_'+s],['ball_'+s,'foot_'+s]);}
+  RG.bones=T.map(([nm,pn])=>({name:nm,parent:pn?T.findIndex(t=>t[0]===pn):-1,p:pos[nm].map(v=>+v.toFixed(5)),soft:1}));
+  RG.bind={};RG.sel=-1;afterSkeleton();
+  toast(kind==='human'&&!armsFound?'Скелет готов. Руки не нашлись, их кости стоят у тела: подвинь или удали':'Скелет готов. Подвинь суставы, если нужно, и проверь во вкладке «Веса»');
+}
+function afterSkeleton(){RG.ikDef={};RG.wkey='';topo();rigChanged();renderRigUI();}
+
+/* ---------- weights ---------- */
+/* each bone is a segment from its joint to its main child (the one that continues its direction); a bone without
+   children reaches a bit past its joint */
+function segs(){const B=RG.bones;return B.map((b,i)=>{const a=va(b.p),ks=kidsOf(i);let e=null;
+  if(ks.length){const bp=b.parent>=0?a.clone().sub(va(B[b.parent].p)).normalize():null;let best=-2;
+    for(const k of ks){const dv=va(B[k].p).sub(a),s=bp&&dv.lengthSq()>0?dv.normalize().dot(bp):0;if(s>best){best=s;e=va(B[k].p);}}}
+  else{const dir=b.parent>=0?a.clone().sub(va(B[b.parent].p)):new THREE.Vector3(0,1,0),L=Math.max(dir.length()*0.6,modelSize*0.08);e=a.clone().addScaledVector(dir.normalize(),L);}
+  return {a,e};});}
+const deforms=i=>!(RG.bones[i].parent<0&&RG.bones.length>1);
+function weightsKey(){return JSON.stringify([RG.bones.map(b=>[b.p,b.parent,b.soft]),RG.soft,RG.bind,meshes.map(d=>d.mesh.geometry.uuid)]);}
+function ensureWeights(){const k=weightsKey();if(RG.W&&RG.wkey===k)return;RG.W=computeWeights();RG.wkey=k;}
+function computeWeights(){
+  const B=RG.bones,nb=B.length,S=segs(),isDef=B.map((b,i)=>deforms(i));
+  const near=B.map((b,i)=>{const s=new Set([i]);if(b.parent>=0)s.add(b.parent);kidsOf(i).forEach(k=>s.add(k));return [...s].filter(j=>isDef[j]);});
+  const sig0=0.05*modelSize*RG.soft,dir=new THREE.Vector3(),cp=new THREE.Vector3(),v=new THREE.Vector3(),ab=new THREE.Vector3();
+  const segDist=(j,out)=>{const s=S[j];ab.subVectors(s.e,s.a);const L2=ab.lengthSq();let t=L2>0?_v1.subVectors(v,s.a).dot(ab)/L2:0;t=Math.max(0,Math.min(1,t));out.copy(s.a).addScaledVector(ab,t);return out.distanceTo(v);};
+  const seen=c=>{dir.subVectors(v,c);for(const d of meshes){const h=rayGrid(d,c,dir);if(h&&h.t<0.995)return false;}return true;};
+  const defs=B.map((b,i)=>i).filter(i=>isDef[i]);
+  return meshes.map((d,mi)=>{
+    const n=d.n,w=d.world,eps=modelSize*1e-5,keyMap=new Map(),vid=new Int32Array(n),U=[];
+    for(let i=0;i<n;i++){const k=Math.round(w[i*3]/eps)+','+Math.round(w[i*3+1]/eps)+','+Math.round(w[i*3+2]/eps);let id=keyMap.get(k);if(id===undefined){id=U.length/3;keyMap.set(k,id);U.push(w[i*3],w[i*3+1],w[i*3+2]);}vid[i]=id;}
+    const nu=U.length/3,Wt=new Float32Array(nu*nb),forced=RG.bind[mi]!=null?boneIdx(RG.bind[mi]):-1;
+    if(forced>=0){for(let u=0;u<nu;u++)Wt[u*nb+forced]=1;}
+    else{
+      /* neighbours and connected pieces */
+      const nbr=[...Array(nu)].map(()=>[]),par=new Int32Array(nu).map((_,i)=>i),find=x=>{while(par[x]!==x){par[x]=par[par[x]];x=par[x];}return x;};
+      for(let t=0;t<d.tris;t++){const a=vid[t*3],b=vid[t*3+1],c=vid[t*3+2];for(const [p,q] of [[a,b],[b,c],[c,a]]){if(p===q)continue;nbr[p].push(q);nbr[q].push(p);par[find(p)]=find(q);}}
+      const b0=new Int32Array(nu),dd=new Float32Array(nb);
+      for(let u=0;u<nu;u++){v.set(U[u*3],U[u*3+1],U[u*3+2]);
+        const order=defs.map(j=>[segDist(j,cp),j]).sort((p,q)=>p[0]-q[0]);order.forEach(([dist,j])=>dd[j]=dist);
+        let pick=order[0][1];for(let k=0;k<Math.min(4,order.length);k++){segDist(order[k][1],cp);if(seen(cp)){pick=order[k][1];break;}}
+        b0[u]=pick;const d0=dd[pick];
+        for(const j of near[pick]){const sg=sig0*Math.sqrt((B[j].soft||1)*(B[pick].soft||1)),x=dd[j]-d0;Wt[u*nb+j]=j===pick?1:Math.exp(-Math.max(0,x)/sg);}}
+      /* a piece that sits almost entirely on one bone moves rigidly with it */
+      const votes=new Map();for(let u=0;u<nu;u++){const r=find(u);let m=votes.get(r);if(!m){m=new Map();votes.set(r,m);}m.set(b0[u],(m.get(b0[u])||0)+1);}
+      const rigid=new Map();votes.forEach((m,r)=>{let tot=0,bb=-1,bc=0;m.forEach((c,j)=>{tot+=c;if(c>bc){bc=c;bb=j;}});if(bc>=tot*0.9)rigid.set(r,bb);});
+      for(let u=0;u<nu;u++){const rb=rigid.get(find(u));if(rb!==undefined){Wt.fill(0,u*nb,u*nb+nb);Wt[u*nb+rb]=1;}}
+      /* smooth the blends a little along the surface */
+      const it=Math.round(1+RG.soft*2),tmp=new Float32Array(nu*nb);
+      for(let k=0;k<it;k++){tmp.set(Wt);for(let u=0;u<nu;u++){if(rigid.has(find(u))||!nbr[u].length)continue;const N=nbr[u],o=u*nb;
+        for(let j=0;j<nb;j++){let s=0;for(const q of N)s+=tmp[q*nb+j];Wt[o+j]=tmp[o+j]*0.5+s/N.length*0.5;}}}
+    }
+    /* the four strongest bones per vertex */
+    const ui=new Uint16Array(nu*4),uw=new Float32Array(nu*4),top=[0,0,0,0],tw=[0,0,0,0];
+    for(let u=0;u<nu;u++){top.fill(0);tw.fill(0);const o=u*nb;
+      for(let j=0;j<nb;j++){const x=Wt[o+j];if(x<=tw[3])continue;let k=3;while(k>0&&x>tw[k-1]){tw[k]=tw[k-1];top[k]=top[k-1];k--;}tw[k]=x;top[k]=j;}
+      let s=tw[0]+tw[1]+tw[2]+tw[3];if(s<=0){top[0]=defs[0]||0;tw[0]=s=1;}
+      for(let k=0;k<4;k++){ui[u*4+k]=top[k];uw[u*4+k]=tw[k]/s;}}
+    const si=new Uint16Array(n*4),sw=new Float32Array(n*4);
+    for(let i=0;i<n;i++){const u=vid[i];for(let k=0;k<4;k++){si[i*4+k]=ui[u*4+k];sw[i*4+k]=uw[u*4+k];}}
+    return {si,sw};
+  });
+}
+
+/* ---------- skinned copy of the model ----------
+   The paint meshes stay as they are; skinned meshes share their geometry buffers and materials, so paint shows
+   through, and get bone indices and weights on top. The weights view is a second copy coloured by bone. */
+let SK=null;const skGeo=new Map();
+const wMat=new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.DoubleSide});
+const olSkMat=new THREE.ShaderMaterial({side:THREE.BackSide,uniforms:{uW:olMat.uniforms.uW,uC:olMat.uniforms.uC},
+  vertexShader:'attribute vec3 oN;uniform float uW;\n#include <skinning_pars_vertex>\nvoid main(){vec3 transformed=position;vec3 objectNormal=oN;\n#include <skinbase_vertex>\n#include <skinnormal_vertex>\n#include <skinning_vertex>\nvec4 mv=modelViewMatrix*vec4(transformed,1.0);vec3 n=normalize(normalMatrix*objectNormal);mv.xyz+=n*uW*max(-mv.z,0.0);gl_Position=projectionMatrix*mv;}',
+  fragmentShader:'uniform vec3 uC;void main(){gl_FragColor=vec4(uC,1.0);}'});
+function geoFor(d){const g0=d.mesh.geometry;let e=skGeo.get(d);if(e&&e.src===g0)return e;
+  const share=n=>{const g=new THREE.BufferGeometry();n.forEach(k=>{if(g0.attributes[k])g.setAttribute(k,g0.attributes[k]);});return g;};
+  e={src:g0,g:share(['position','normal','uv','color']),gw:share(['position','normal']),ol:null};
+  e.gw.setAttribute('color',new THREE.BufferAttribute(new Float32Array(g0.attributes.position.count*3),3));skGeo.set(d,e);return e;}
+function dropSkin(){if(!SK)return;SK.parts.forEach(p=>{rigG.remove(p.sm,p.wm);if(p.ol)rigG.remove(p.ol);});SK.bones.forEach(b=>{if(b.parent===rigG)rigG.remove(b);});SK.skel.dispose();SK=null;}
+function buildSkin(){
+  dropSkin();if(!RG.bones.length||!meshes.length)return null;
+  ensureWeights();
+  const B=RG.bones,bones=B.map(b=>{const o=new THREE.Bone();o.name=b.name;return o;});
+  B.forEach((b,i)=>{const p=va(b.p);if(b.parent>=0){p.sub(va(B[b.parent].p));bones[b.parent].add(bones[i]);}else rigG.add(bones[i]);bones[i].position.copy(p);});
+  rigG.updateMatrixWorld(true);
+  const skel=new THREE.Skeleton(bones);
+  const parts=meshes.map((d,mi)=>{const e=geoFor(d),W=RG.W[mi];
+    const si=new THREE.Uint16BufferAttribute(W.si,4),sw=new THREE.Float32BufferAttribute(W.sw,4);
+    e.g.setAttribute('skinIndex',si);e.g.setAttribute('skinWeight',sw);e.gw.setAttribute('skinIndex',si);e.gw.setAttribute('skinWeight',sw);
+    const mk=(g,m)=>{const s=new THREE.SkinnedMesh(g,m);s.matrixAutoUpdate=false;s.matrix.copy(d.mesh.matrixWorld);s.frustumCulled=false;rigG.add(s);s.updateMatrixWorld(true);s.bind(skel,s.matrixWorld.clone());return s;};
+    return {d,e,sm:mk(e.g,d.mesh.material),wm:mk(e.gw,wMat),ol:null};});
+  SK={bones,skel,parts,rest:bones.map(b=>b.position.clone())};
+  buildCtrls();updWColors();
+  return SK;
+}
+function skinOutlines(){if(!SK)return;SK.parts.forEach(p=>{
+  if(!p.ol&&st.outline){const e=p.e;if(!e.ol){const g=new THREE.BufferGeometry();g.setAttribute('position',e.src.attributes.position);
+      const src=p.d.mesh.userData.ol;g.setAttribute('oN',src&&src.geometry.attributes.oN?src.geometry.attributes.oN:smoothNormals(e.src));e.ol=g;}
+    e.ol.setAttribute('skinIndex',e.g.attributes.skinIndex);e.ol.setAttribute('skinWeight',e.g.attributes.skinWeight);
+    const s=new THREE.SkinnedMesh(e.ol,olSkMat);s.matrixAutoUpdate=false;s.matrix.copy(p.sm.matrix);s.frustumCulled=false;rigG.add(s);s.updateMatrixWorld(true);s.bind(SK.skel,p.sm.bindMatrix.clone());p.ol=s;}
+  if(p.ol)p.ol.visible=st.outline&&p.sm.visible;});}
+function skinNeeded(){return RG.bones.length&&meshes.length&&(mode==='anim'||(mode==='rig'&&(RG.test||RG.wview)));}
+function ensureSkin(){if(!skinNeeded())return SK;if(SK&&(jdrag||softSnap)&&SK.bones.length===RG.bones.length)return SK;if(!SK||RG.wkey!==weightsKey()||SK.bones.length!==RG.bones.length)buildSkin();return SK;}
+const boneCol=i=>new THREE.Color().setHSL((i*0.618034+0.05)%1,0.72,0.55);
+function updWColors(){if(!SK)return;const sel=RG.sel,BC=RG.bones.map((b,i)=>boneCol(i)),c=new THREE.Color();
+  SK.parts.forEach((p,mi)=>{const W=RG.W[mi],a=p.e.gw.attributes.color,col=a.array,n=W.si.length/4;
+    for(let v=0;v<n;v++){let r=0,g=0,b=0;
+      if(sel>=0){let w=0;for(let k=0;k<4;k++)if(W.si[v*4+k]===sel)w+=W.sw[v*4+k];c.setHSL(0.66*(1-w),0.85,0.18+0.37*Math.min(1,w*3));r=c.r;g=c.g;b=c.b;}
+      else for(let k=0;k<4;k++){const x=W.sw[v*4+k];if(!x)continue;const q=BC[W.si[v*4+k]];r+=q.r*x;g+=q.g*x;b+=q.b*x;}
+      col[v*3]=r;col[v*3+1]=g;col[v*3+2]=b;}
+    a.needsUpdate=true;});}
+
+/* ---------- controllers ---------- */
+let CT={list:[],byId:{},limbs:[],root:null};
+function dropCtrls(){CT.list.forEach(c=>{ovG.remove(c.frame);if(c.line)ovG.remove(c.line);c.frame.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material)o.material.dispose();});});CT={list:[],byId:{},limbs:[],root:null};}
+/* how thick the model is around a point, across a direction: rings hug the body */
+function bodyR(p,axis){const u=Math.abs(axis.y)<0.9?new THREE.Vector3(0,1,0):new THREE.Vector3(1,0,0),e1=u.clone().cross(axis).normalize(),e2=axis.clone().cross(e1).normalize(),ds=[];
+  for(let k=0;k<8;k++){const a=k/8*Math.PI*2,dv=e1.clone().multiplyScalar(Math.cos(a)).addScaledVector(e2,Math.sin(a)),t=hitAll(p,dv);if(isFinite(t))ds.push(t);}
+  if(!ds.length)return modelSize*0.06;ds.sort((a,b)=>a-b);return ds[ds.length>>1];}
+function buildCtrls(){
+  const keep=AN.sel;tc.detach();dropCtrls();const B=RG.bones;if(!B.length)return;
+  const ix=n=>boneIdx(n),S=modelSize,ground=modelBox().min.y,add=c=>{CT.list.push(c);CT.byId[c.id]=c;return c;};
+  let r=B.findIndex(b=>b.parent<0&&b.name==='root');if(r<0)r=B.findIndex(b=>b.parent<0);
+  CT.root=add({id:'root',kind:'root',bone:r});
+  const pel=ix('pelvis');const cog=pel>=0&&B[pel].parent===r?add({id:'cog',kind:'cog',bone:pel}):null;
+  for(const s of ['l','r']){
+    const mk=(id,u,l,e,leg)=>{const U=ix(u),M=ix(l),E=ix(e);if(U<0||M<0||E<0||B[M].parent!==U||B[E].parent!==M)return;
+      const L={id:id+'_'+s,u:U,l:M,e:E,leg,ball:leg?ix('ball_'+s):-1,ground};if(L.ball>=0&&B[L.ball].parent!==E)L.ball=-1;
+      const a0=va(B[U].p),b0=va(B[M].p),c0=va(B[E].p),bend=b0.clone().sub(a0.clone().add(c0).multiplyScalar(0.5)),len=a0.distanceTo(b0)+b0.distanceTo(c0);
+      L.bend0=bend.length()>len*0.03?bend.normalize():new THREE.Vector3(0,0,leg?1:-1);L.pole0=b0.clone().addScaledVector(L.bend0,len*0.6);CT.limbs.push(L);};
+    mk('arm','upperarm_'+s,'lowerarm_'+s,'hand_'+s,false);mk('leg','thigh_'+s,'calf_'+s,'foot_'+s,true);}
+  const SG=segs();
+  B.forEach((b,i)=>{if(i===r||(cog&&i===cog.bone))return;const L=CT.limbs.find(L=>L.u===i||L.l===i||L.e===i)||null;add({id:'fk_'+b.name,kind:'fk',bone:i,limb:L,sg:SG[i]});});
+  CT.limbs.forEach(L=>{add({id:'ik_'+L.id,kind:'ik',limb:L});add({id:'pole_'+L.id,kind:'pole',limb:L});});
+  const box=modelBox(),foot=Math.max(box.max.x-box.min.x,box.max.z-box.min.z)*0.62;
+  CT.list.forEach(c=>{
+    const f=new THREE.Object3D(),o=new THREE.Object3D();f.matrixAutoUpdate=false;f.add(o);ovG.add(f);c.frame=f;c.obj=o;o.userData.ctrl=c;
+    const nm=c.kind==='fk'?B[c.bone].name:c.limb?c.limb.id:'',sd=sideOf(nm);
+    c.col=c.kind==='root'?0x7bd389:c.kind==='cog'?0xffa31a:sd>0?0x4c8dff:sd<0?0xff5d6c:0xffd23f;
+    const mat=new THREE.MeshBasicMaterial({color:c.col,depthTest:false,depthWrite:false,transparent:true,opacity:0.92});c.mat=mat;
+    let m;
+    if(c.kind==='fk'||c.kind==='root'||c.kind==='cog'){
+      let axis=new THREE.Vector3(0,1,0),R,off=0;
+      if(c.kind==='fk'){axis=c.sg.e.clone().sub(c.sg.a);const sl=axis.length();if(sl<1e-9)axis.set(0,1,0);axis.normalize();off=sl*0.18;R=bodyR(c.sg.a.clone().addScaledVector(axis,off),axis)*1.15;if(Math.abs(axis.y)<0.5&&!c.limb)R=Math.min(R,Math.max(sl*0.45,S*0.03));R=Math.min(Math.max(R,S*0.03),S*0.3);}
+      else if(c.kind==='root')R=Math.max(foot,S*0.2);else R=Math.min(Math.max(bodyR(va(B[c.bone].p),axis)*1.55,S*0.06),S*0.45);
+      m=new THREE.Mesh(new THREE.TorusGeometry(R,Math.max(R*0.035,S*0.0035),6,c.kind==='cog'?4:48),mat);
+      m.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),axis);m.position.copy(axis).multiplyScalar(off);
+      c.pick={type:'loop',pts:[...Array(32)].map((_,k)=>new THREE.Vector3(Math.cos(k/32*Math.PI*2)*R,Math.sin(k/32*Math.PI*2)*R,0))};
+      if(c.kind==='root'){const ar=new THREE.Mesh(new THREE.ConeGeometry(R*0.09,R*0.2,12),mat);ar.rotation.x=Math.PI/2;ar.position.set(0,0,R*1.12);ar.renderOrder=1002;o.add(ar);}}
+    else if(c.kind==='ik'){const L=c.limb,e=va(B[L.e].p),bl=L.ball>=0?va(B[L.ball].p).sub(e):null,sz=Math.min(Math.max(bodyR(e,new THREE.Vector3(0,1,0))*2.3,S*0.05),S*0.25);
+      let g,cen=new THREE.Vector3();
+      if(L.leg){const h=Math.max(e.y-L.ground,sz*0.3),len=bl?Math.max(bl.z*2.2,sz):sz*1.4;g=new THREE.BoxGeometry(sz*1.1,h*1.1,len);cen.set(0,-h*0.45,bl?bl.z*0.45:sz*0.2);}
+      else g=new THREE.BoxGeometry(sz,sz,sz);
+      m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:c.col,depthTest:false,depthWrite:false,transparent:true,opacity:0.16}));m.position.copy(cen);
+      const ed=new THREE.LineSegments(new THREE.EdgesGeometry(g),mat);ed.renderOrder=1002;m.add(ed);c.edgeMat=mat;
+      g.computeBoundingBox();const bb=g.boundingBox;c.pick={type:'box',pts:[0,1,2,3,4,5,6,7].map(k=>new THREE.Vector3(k&1?bb.max.x:bb.min.x,k&2?bb.max.y:bb.min.y,k&4?bb.max.z:bb.min.z))};}
+    else{m=new THREE.Mesh(new THREE.OctahedronGeometry(S*0.022),mat);c.pick={type:'dot',pts:[new THREE.Vector3()]};
+      c.line=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3()]),new THREE.LineBasicMaterial({color:c.col,depthTest:false,transparent:true,opacity:0.6}));c.line.renderOrder=1000;c.line.frustumCulled=false;ovG.add(c.line);}
+    m.renderOrder=1001;o.add(m);c.pm=m;});
+  if(keep&&CT.byId[keep])selectCtrl(CT.byId[keep]);else AN.sel=null;
+}
+/* where a controller sits when its value is zero: under its parent bone, or relative to the root */
+function frameOf(c,out){const b=SK.bones,B=RG.bones;
+  if(c.kind==='root'){const p=B[c.bone].p;return out.makeTranslation(p[0],p[1],p[2]);}
+  if(c.kind==='fk'){const o=b[c.bone],r=SK.rest[c.bone];return out.multiplyMatrices(o.parent.matrixWorld,_mC.makeTranslation(r.x,r.y,r.z));}
+  const rb=CT.root.bone,r0=B[rb].p,t=c.kind==='cog'?va(B[c.bone].p):c.kind==='ik'?va(B[c.limb.e].p):c.limb.pole0;
+  return out.multiplyMatrices(b[rb].matrixWorld,_mC.makeTranslation(t.x-r0[0],t.y-r0[1],t.z-r0[2]));}
+function defVal(c){if(c.kind==='fk')return {q:[0,0,0,1]};if(c.kind==='pole')return {p:[0,0,0]};if(c.kind==='ik')return {p:[0,0,0],q:[0,0,0,1],r:0};return {p:[0,0,0],q:[0,0,0,1]};}
+function curVal(id){const c=CT.byId[id];const v=AN.pose[id];if(/^sw_/.test(id))return {v:v?v.v:(RG.ikDef[id.slice(3)]===0?0:1)};return Object.assign(defVal(c),v?JSON.parse(JSON.stringify(v)):{});}
+function ikOn(P,L){const s=P['sw_'+L.id];return s?s.v>0.5:RG.ikDef[L.id]!==0;}
+
+/* ---------- solving a pose ---------- */
+function restPose(){SK.bones.forEach((o,i)=>{o.position.copy(SK.rest[i]);o.quaternion.identity();});}
+function evalPose(P){
+  restPose();const b=SK.bones;
+  for(const c of CT.list){const v=P[c.id];if(!v)continue;
+    if(c.kind==='root'||c.kind==='cog'){const o=b[c.bone];if(v.p)o.position.add(_v1.fromArray(v.p));if(v.q)o.quaternion.fromArray(v.q).normalize();}
+    else if(c.kind==='fk'&&v.q)b[c.bone].quaternion.fromArray(v.q).normalize();}
+  rigG.updateMatrixWorld(true);
+  for(const L of CT.limbs)if(ikOn(P,L))solveLimb(P,L);
+}
+function basis(u,p){u=u.clone().normalize();p=p.clone().addScaledVector(u,-p.dot(u));
+  if(p.lengthSq()<1e-12)p=Math.abs(u.x)<0.9?new THREE.Vector3(1,0,0):new THREE.Vector3(0,1,0),p.addScaledVector(u,-p.dot(u));
+  p.normalize();return new THREE.Matrix4().makeBasis(u,p,new THREE.Vector3().crossVectors(u,p));}
+/* the rotation that turns a rest direction (with its bend side) into a new one */
+function frameRot(u0,p0,u1,p1){return new THREE.Quaternion().setFromRotationMatrix(basis(u1,p1).multiply(basis(u0,p0).transpose()));}
+/* two-bone IK: the elbow or knee lies in the plane of shoulder, target and pole; the hand or foot takes the target's turn.
+   Foot roll lifts the heel around the ball (positive) or the toes around the heel (negative). */
+function solveLimb(P,L){
+  const b=SK.bones,B=RG.bones,U=b[L.u],M=b[L.l],E=b[L.e],vi=P['ik_'+L.id]||{},vp=P['pole_'+L.id]||{};
+  frameOf(CT.byId['ik_'+L.id],_mA);_mB.compose(_v1.fromArray(vi.p||[0,0,0]),_q1.fromArray(vi.q||[0,0,0,1]).normalize(),_one);_mA.multiply(_mB);
+  const T=new THREE.Vector3(),Rt=new THREE.Quaternion();_mA.decompose(T,Rt,_v2);
+  let Rend=Rt.clone(),ballFix=null;const roll=vi.r||0;
+  if(L.leg&&roll){const ax=new THREE.Vector3(1,0,0).applyQuaternion(Rt),rq=new THREE.Quaternion().setFromAxisAngle(ax,roll),c0=va(B[L.e].p);
+    const bl=L.ball>=0?va(B[L.ball].p).sub(c0):new THREE.Vector3(0,0,modelSize*0.05);
+    const piv=(roll>0?bl.clone():new THREE.Vector3(0,L.ground-c0.y,-Math.abs(bl.z)*0.45)).applyQuaternion(Rt).add(T);
+    T.sub(piv).applyQuaternion(rq).add(piv);Rend=rq.multiply(Rt.clone());if(roll>0)ballFix=Rt.clone();}
+  const a=new THREE.Vector3().setFromMatrixPosition(U.matrixWorld);
+  const pw=new THREE.Vector3().fromArray(vp.p||[0,0,0]).applyMatrix4(frameOf(CT.byId['pole_'+L.id],_mA));
+  const a0=va(B[L.u].p),b0=va(B[L.l].p),c0=va(B[L.e].p),l1=a0.distanceTo(b0),l2=b0.distanceTo(c0);
+  const dir=T.clone().sub(a);let d=dir.length();if(d>1e-9)dir.divideScalar(d);else dir.set(0,-1,0);
+  d=Math.min(Math.max(d,Math.abs(l1-l2)+1e-6),(l1+l2)*0.99999);
+  const pn=pw.sub(a);pn.addScaledVector(dir,-pn.dot(dir));if(pn.lengthSq()<1e-14){pn.copy(L.bend0).addScaledVector(dir,-L.bend0.dot(dir));}pn.normalize();
+  const x=(l1*l1-l2*l2+d*d)/(2*d),h=Math.sqrt(Math.max(0,l1*l1-x*x));
+  const bb=a.clone().addScaledVector(dir,x).addScaledVector(pn,h),cc=a.clone().addScaledVector(dir,d),pr=L.pole0.clone().sub(a0);
+  const Wu=frameRot(b0.clone().sub(a0),pr,bb.clone().sub(a),pn),Wl=frameRot(c0.clone().sub(b0),pr,cc.sub(bb),pn);
+  const Pq=U.parent.getWorldQuaternion(new THREE.Quaternion());
+  U.quaternion.copy(Pq.invert().multiply(Wu));M.quaternion.copy(Wu.clone().invert().multiply(Wl));E.quaternion.copy(Wl.clone().invert().multiply(Rend));
+  if(ballFix){const o=b[L.ball];o.quaternion.copy(Rend.clone().invert().multiply(ballFix).multiply(o.quaternion));}
+  U.updateMatrixWorld(true);
+}
+/* rig check: everything sways a little so bad weights show at once */
+function wiggle(t){restPose();const B=RG.bones,S=segs();
+  B.forEach((bn,i)=>{if(bn.parent<0)return;const ax=S[i].e.clone().sub(S[i].a);if(ax.lengthSq()<1e-12)ax.set(0,1,0);ax.normalize();
+    const pp=Math.abs(ax.y)<0.8?new THREE.Vector3(0,1,0).cross(ax).normalize():new THREE.Vector3(1,0,0);
+    const big=/arm|hand|thigh|calf|foot|ball/.test(bn.name)?0.55:0.22;SK.bones[i].quaternion.setFromAxisAngle(pp,big*Math.sin(t*2.6+i*0.9));});
+  rigG.updateMatrixWorld(true);}
+
+/* ---------- clips and keys ---------- */
+function curClip(){return AN.clips[AN.cur]||null;}
+const arrOf=x=>Array.isArray(x)?x:[x];
+/* a channel at frame f: smooth keys are a Hermite curve through their neighbours (wrapping in a looped clip), linear
+   keys go straight, step keys hold */
+function sampleCh(K,f,C){
+  const n=K.length,cl=k=>JSON.parse(JSON.stringify(k));if(n===1)return cl(K[0]);
+  const L=C.len,loop=C.loop;let i=-1;for(let j=0;j<n;j++)if(K[j].f<=f)i=j;
+  if(!loop&&(i<0||i===n-1))return cl(K[Math.max(0,i)]);
+  /* keys by a running index, so a looped clip wraps around with its times shifted by the clip length */
+  const kv=v=>{const j=((v%n)+n)%n;return {k:K[j],t:K[j].f+Math.floor(v/n)*L};};
+  const v0=i<0?-1:i,s0=kv(v0),s1=kv(v0+1),t0=s0.t,t1=s1.t,A=s0.k,Bk=s1.k;
+  if(t1-t0<1e-6)return cl(Bk);
+  const u=(f-t0)/(t1-t0),im=A.i||'s';if(im==='c')return cl(A);
+  const pv=loop||v0-1>=0?kv(v0-1):null,nx=loop||v0+2<=n-1?kv(v0+2):null,out={};
+  for(const fld of ['p','q','r']){
+    if(A[fld]==null){if(Bk[fld]!=null)out[fld]=cl(Bk[fld]);continue;}if(Bk[fld]==null){out[fld]=cl(A[fld]);continue;}
+    const q=fld==='q',al=(x,ref)=>q&&x.reduce((s,v,j)=>s+v*ref[j],0)<0?x.map(v=>-v):x,a=arrOf(A[fld]),b=al(arrOf(Bk[fld]),a);let r;
+    if(im==='l')r=a.map((x,j)=>x+(b[j]-x)*u);
+    else{const dt=t1-t0,pa=pv&&pv.k[fld]!=null?al(arrOf(pv.k[fld]),a):null,nn=nx&&nx.k[fld]!=null?al(arrOf(nx.k[fld]),b):null;
+      const m0=a.map((x,j)=>pa?(b[j]-pa[j])/(t1-pv.t)*dt:0),m1=b.map((x,j)=>nn?(nn[j]-a[j])/(nx.t-t0)*dt:0);
+      const u2=u*u,u3=u2*u,h00=2*u3-3*u2+1,h10=u3-2*u2+u,h01=-2*u3+3*u2,h11=u3-u2;
+      r=a.map((x,j)=>h00*x+h10*m0[j]+h01*b[j]+h11*m1[j]);}
+    if(q){const l=Math.hypot(...r)||1;r=r.map(x=>x/l);}
+    out[fld]=Array.isArray(A[fld])?r:r[0];}
+  if(A.v!=null)out.v=A.v;
+  return out;
+}
+function samplePose(C,f){const P={};if(!C)return P;for(const id in C.ch){const K=C.ch[id];if(K&&K.length)P[id]=sampleCh(K,f,C);}return P;}
+function keyFrames(C,ids){const s=new Set();if(!C)return [];for(const id in C.ch){if(ids&&!ids.includes(id))continue;C.ch[id].forEach(k=>s.add(k.f));}return [...s].sort((a,b)=>a-b);}
+function setKey(C,id,f,v,interp){const K=C.ch[id]||(C.ch[id]=[]);f=Math.round(f);let k=K.find(x=>x.f===f);
+  if(!k){k={f,i:interp||(/^sw_/.test(id)?'c':'s')};K.push(k);K.sort((a,b)=>a.f-b.f);}else if(interp)k.i=interp;
+  ['p','q','r','v'].forEach(fl=>{if(v[fl]!=null)k[fl]=JSON.parse(JSON.stringify(v[fl]));});AN.tlDirty=true;}
+function selIds(){const c=AN.sel&&CT.byId[AN.sel];if(!c)return null;const ids=[c.id];if(c.limb)ids.push('sw_'+c.limb.id);return ids;}
+function allIds(){const ids=CT.list.map(c=>c.id);CT.limbs.forEach(L=>ids.push('sw_'+L.id));return ids;}
+function keyIds(ids,interp){const C=curClip();if(!C)return;const f=Math.round(AN.frame);ids.forEach(id=>{if(CT.byId[id]||/^sw_/.test(id))setKey(C,id,f,curVal(id),interp);});markDirty();}
+function goFrame(f,keepPose){const C=curClip();if(!C)return;f=Math.max(0,Math.min(C.len,f));AN.frame=f;if(!keepPose)AN.pose=samplePose(C,f);AN.tlDirty=true;}
+function setPlay(on){const C=curClip();if(on&&!C)return;AN.playing=on;AN.t=performance.now();
+  $('tlPlay').innerHTML=on?ICON_PAUSE:ICON_PLAY;$('tlPlay').title=on?'Пауза (пробел)':'Играть (пробел)';if(!on)goFrame(Math.round(AN.frame));}
+const ICON_PLAY='<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></svg>';
+const ICON_PAUSE='<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4.5" width="4" height="15" rx="1"/><rect x="14" y="4.5" width="4" height="15" rx="1"/></svg>';
+function stepKey(dir){const C=curClip();if(!C)return;const fs=keyFrames(C,selIds());const f=Math.round(AN.frame);
+  const t=dir>0?fs.find(x=>x>f):[...fs].reverse().find(x=>x<f);if(t!=null)goFrame(t);else if(dir>0)goFrame(C.len);else goFrame(0);}
+function delKeysAt(){const C=curClip();if(!C)return;const f=Math.round(AN.frame),ids=selIds();let n=0;rigPush();
+  for(const id in C.ch){if(ids&&!ids.includes(id))continue;const K=C.ch[id],i=K.findIndex(k=>k.f===f);if(i>=0){K.splice(i,1);n++;}if(!K.length)delete C.ch[id];}
+  if(!n){RU.u.pop();toast('На этом кадре нет ключа');return;}goFrame(f);renderPoseUI();toast(ids?'Ключ удалён':'Ключи на кадре удалены');}
+function moveKeys(from,to,ids){const C=curClip();if(!C||from===to)return;
+  for(const id in C.ch){if(ids&&!ids.includes(id))continue;const K=C.ch[id],k=K.find(x=>x.f===from);if(!k)continue;const i=K.findIndex(x=>x.f===to);if(i>=0)K.splice(i,1);k.f=to;K.sort((a,b)=>a.f-b.f);}AN.tlDirty=true;}
+function newClip(name,len,fps,loop){AN.clips.push({name,len:len||48,fps:fps||30,loop:loop!==false,ch:{}});AN.cur=AN.clips.length-1;goFrame(0);renderAnimUI();}
+function clipName(base){let k=1,n=base;const has=x=>AN.clips.some(c=>c.name===x);while(has(n))n=base+' '+(++k);return n;}
+
+/* ---------- pose tools ---------- */
+const mateId=id=>/_l$/.test(id)?id.slice(0,-2)+'_r':/_r$/.test(id)?id.slice(0,-2)+'_l':null;
+function mirrorVal(v){const o={};if(v.p)o.p=[-v.p[0],v.p[1],v.p[2]];if(v.q)o.q=[v.q[0],-v.q[1],-v.q[2],v.q[3]];if(v.r!=null)o.r=v.r;if(v.v!=null)o.v=v.v;return o;}
+function poseIds(){return allIds().filter(id=>CT.byId[id]||/^sw_/.test(id));}
+function applyPose(P,ids){rigPush();ids.forEach(id=>{AN.pose[id]=P[id];});if(AN.auto)keyIds(ids);AN.tlDirty=true;markDirty();}
+function flipPose(){if(!SK)return;const P={},ids=poseIds();ids.forEach(id=>{const m=mateId(id);P[id]=mirrorVal(curVal(m&&ids.includes(m)?m:id));});applyPose(P,ids);toast('Поза отражена');}
+function copySide(s){if(!SK)return;const P={},ids=[],all=poseIds();all.forEach(id=>{if(id.endsWith('_'+s)){const m=mateId(id);if(all.includes(m)){P[m]=mirrorVal(curVal(id));ids.push(m);}}});
+  applyPose(P,ids);toast(s==='l'?'Левая сторона скопирована на правую':'Правая сторона скопирована на левую');}
+function copyPose(){if(!SK)return;AN.copied={};poseIds().forEach(id=>AN.copied[id]=curVal(id));toast('Поза скопирована');}
+function pastePose(){if(!AN.copied){toast('Сначала скопируй позу');return;}const ids=Object.keys(AN.copied).filter(id=>CT.byId[id]||/^sw_/.test(id));applyPose(AN.copied,ids);toast('Поза вставлена');}
+function resetPose(all){const c=AN.sel&&CT.byId[AN.sel];if(!all&&!c)return;const ids=all?CT.list.map(c=>c.id):[c.id],P={};ids.forEach(id=>P[id]=defVal(CT.byId[id]));applyPose(P,ids);}
+/* switching a limb between IK and FK keeps it where it is */
+function setIK(L,on){if(!SK)return;rigPush();evalPose(AN.pose);const b=SK.bones,ids=['sw_'+L.id];
+  if(on){const f=frameOf(CT.byId['ik_'+L.id],new THREE.Matrix4()).invert().multiply(b[L.e].matrixWorld),p=new THREE.Vector3(),q=new THREE.Quaternion();f.decompose(p,q,_v2);
+    AN.pose['ik_'+L.id]={p:p.toArray(),q:q.toArray(),r:0};
+    const A=new THREE.Vector3().setFromMatrixPosition(b[L.u].matrixWorld),M=new THREE.Vector3().setFromMatrixPosition(b[L.l].matrixWorld),E=new THREE.Vector3().setFromMatrixPosition(b[L.e].matrixWorld);
+    const bd=M.clone().sub(A.clone().add(E).multiplyScalar(0.5));if(bd.lengthSq()<1e-12)bd.copy(L.bend0).applyQuaternion(b[L.u].getWorldQuaternion(new THREE.Quaternion()));
+    const pw=M.addScaledVector(bd.normalize(),A.distanceTo(E)*0.6+modelSize*0.05);
+    AN.pose['pole_'+L.id]={p:pw.applyMatrix4(frameOf(CT.byId['pole_'+L.id],new THREE.Matrix4()).invert()).toArray()};ids.push('ik_'+L.id,'pole_'+L.id);}
+  else ['u','l','e'].forEach(k=>{const id='fk_'+RG.bones[L[k]].name;AN.pose[id]={q:b[L[k]].quaternion.toArray()};ids.push(id);});
+  AN.pose['sw_'+L.id]={v:on?1:0};
+  const C=curClip();if(C&&(AN.auto||C.ch['sw_'+L.id]))keyIds(ids);else RG.ikDef[L.id]=on?1:0;
+  AN.tlDirty=true;markDirty();renderPoseUI();}
+
+/* ---------- presets for a humanoid rig ---------- */
+const qAx=(x,y,z,a)=>new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(x,y,z).normalize(),a);
+function presetClip(kind){
+  if(!CT.byId['ik_leg_l']||!CT.byId['ik_leg_r']){toast('Заготовки работают со скелетом человека');return;}
+  rigPush();const B=RG.bones,legL=CT.limbs.find(L=>L.id==='leg_l'),leg=Math.max(va(B[legL.u].p).y-legL.ground,modelSize*0.1);
+  const cfg={idle:['Стойка',60,true],walk:['Ходьба',32,true],run:['Бег',20,true],jump:['Прыжок',40,false],wave:['Взмах',40,true]}[kind];
+  const C={name:clipName(cfg[0]),len:cfg[1],fps:30,loop:cfg[2],ch:{}},K=(id,f,v,i)=>{if(CT.byId[id]||/^sw_/.test(id))setKey(C,id,f,v,i);};
+  const arms=['l','r'].filter(s=>CT.byId['ik_arm_'+s]);
+  /* arms hang down, then swing around the side axis; Wu is the upper arm's turn, the elbow bends forward on top */
+  const hang=s=>{const L=CT.limbs.find(L=>L.id==='arm_'+s),u0=va(B[L.l].p).sub(va(B[L.u].p)).normalize();return new THREE.Quaternion().setFromUnitVectors(u0,new THREE.Vector3(s==='l'?0.2:-0.2,-1,0).normalize());};
+  const armKey=(s,f,swing,bend,dirU)=>{if(!arms.includes(s))return;const L=CT.limbs.find(L=>L.id==='arm_'+s),u0=va(B[L.l].p).sub(va(B[L.u].p)).normalize();
+    const Wu=dirU?new THREE.Quaternion().setFromUnitVectors(u0,dirU.clone().normalize()):qAx(1,0,0,swing).multiply(hang(s)),Wl=qAx(1,0,0,-bend).multiply(Wu);
+    K('fk_upperarm_'+s,f,{q:Wu.toArray()});K('fk_lowerarm_'+s,f,{q:Wu.clone().invert().multiply(Wl).toArray()});K('fk_hand_'+s,f,{q:[0,0,0,1]});};
+  arms.forEach(s=>K('sw_arm_'+s,0,{v:0},'c'));['l','r'].forEach(s=>K('sw_leg_'+s,0,{v:1},'c'));
+  const sm=x=>x*x*(3-2*x),N=C.len;
+  if(kind==='walk'||kind==='run'){const run=kind==='run',st=run?0.38:0.55,S=leg*(run?0.42:0.28),lift=leg*(run?0.38:0.2),step=2;
+    for(let f=0;f<=N;f+=step){const ph=f/N;
+      for(const [s,off] of [['l',0],['r',0.5]]){const p=(ph+off)%1;let z,y=0,r=0;
+        if(p<st){z=S*(1-2*p/st);if(p<st*0.25)r=-0.3*(1-p/(st*0.25));else if(p>st*0.7)r=0.55*(p-st*0.7)/(st*0.3);}
+        else{const u=(p-st)/(1-st);z=-S+2*S*sm(u);y=lift*Math.sin(Math.PI*u);r=0.4*(1-u)*(1-u);}
+        K('ik_leg_'+s,f,{p:[0,y,z],q:[0,0,0,1],r});}
+      const bob=(run?0.07:0.035)*leg;K('cog',f,{p:[0.02*leg*Math.sin(2*Math.PI*ph),-bob*(0.5+0.5*Math.cos(4*Math.PI*ph))-(run?0.06*leg:0),0],q:qAx(0,1,0,-0.12*Math.cos(2*Math.PI*ph)).toArray()});
+      K('fk_spine_01',f,{q:qAx(1,0,0,run?0.18:0.04).toArray()});K('fk_spine_02',f,{q:qAx(0,1,0,0.1*Math.cos(2*Math.PI*ph)).toArray()});
+      const sw=(run?0.85:0.42)*Math.cos(2*Math.PI*ph);armKey('l',f,sw,run?1.3:0.25);armKey('r',f,-sw,run?1.3:0.25);}}
+  else if(kind==='idle'){for(let f=0;f<=N;f+=10){const ph=f/N,b=0.5-0.5*Math.cos(2*Math.PI*ph);
+      K('cog',f,{p:[0,-0.012*leg*b,0],q:[0,0,0,1]});K('fk_spine_03',f,{q:qAx(1,0,0,-0.03*b).toArray()});K('fk_head',f,{q:qAx(0,1,0,0.08*Math.sin(2*Math.PI*ph)).toArray()});
+      armKey('l',f,0.04*Math.sin(2*Math.PI*ph),0.15);armKey('r',f,-0.04*Math.sin(2*Math.PI*ph),0.15);}}
+  else if(kind==='jump'){const J=[[0,0,0,0,0,0],[10,0,-0.2,0.3,0.6,0],[16,0,0.02,0,-1.1,0],[24,0.55,0,-0.05,-2.2,0.18],[32,0,-0.17,0.2,0.3,0],[40,0,0,0,0,0]];
+    for(const [f,ry,cy,lean,arm,tuck] of J){K('root',f,{p:[0,ry*leg,0],q:[0,0,0,1]});K('cog',f,{p:[0,cy*leg,0],q:qAx(1,0,0,lean).toArray()});
+      ['l','r'].forEach(s=>K('ik_leg_'+s,f,{p:[0,tuck*leg,0],q:[0,0,0,1],r:0}));armKey('l',f,arm,0.3);armKey('r',f,arm,0.3);}}
+  else if(kind==='wave'){for(let f=0;f<=N;f+=5){const ph=f/N;K('cog',f,{p:[0,0,0],q:qAx(0,0,1,0.03*Math.sin(2*Math.PI*ph)).toArray()});armKey('l',f,0.05,0.15);
+      if(arms.includes('r')){const L=CT.limbs.find(L=>L.id==='arm_r'),u0=va(B[L.l].p).sub(va(B[L.u].p)).normalize(),v0=va(B[L.e].p).sub(va(B[L.l].p)).normalize();
+        const Wu=new THREE.Quaternion().setFromUnitVectors(u0,new THREE.Vector3(-0.85,0.45,0.1).normalize());
+        const Wl=new THREE.Quaternion().setFromUnitVectors(v0,new THREE.Vector3(0,1,0.1).applyAxisAngle(new THREE.Vector3(0,0,1),0.45*Math.sin(4*Math.PI*ph)).normalize());
+        K('fk_upperarm_r',f,{q:Wu.toArray()});K('fk_lowerarm_r',f,{q:Wu.clone().invert().multiply(Wl).toArray()});K('fk_hand_r',f,{q:[0,0,0,1]});}}}
+  AN.clips.push(C);AN.cur=AN.clips.length-1;goFrame(0);renderAnimUI();setPlay(true);markDirty();toast('Готово: «'+C.name+'». Её можно править как свою');
+}
+
+/* ---------- undo for the skeleton and animation (paint keeps its own history) ---------- */
+function rigSnap(){return JSON.stringify({b:RG.bones,s:RG.soft,bd:RG.bind,ik:RG.ikDef,c:AN.clips,cur:AN.cur,p:AN.pose});}
+function rigPush(snap){RU.u.push(snap||rigSnap());if(RU.u.length>80)RU.u.shift();RU.r.length=0;updUndo();markDirty();}
+function rigRestore(s){const o=JSON.parse(s),same=JSON.stringify(o.b)===JSON.stringify(RG.bones);
+  RG.bones=o.b;RG.soft=o.s;RG.bind=o.bd||{};RG.ikDef=o.ik||{};AN.clips=o.c||[];AN.cur=Math.max(0,Math.min(o.cur||0,AN.clips.length-1));AN.pose=o.p||{};
+  if(RG.sel>=RG.bones.length)RG.sel=-1;if(!same)rigChanged();else{RG.wkey=RG.W?RG.wkey:'';}AN.tlDirty=true;renderRigUI();renderAnimUI();markDirty();}
+function rigUndo(){if(!RU.u.length)return;RU.r.push(rigSnap());rigRestore(RU.u.pop());updUndo();}
+function rigRedo(){if(!RU.r.length)return;RU.u.push(rigSnap());rigRestore(RU.r.pop());updUndo();}
+/* the skeleton changed: joints, weights, controllers and their shapes follow */
+let rebuildT=0;
+function rigChanged(){topo();tc.detach();if(SK)dropSkin();dropCtrls();if(JV){JV.sph.forEach(m=>ovG.remove(m));ovG.remove(JV.lines);JV=null;}
+  if(RG.bones.length&&skinNeeded())ensureSkin();else if(RG.bones.length&&mode==='anim')ensureSkin();
+  renderRigUI();renderAnimUI();markDirty();}
+function rigSoon(){clearTimeout(rebuildT);rebuildT=setTimeout(()=>{if(skinNeeded()){buildSkin();}},250);}
+function rigReset(){tc.detach();if(SK)dropSkin();dropCtrls();skGeo.clear();
+  RG.bones=[];RG.sel=-1;RG.bind={};RG.ikDef={};RG.W=null;RG.wkey='';RG.test=false;RG.wview=false;AN.clips=[];AN.cur=0;AN.frame=0;AN.pose={};AN.sel=null;AN.playing=false;
+  RU.u.length=0;RU.r.length=0;renderRigUI();renderAnimUI();}
+function rigData(){return {v:1,bones:RG.bones,soft:RG.soft,bind:RG.bind,ikDef:RG.ikDef,clips:AN.clips,cur:AN.cur};}
+function rigLoad(o){if(!o||!Array.isArray(o.bones))return;RG.bones=o.bones.map(b=>({name:String(b.name),parent:b.parent|0,p:b.p.slice(0,3).map(Number),soft:+b.soft||1}));
+  RG.soft=+o.soft||1;RG.bind=o.bind||{};RG.ikDef=o.ikDef||{};AN.clips=Array.isArray(o.clips)?o.clips:[];AN.cur=Math.min(o.cur|0,Math.max(0,AN.clips.length-1));
+  AN.frame=0;AN.pose=samplePose(curClip(),0);RG.wkey='';rigChanged();}
+
+/* ---------- joints on screen (rigging) ---------- */
+let JV=null;
+function updJoints(){const B=RG.bones;
+  if(!JV||JV.sph.length!==B.length){if(JV){JV.sph.forEach(m=>ovG.remove(m));ovG.remove(JV.lines);}
+    const g=new THREE.SphereGeometry(modelSize*0.013,12,8);JV={sph:B.map(()=>{const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({depthTest:false,depthWrite:false,transparent:true}));m.renderOrder=1003;ovG.add(m);return m;})};
+    const lg=new THREE.BufferGeometry();lg.setAttribute('position',new THREE.BufferAttribute(new Float32Array(Math.max(1,B.length)*6),3));
+    JV.lines=new THREE.LineSegments(lg,new THREE.LineBasicMaterial({color:0xffffff,depthTest:false,transparent:true,opacity:0.75}));JV.lines.renderOrder=1002;JV.lines.frustumCulled=false;ovG.add(JV.lines);}
+  const posed=SK&&rigG.visible&&(mode==='anim'||RG.test)&&SK.bones.length===B.length,pts=B.map((b,i)=>posed?new THREE.Vector3().setFromMatrixPosition(SK.bones[i].matrixWorld):va(b.p)),la=JV.lines.geometry.attributes.position;
+  B.forEach((b,i)=>{const m=JV.sph[i],sd=sideOf(b.name);m.position.copy(pts[i]);m.material.color.set(i===RG.sel?0xffffff:sd>0?0x4c8dff:sd<0?0xff5d6c:0xffd23f);m.scale.setScalar(i===RG.sel?1.6:1);
+    const q=b.parent>=0?pts[b.parent]:pts[i];la.setXYZ(i*2,q.x,q.y,q.z);la.setXYZ(i*2+1,pts[i].x,pts[i].y,pts[i].z);});
+  la.needsUpdate=true;}
+const toScr=(v,r)=>{const p=v.clone().project(camera);return p.z>1?null:[(p.x+1)/2*r.width,(1-p.y)/2*r.height];};
+function pickJoint(x,y){const r=canvas.getBoundingClientRect(),th=coarse()?26:14;let best=-1,bd=th;
+  RG.bones.forEach((b,i)=>{const m=JV&&JV.sph[i],s=toScr(m?m.position:va(b.p),r);if(!s)return;const d=Math.hypot(s[0]-(x-r.left),s[1]-(y-r.top));if(d<bd){bd=d;best=i;}});return best;}
+function screenRay(x,y){const r=canvas.getBoundingClientRect();ndc.set(((x-r.left)/r.width)*2-1,-((y-r.top)/r.height)*2+1);ray.setFromCamera(ndc,camera);return ray.ray.clone();}
+function setJoint(i,p){const B=RG.bones,b=B[i],cx=modelCenter.x;
+  if(RG.symm&&!sideOf(b.name)&&!mateOf(b.name))p.x=cx;b.p=[p.x,p.y,p.z].map(v=>+v.toFixed(5));
+  const m=RG.symm&&mateOf(b.name),j=m?boneIdx(m):-1;if(j>=0)B[j].p=[+(2*cx-p.x).toFixed(5),b.p[1],b.p[2]];}
+let jdrag=null;
+function jointMove(x,y){const b=RG.bones[jdrag.i],r=screenRay(x,y);let np=RG.inside?midInside(r.origin,r.direction):null;
+  if(!np){const cd=camera.getWorldDirection(new THREE.Vector3());np=r.intersectPlane(new THREE.Plane().setFromNormalAndCoplanarPoint(cd,va(b.p)),new THREE.Vector3());}
+  if(np){setJoint(jdrag.i,np);jdrag.moved=true;RG.wkey='';}}
+function addBone(){const B=RG.bones,i=RG.sel;if(!B.length){toast('Сначала сделай скелет');return;}rigPush();
+  const one=(pi,side)=>{const pb=B[pi],dir=pb&&pb.parent>=0?va(pb.p).sub(va(B[pb.parent].p)):new THREE.Vector3(0,1,0),L=Math.max(dir.length()*0.5,modelSize*0.06);
+    let k=1,base='bone';while(B.some(b=>b.name===base+'_'+k||b.name===base+'_'+k+'_l'))k++;const nm=base+'_'+k+(side?'_'+side:'');
+    const p=pb?va(pb.p).addScaledVector(dir.normalize(),L):modelCenter.clone();B.push({name:nm,parent:pi,p:[p.x,p.y,p.z].map(v=>+v.toFixed(5)),soft:1});return nm;};
+  const pi=i>=0?i:0,pn=B[pi].name,sd=sideOf(pn),mate=RG.symm&&mateOf(pn)?boneIdx(mateOf(pn)):-1;
+  const nm=one(pi,sd>0?'l':sd<0?'r':'');if(mate>=0){const k=boneIdx(nm),p=B[k].p,m2=one(mate,sd>0?'r':'l');const j=boneIdx(m2);B[j].name=nm.slice(0,-2)+(sd>0?'_r':'_l');B[j].p=[+(2*modelCenter.x-p[0]).toFixed(5),p[1],p[2]];}
+  topo();RG.sel=boneIdx(nm);rigChanged();toast('Кость «'+nm+'» добавлена, подвинь её сустав');}
+function delBone(){const B=RG.bones,i=RG.sel;if(i<0)return;rigPush();const names=[B[i].name];const m=RG.symm&&mateOf(B[i].name);if(m&&boneIdx(m)>=0)names.push(m);
+  for(const nm of names){const k=boneIdx(nm);if(k<0)continue;const pa=RG.bones[k].parent;RG.bones.forEach(b=>{if(b.parent===k)b.parent=pa;});RG.bones.splice(k,1);RG.bones.forEach(b=>{if(b.parent>k)b.parent--;});
+    for(const mi in RG.bind)if(RG.bind[mi]===nm)delete RG.bind[mi];}
+  RG.sel=-1;rigChanged();toast(names.length>1?'Кости удалены с обеих сторон':'Кость удалена');}
+function renameBone(i,nm){nm=nm.trim().replace(/\s+/g,'_');const B=RG.bones,old=B[i].name;if(!nm||nm===old)return renderRigUI();
+  if(B.some(b=>b.name===nm)){toast('Такое имя уже есть');return renderRigUI();}rigPush();B[i].name=nm;
+  AN.clips.forEach(C=>{if(C.ch['fk_'+old]){C.ch['fk_'+nm]=C.ch['fk_'+old];delete C.ch['fk_'+old];}});if(AN.pose['fk_'+old]){AN.pose['fk_'+nm]=AN.pose['fk_'+old];delete AN.pose['fk_'+old];}
+  for(const mi in RG.bind)if(RG.bind[mi]===old)RG.bind[mi]=nm;rigChanged();}
+
+/* ---------- picking and dragging controllers (animation) ---------- */
+function ctrlDist(c,x,y,r){const pts=c.pick.pts.map(p=>toScr(p.clone().applyMatrix4(c.pm.matrixWorld),r));if(pts.some(p=>!p))return Infinity;
+  if(c.pick.type==='dot')return Math.max(0,Math.hypot(pts[0][0]-x,pts[0][1]-y)-6);
+  if(c.pick.type==='box'){const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]);if(x>=Math.min(...xs)&&x<=Math.max(...xs)&&y>=Math.min(...ys)&&y<=Math.max(...ys))return 2;
+    return Math.min(...pts.map(p=>Math.hypot(p[0]-x,p[1]-y)));}
+  let best=Infinity;for(let k=0;k<pts.length;k++){const a=pts[k],b=pts[(k+1)%pts.length],dx=b[0]-a[0],dy=b[1]-a[1],L=dx*dx+dy*dy;let t=L?((x-a[0])*dx+(y-a[1])*dy)/L:0;t=Math.max(0,Math.min(1,t));
+    best=Math.min(best,Math.hypot(a[0]+dx*t-x,a[1]+dy*t-y));}return best;}
+function pickCtrl(x,y){const r=canvas.getBoundingClientRect(),th=coarse()?26:14;let best=null,bd=th;
+  for(const c of CT.list){if(!c.frame.visible)continue;const d=ctrlDist(c,x-r.left,y-r.top,r);if(d<bd){bd=d;best=c;}}return best;}
+const tc=new THREE.TransformControls(camera,canvas);tc.enabled=false;tc.setSpace('local');scene.add(tc);
+tc.traverse(o=>{o.renderOrder=1005;});
+function gzMode(c){return c.kind==='fk'?'rotate':c.kind==='pole'?'translate':AN.gz;}
+function selectCtrl(c){AN.sel=c?c.id:null;if(c&&mode==='anim'){tc.attach(c.obj);tc.setMode(gzMode(c));tc.setSize(coarse()?1.15:0.85);}else tc.detach();
+  CT.list.forEach(x=>{x.mat.color.set(x===c?0xffffff:x.col);x.mat.opacity=x===c?1:0.92;});renderPoseUI();AN.tlDirty=true;}
+function readCtrl(c){const o=c.obj,v=AN.pose[c.id]=Object.assign(defVal(c),AN.pose[c.id]||{});if(v.p)v.p=o.position.toArray();if(v.q)v.q=o.quaternion.toArray();}
+function commitCtrl(c,snap){rigPush(snap);if(AN.auto&&curClip())keyIds([c.id]);AN.tlDirty=true;markDirty();}
+let tcSnap=null;
+tc.addEventListener('dragging-changed',e=>{controls.enabled=!e.value;});
+tc.addEventListener('mouseDown',()=>{tcSnap=rigSnap();if(AN.playing)setPlay(false);});
+tc.addEventListener('objectChange',()=>{const c=tc.object&&tc.object.userData.ctrl;if(c&&tc.dragging)readCtrl(c);});
+tc.addEventListener('mouseUp',()=>{const c=tc.object&&tc.object.userData.ctrl;if(c&&tcSnap&&tcSnap!==rigSnap())commitCtrl(c,tcSnap);tcSnap=null;});
+let cdrag=null,downAt=null;
+function startCdrag(c,x,y){const op=gzMode(c)==='rotate'?'rot':'move',wp=new THREE.Vector3(),wq=new THREE.Quaternion();c.obj.getWorldPosition(wp);c.obj.getWorldQuaternion(wq);
+  const finv=c.frame.matrixWorld.clone().invert(),fq=new THREE.Quaternion();c.frame.getWorldQuaternion(fq);
+  const cd=camera.getWorldDirection(new THREE.Vector3()),r=screenRay(x,y),plane=new THREE.Plane().setFromNormalAndCoplanarPoint(cd,wp),h0=r.intersectPlane(plane,new THREE.Vector3());
+  const rc=canvas.getBoundingClientRect(),cs=toScr(wp,rc)||[0,0];
+  cdrag={c,op,wp,wq,finv,fqi:fq.invert(),plane,h0,cs:[cs[0]+rc.left,cs[1]+rc.top],a0:null,x0:x,y0:y,moved:false,snap:rigSnap(),cd};}
+function moveCdrag(x,y){const d=cdrag,c=d.c;if(!d.moved&&Math.hypot(x-d.x0,y-d.y0)<3)return;d.moved=true;if(AN.playing)setPlay(false);
+  const v=AN.pose[c.id]=Object.assign(defVal(c),AN.pose[c.id]||{});
+  if(d.op==='move'){const h=screenRay(x,y).intersectPlane(d.plane,new THREE.Vector3());if(!h||!d.h0)return;v.p=d.wp.clone().add(h.sub(d.h0)).applyMatrix4(d.finv).toArray();}
+  else{const a=Math.atan2(y-d.cs[1],x-d.cs[0]);if(d.a0==null)d.a0=Math.atan2(d.y0-d.cs[1],d.x0-d.cs[0]);
+    const w=new THREE.Quaternion().setFromAxisAngle(d.cd,a-d.a0).multiply(d.wq);v.q=d.fqi.clone().multiply(w).toArray();}
+  AN.tlDirty=true;}
+canvas.addEventListener('pointerdown',e=>{
+  if(mode==='paint'||e.button!==0||spaceHeld)return;
+  if(ptrs.size>1){if(cdrag){const s=cdrag.snap;cdrag=null;if(s!==rigSnap())rigRestore(s);}if(jdrag){jdrag=null;}controls.enabled=true;return;}
+  downAt=[e.clientX,e.clientY,tc.dragging||tc.axis!==null];
+  if(mode==='rig'){if(RG.test)return;const i=pickJoint(e.clientX,e.clientY);if(i<0)return;RG.sel=i;jdrag={i,moved:false,snap:rigSnap(),pid:e.pointerId};controls.enabled=false;renderRigUI();updWColors();return;}
+  if(tc.dragging){controls.enabled=false;return;}
+  const c=pickCtrl(e.clientX,e.clientY);if(!c)return;selectCtrl(c);startCdrag(c,e.clientX,e.clientY);controls.enabled=false;});
+canvas.addEventListener('pointermove',e=>{if(mode==='paint')return;
+  if(jdrag&&e.pointerId===jdrag.pid)jointMove(e.clientX,e.clientY);
+  if(cdrag)moveCdrag(e.clientX,e.clientY);});
+function rigUp(e){if(mode==='paint')return;
+  if(jdrag){const j=jdrag;jdrag=null;controls.enabled=true;if(j.moved){rigPush(j.snap);RG.wkey='';if(skinNeeded())buildSkin();else dropCtrls();renderRigUI();}return;}
+  if(cdrag){const d=cdrag;cdrag=null;controls.enabled=true;if(d.moved)commitCtrl(d.c,d.snap);return;}
+  if(downAt&&!downAt[2]&&Math.hypot(e.clientX-downAt[0],e.clientY-downAt[1])<6&&!tc.dragging){if(mode==='anim')selectCtrl(null);else{RG.sel=-1;renderRigUI();updWColors();}}
+  downAt=null;}
+canvas.addEventListener('pointerup',rigUp);canvas.addEventListener('pointercancel',e=>{if(cdrag){const s=cdrag.snap;cdrag=null;if(s!==rigSnap())rigRestore(s);}jdrag=null;controls.enabled=true;downAt=null;});
+
+/* ---------- every frame ---------- */
+let rigT=performance.now();
+function rigFrame(){
+  const now=performance.now(),dt=Math.min(0.1,(now-rigT)/1000);rigT=now;
+  if(mode==='paint'){if(!root.visible)root.visible=true;rigG.visible=false;ovG.visible=false;tc.visible=false;return;}
+  const sk=ensureSkin(),useSkin=!!(sk&&skinNeeded());
+  root.visible=!useSkin;rigG.visible=useSkin;ovG.visible=true;
+  if(useSkin){
+    if(mode==='anim'){const C=curClip();if(AN.playing&&C){AN.frame+=dt*C.fps;if(AN.frame>C.len){if(C.loop)AN.frame%=C.len||1;else{AN.frame=C.len;setPlay(false);}}AN.pose=samplePose(C,AN.frame);AN.tlDirty=true;}
+      evalPose(AN.pose);}
+    else if(RG.test)wiggle(now/1000);else{restPose();rigG.updateMatrixWorld(true);}
+    SK.parts.forEach(p=>{const vis=p.d.mesh.visible;p.sm.material=p.d.mesh.material;p.sm.visible=vis&&!(mode==='rig'&&RG.wview);p.wm.visible=vis&&mode==='rig'&&RG.wview;
+      p.sm.castShadow=p.sm.receiveShadow=p.d.mesh.castShadow;});
+    skinOutlines();}
+  /* joints in rigging, controllers in animation */
+  const showJ=mode==='rig'&&RG.bones.length;if(showJ)updJoints();if(JV){JV.sph.forEach(m=>m.visible=!!showJ);JV.lines.visible=!!showJ;}
+  const showC=mode==='anim'&&useSkin;
+  CT.list.forEach(c=>{let vis=showC;if(vis&&c.kind==='fk'&&c.limb)vis=!ikOn(AN.pose,c.limb);if(vis&&(c.kind==='ik'||c.kind==='pole'))vis=ikOn(AN.pose,c.limb);
+    c.frame.visible=vis;if(c.line)c.line.visible=vis;if(!vis)return;
+    frameOf(c,c.frame.matrix);const dragged=(tc.dragging&&tc.object===c.obj);
+    if(!dragged){const v=Object.assign(defVal(c),AN.pose[c.id]||{});if(v.p)c.obj.position.fromArray(v.p);else c.obj.position.set(0,0,0);if(v.q)c.obj.quaternion.fromArray(v.q).normalize();else c.obj.quaternion.identity();}
+    c.frame.updateMatrixWorld(true);
+    if(c.line){const a=c.line.geometry.attributes.position,m=new THREE.Vector3().setFromMatrixPosition(SK.bones[c.limb.l].matrixWorld),p=new THREE.Vector3().setFromMatrixPosition(c.obj.matrixWorld);
+      a.setXYZ(0,m.x,m.y,m.z);a.setXYZ(1,p.x,p.y,p.z);a.needsUpdate=true;}});
+  if(tc.object&&!tc.object.parent.visible)tc.detach();
+  tc.visible=mode==='anim'&&!!tc.object;tc.enabled=mode==='anim';
+  if(mode==='anim'&&AN.tlDirty){AN.tlDirty=false;drawTL();}
+}
+
+/* ---------- timeline ---------- */
+const tlCv=$('tlCv');let tlDrag=null;
+function tlGeom(){const w=tlCv.clientWidth,h=tlCv.clientHeight,C=curClip(),pad=10,len=C?C.len:48;return {w,h,pad,len,x:f=>pad+(w-2*pad)*f/len,f:x=>Math.round((x-pad)/(w-2*pad)*len)};}
+function drawTL(){
+  const G=tlGeom(),dpr=Math.min(2,devicePixelRatio||1);if(!G.w)return;
+  if(tlCv.width!==Math.round(G.w*dpr)||tlCv.height!==Math.round(G.h*dpr)){tlCv.width=Math.round(G.w*dpr);tlCv.height=Math.round(G.h*dpr);}
+  const x=tlCv.getContext('2d'),cs=getComputedStyle(document.documentElement),fg=cs.getPropertyValue('--fg').trim(),mu=cs.getPropertyValue('--muted').trim(),ac=cs.getPropertyValue('--accent').trim(),ln=cs.getPropertyValue('--line').trim();
+  x.setTransform(dpr,0,0,dpr,0,0);x.clearRect(0,0,G.w,G.h);const C=curClip(),yk=G.h*0.62;
+  x.strokeStyle=ln;x.lineWidth=1;x.beginPath();x.moveTo(G.pad,yk);x.lineTo(G.w-G.pad,yk);x.stroke();
+  const stp=[1,2,5,10,20,30,60].find(s=>(G.w-2*G.pad)/G.len*s>=7)||60,lab=[5,10,20,30,60,120].find(s=>(G.w-2*G.pad)/G.len*s>=34)||120;
+  x.font='10px '+cs.getPropertyValue('--f-mono');x.fillStyle=mu;x.textAlign='center';
+  for(let f=0;f<=G.len;f+=stp){const X=Math.round(G.x(f))+0.5,big=f%lab===0;x.strokeStyle=ln;x.beginPath();x.moveTo(X,big?G.h*0.18:G.h*0.3);x.lineTo(X,G.h*0.42);x.stroke();if(big)x.fillText(f,X,G.h*0.16+4);}
+  if(C){const sel=selIds(),all=keyFrames(C),mine=sel?keyFrames(C,sel):[];
+    const dia=(f,s,col)=>{const X=G.x(f);x.fillStyle=col;x.beginPath();x.moveTo(X,yk-s);x.lineTo(X+s,yk);x.lineTo(X,yk+s);x.lineTo(X-s,yk);x.closePath();x.fill();};
+    all.forEach(f=>dia(f,4.5,mine.includes(f)?ac:mu));mine.forEach(f=>dia(f,5.5,ac));}
+  const X=G.x(AN.frame);x.strokeStyle=ac;x.lineWidth=2;x.beginPath();x.moveTo(X,2);x.lineTo(X,G.h-2);x.stroke();
+  $('tlF').textContent=Math.round(AN.frame)+' / '+(C?C.len:0);
+}
+tlCv.addEventListener('pointerdown',e=>{const C=curClip();if(!C)return;e.preventDefault();tlCv.setPointerCapture(e.pointerId);if(AN.playing)setPlay(false);
+  const r=tlCv.getBoundingClientRect(),G=tlGeom(),px=e.clientX-r.left,py=e.clientY-r.top,sel=selIds();
+  const fs=keyFrames(C,sel||undefined),near=fs.find(f=>Math.abs(G.x(f)-px)<(coarse()?11:7));
+  if(near!=null&&py>G.h*0.4){tlDrag={key:near,from:near,snap:rigSnap(),ids:sel};goFrame(near);return;}
+  tlDrag={scrub:true};goFrame(G.f(px));});
+tlCv.addEventListener('pointermove',e=>{if(!tlDrag)return;const r=tlCv.getBoundingClientRect(),G=tlGeom(),f=Math.max(0,Math.min(G.len,G.f(e.clientX-r.left)));
+  if(tlDrag.scrub){if(f!==Math.round(AN.frame))goFrame(f);return;}
+  if(f!==tlDrag.key){moveKeys(tlDrag.key,f,tlDrag.ids);tlDrag.key=f;goFrame(f);}});
+const tlEnd=()=>{if(tlDrag&&tlDrag.snap&&tlDrag.key!==tlDrag.from){rigPush(tlDrag.snap);markDirty();}tlDrag=null;};
+tlCv.addEventListener('pointerup',tlEnd);tlCv.addEventListener('pointercancel',tlEnd);
+new ResizeObserver(()=>{AN.tlDirty=true;}).observe(tlCv);
+$('tlPlay').addEventListener('click',()=>{const C=curClip();if(!C)return;if(!AN.playing&&!C.loop&&AN.frame>=C.len)goFrame(0);setPlay(!AN.playing);});
+$('tlStart').addEventListener('click',()=>{setPlay(false);goFrame(0);});
+$('tlPrev').addEventListener('click',()=>{setPlay(false);stepKey(-1);});
+$('tlNext').addEventListener('click',()=>{setPlay(false);stepKey(1);});
+$('tlKey').addEventListener('click',()=>keyNow());
+function keyNow(all){if(!SK)return;if(!curClip())newClip(clipName('Анимация'));rigPush();const ids=!all&&selIds()||allIds();keyIds(ids);renderPoseUI();toast(ids.length>3?'Ключ на всю позу, кадр '+Math.round(AN.frame):'Ключ поставлен, кадр '+Math.round(AN.frame));}
+
+/* ---------- panels ---------- */
+function renderRigUI(){
+  const B=RG.bones,has=B.length>0;$('rigEmpty').hidden=has;$('rTree').hidden=!has;$('rClear').hidden=!has;
+  $('rAuto').textContent=has?'Заново: человек':'Скелет человека';
+  const box=$('rList');box.innerHTML='';const depth=i=>{let d=0;while(B[i]&&B[i].parent>=0){i=B[i].parent;d++;}return d;};
+  B.forEach((b,i)=>{const el=document.createElement('button');el.className='bone'+(i===RG.sel?' on':'');el.style.paddingLeft=(6+Math.min(depth(i),8)*12)+'px';
+    const sd=sideOf(b.name);el.innerHTML='<i style="background:'+(sd>0?'#4c8dff':sd<0?'#ff5d6c':'#ffd23f')+'"></i>';el.append(b.name);
+    el.addEventListener('click',()=>{RG.sel=i===RG.sel?-1:i;renderRigUI();updWColors();});box.appendChild(el);});
+  const s=RG.sel>=0?B[RG.sel]:null;$('rNoSel').hidden=!!s;$('rBone').hidden=!s;$('wBoneRow').hidden=!s;
+  if(s){$('rName').value=s.name;const sel=$('rParent');sel.innerHTML='';const desc=new Set([RG.sel]);let grew=true;while(grew){grew=false;B.forEach((b,j)=>{if(desc.has(b.parent)&&!desc.has(j)){desc.add(j);grew=true;}});}
+    const o0=document.createElement('option');o0.value='-1';o0.textContent='нет (корень)';sel.appendChild(o0);
+    B.forEach((b,j)=>{if(desc.has(j))return;const o=document.createElement('option');o.value=j;o.textContent=b.name;sel.appendChild(o);});sel.value=String(s.parent);
+    $('wBone').value=Math.round((s.soft||1)*100);$('wBoneO').textContent=(s.soft||1).toFixed(1);$('wBoneL').textContent='Мягкость у «'+s.name+'»';}
+  $('wSoft').value=Math.round(RG.soft*100);$('wSoftO').textContent=RG.soft.toFixed(1);
+  $('wView').checked=RG.wview;$('wTest').checked=RG.test;$('rWBtn').classList.toggle('on',RG.wview);$('rTestBtn').classList.toggle('on',RG.test);
+  $('rWBtn').setAttribute('aria-pressed',RG.wview);$('rTestBtn').setAttribute('aria-pressed',RG.test);$('rSym').checked=RG.symm;$('rIn').checked=RG.inside;
+  const wp=$('wParts');wp.innerHTML='';$('wNoRig').hidden=has;$('wBox').hidden=!has;
+  meshes.forEach((d,mi)=>{const row=document.createElement('label');row.className='wpart';const nm=document.createElement('span');nm.textContent=partName(d,mi);
+    const sel=document.createElement('select');sel.className='palsel';const a=document.createElement('option');a.value='';a.textContent='Сама';sel.appendChild(a);
+    B.forEach(b=>{const o=document.createElement('option');o.value=b.name;o.textContent=b.name;sel.appendChild(o);});sel.value=RG.bind[mi]||'';
+    sel.addEventListener('change',()=>{rigPush();if(sel.value)RG.bind[mi]=sel.value;else delete RG.bind[mi];RG.wkey='';rigSoon();});row.append(nm,sel);wp.appendChild(row);});
+  $('rigExpRow').hidden=!has;
+}
+function renderAnimUI(){
+  const has=RG.bones.length>0,C=curClip();$('aNoRig').hidden=has;$('aBox').hidden=!has;$('aPresetsSec').hidden=!has;
+  const sel=$('aClip');sel.innerHTML='';AN.clips.forEach((c,i)=>{const o=document.createElement('option');o.value=i;o.textContent=c.name;sel.appendChild(o);});
+  if(!AN.clips.length){const o=document.createElement('option');o.textContent='Анимаций пока нет';sel.appendChild(o);}sel.value=String(AN.cur);
+  ['aName','aLen','aFps','aLoop','aDup','aDel'].forEach(id=>$(id).disabled=!C);
+  if(C){$('aName').value=C.name;$('aLen').value=C.len;$('aLenO').textContent=C.len;$('aFps').value=String(C.fps);$('aLoop').checked=C.loop;$('aSec').textContent=(C.len/C.fps).toFixed(2).replace('.',',')+' с';}
+  $('aAuto').checked=AN.auto;AN.tlDirty=true;renderPoseUI();
+}
+function renderPoseUI(){
+  const c=AN.sel&&CT.byId[AN.sel];$('pNoSel').hidden=!!c;$('pBox').hidden=!c;
+  if(c){const nm=c.kind==='root'?'Корень: весь персонаж':c.kind==='cog'?'Тело (таз)':c.kind==='ik'?'IK '+limbName(c.limb):c.kind==='pole'?'Сгиб: '+limbName(c.limb):'Кольцо '+RG.bones[c.bone].name;$('pName').textContent=nm;
+    const L=c.limb;$('pIkRow').hidden=!L;if(L){const on=ikOn(AN.pose,L);$('pIkRow').querySelectorAll('.chip').forEach(b=>b.classList.toggle('on',(b.dataset.ik==='1')===on));$('pIkName').textContent=limbName(L)+':';}
+    $('pRollRow').hidden=!(c.kind==='ik'&&L.leg);if(c.kind==='ik'&&L.leg){const r=Math.round((curVal(c.id).r||0)*180/Math.PI);$('pRoll').value=r;$('pRollO').textContent=r+'°';}}
+  const C=curClip(),f=Math.round(AN.frame),ids=selIds();let k=null;if(C)for(const id in C.ch){if(ids&&!ids.includes(id))continue;const x=C.ch[id].find(q=>q.f===f);if(x){k=x;break;}}
+  $('pInterp').querySelectorAll('.chip').forEach(b=>b.classList.toggle('on',!!k&&(k.i||'s')===b.dataset.i));$('pKeyInfo').textContent=k?'На кадре '+f+' есть ключ':'На кадре '+f+' ключа нет';
+  $('aIkBtn').disabled=!(c&&c.limb);
+}
+const limbName=L=>({arm_l:'левая рука',arm_r:'правая рука',leg_l:'левая нога',leg_r:'правая нога'})[L.id]||L.id;
+
+/* ---------- modes: paint, rig, animate ---------- */
+const lastTab={paint:'paint',rig:'rig',anim:'anim'},MODE_HINT={rig:'Тяни сустав, чтобы подвинуть. Тяни по пустому месту, чтобы вращать камеру.',
+  anim:'Нажми на контроллер: кольца вращают, кубики двигают руки и ноги, ромбики задают сгиб. Пустое место вращает камеру.'};
+function setMode(m){
+  if(m===mode)return;if(mode==='paint'){commitEdit();cancelOps();}else lastTab[mode]=$('panel').dataset.tab;
+  if(AN.playing)setPlay(false);cdrag=null;jdrag=null;controls.enabled=true;
+  if(mode==='paint'){$('gradSvg').innerHTML='';$('decSvg').innerHTML='';hilite(null);}
+  mode=m;document.body.dataset.mode=m;
+  document.querySelectorAll('.mode').forEach(b=>{const on=b.dataset.mode===m;b.classList.toggle('on',on);b.setAttribute('aria-selected',on);});
+  document.querySelectorAll('.tscroll[data-mode]').forEach(el=>el.hidden=el.dataset.mode!==m);
+  setTab(m==='paint'?lastTab.paint:lastTab[m]);
+  if(m==='paint'){ghKey='';decKey='';setTool(st.tool);tc.detach();}
+  else{ring.visible=ringIn.visible=ring2.visible=ringIn2.visible=false;$('hintPill').textContent=MODE_HINT[m];applyControlMode();updQuick();}
+  if(m==='anim'){if(!RG.bones.length)toast('Сначала сделай скелет во вкладке «Риггинг»');else{ensureSkin();if(!AN.clips.length)newClip(clipName('Анимация'));goFrame(AN.frame);if(AN.sel&&CT.byId[AN.sel])selectCtrl(CT.byId[AN.sel]);}}
+  if(m==='rig'&&!RG.bones.length)toast('Нажми «Скелет человека» — кости встанут сами');
+  updUndo();renderRigUI();renderAnimUI();
+}
+document.querySelectorAll('.mode').forEach(b=>b.addEventListener('click',()=>setMode(b.dataset.mode)));
+function setGz(g){AN.gz=g;document.querySelectorAll('[data-atool]').forEach(b=>b.classList.toggle('on',b.dataset.atool===g));const c=AN.sel&&CT.byId[AN.sel];if(c)tc.setMode(gzMode(c));}
+document.querySelectorAll('[data-atool]').forEach(b=>b.addEventListener('click',()=>setGz(b.dataset.atool)));
+function setWView(on){RG.wview=on;if(on)ensureSkin();renderRigUI();}
+function setTest(on){RG.test=on;if(on){RG.sel=RG.sel;ensureSkin();}renderRigUI();}
+/* keys in rigging and animation; letters that paint uses are swallowed so they don't switch paint tools */
+function rigKey(e){const k=e.key.toLowerCase(),mod=e.ctrlKey||e.metaKey;
+  if(mode==='anim'){
+    if(e.code==='Space'){e.preventDefault();$('tlPlay').click();return true;}
+    if(mod&&k==='c'){copyPose();return true;}if(mod&&k==='v'){e.preventDefault();pastePose();return true;}if(mod)return false;
+    if(k==='w'){setGz('translate');return true;}if(k==='e'){setGz('rotate');return true;}if(k==='k'){keyNow(e.shiftKey);return true;}
+    if(k==='i'){const c=AN.sel&&CT.byId[AN.sel];if(c&&c.limb)setIK(c.limb,!ikOn(AN.pose,c.limb));return true;}if(k==='m'){flipPose();return true;}
+    if(e.key==='ArrowLeft'||e.key===','){setPlay(false);goFrame(Math.round(AN.frame)-1);return true;}if(e.key==='ArrowRight'||e.key==='.'){setPlay(false);goFrame(Math.round(AN.frame)+1);return true;}
+    if(e.key==='ArrowUp'){e.preventDefault();setPlay(false);stepKey(1);return true;}if(e.key==='ArrowDown'){e.preventDefault();setPlay(false);stepKey(-1);return true;}
+    if(e.key==='Home'){goFrame(0);return true;}if(e.key==='End'){const C=curClip();if(C)goFrame(C.len);return true;}
+    if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();delKeysAt();return true;}
+    if(e.key==='Escape'){selectCtrl(null);return true;}
+    return k.length===1&&/[a-zа-я]/.test(k);}
+  if(mode==='rig'){if(mod)return false;
+    if(k==='n'){addBone();return true;}if(k==='w'){setWView(!RG.wview);return true;}if(k==='p'){setTest(!RG.test);return true;}
+    if((e.key==='Delete'||e.key==='Backspace')&&RG.sel>=0){e.preventDefault();delBone();return true;}
+    if(e.key==='Escape'){RG.sel=-1;renderRigUI();updWColors();return true;}
+    return k.length===1&&/[a-zа-я]/.test(k);}
+  return false;}
+
+/* ---------- panel controls ---------- */
+$('rAuto').addEventListener('click',()=>autoSkeleton('human'));$('rAutoNA').addEventListener('click',()=>autoSkeleton('noarms'));$('rAuto1').addEventListener('click',()=>autoSkeleton('one'));
+$('rClear').addEventListener('click',()=>{if(!RG.bones.length)return;rigPush();RG.bones=[];RG.sel=-1;RG.bind={};rigChanged();toast('Скелет удалён. Отменить можно кнопкой «Отменить»');});
+$('rSym').addEventListener('change',e=>{RG.symm=e.target.checked;});$('rIn').addEventListener('change',e=>{RG.inside=e.target.checked;});
+$('rName').addEventListener('change',e=>{if(RG.sel>=0)renameBone(RG.sel,e.target.value);});
+$('rName').addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Enter')e.target.blur();});
+$('rParent').addEventListener('change',e=>{if(RG.sel<0)return;rigPush();RG.bones[RG.sel].parent=+e.target.value;rigChanged();});
+$('rAddBtn').addEventListener('click',addBone);$('rAddB').addEventListener('click',addBone);$('rDelB').addEventListener('click',delBone);
+$('rWBtn').addEventListener('click',()=>setWView(!RG.wview));$('rTestBtn').addEventListener('click',()=>setTest(!RG.test));
+$('wView').addEventListener('change',e=>setWView(e.target.checked));$('wTest').addEventListener('change',e=>setTest(e.target.checked));
+$('wBind').addEventListener('click',()=>{if(!RG.bones.length){toast('Сначала сделай скелет');return;}RG.wkey='';RG.W=null;toast('Привязываю…');setTimeout(()=>{ensureWeights();if(skinNeeded())buildSkin();if(!RG.test)setTest(true);toast('Готово: модель привязана к скелету');},30);});
+let softSnap=null;
+const softIn=(id,fn)=>{$(id).addEventListener('input',e=>{if(!softSnap)softSnap=rigSnap();fn(+e.target.value/100);$(id+'O').textContent=(+e.target.value/100).toFixed(1);RG.wkey='';rigSoon();});
+  $(id).addEventListener('change',()=>{if(softSnap){rigPush(softSnap);softSnap=null;}});};
+softIn('wSoft',v=>{RG.soft=v;});softIn('wBone',v=>{if(RG.sel>=0){const b=RG.bones[RG.sel];b.soft=v;const m=RG.symm&&mateOf(b.name),j=m?boneIdx(m):-1;if(j>=0)RG.bones[j].soft=v;}});
+$('aClip').addEventListener('change',e=>{AN.cur=+e.target.value;setPlay(false);goFrame(0);renderAnimUI();});
+$('aNew').addEventListener('click',()=>{if(!RG.bones.length)return;rigPush();newClip(clipName('Анимация'));toast('Новая анимация: ставь позы и ключи');});
+$('aDup').addEventListener('click',()=>{const C=curClip();if(!C)return;rigPush();const D=JSON.parse(JSON.stringify(C));D.name=clipName(C.name);AN.clips.push(D);AN.cur=AN.clips.length-1;goFrame(0);renderAnimUI();});
+$('aDel').addEventListener('click',()=>{const C=curClip();if(!C)return;rigPush();AN.clips.splice(AN.cur,1);AN.cur=Math.max(0,AN.cur-1);setPlay(false);goFrame(0);renderAnimUI();toast('Анимация «'+C.name+'» удалена');});
+$('aName').addEventListener('change',e=>{const C=curClip();if(!C)return;const v=e.target.value.trim();if(!v)return renderAnimUI();rigPush();C.name=v;renderAnimUI();});
+$('aName').addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Enter')e.target.blur();});
+let lenSnap=null;$('aLen').addEventListener('input',e=>{const C=curClip();if(!C)return;if(!lenSnap)lenSnap=rigSnap();C.len=+e.target.value;$('aLenO').textContent=C.len;$('aSec').textContent=(C.len/C.fps).toFixed(2).replace('.',',')+' с';if(AN.frame>C.len)goFrame(C.len);AN.tlDirty=true;});
+$('aLen').addEventListener('change',()=>{if(lenSnap){rigPush(lenSnap);lenSnap=null;}});
+$('aFps').addEventListener('change',e=>{const C=curClip();if(!C)return;rigPush();C.fps=+e.target.value;renderAnimUI();});
+$('aLoop').addEventListener('change',e=>{const C=curClip();if(!C)return;rigPush();C.loop=e.target.checked;goFrame(AN.frame);});
+$('aAuto').addEventListener('change',e=>{AN.auto=e.target.checked;});
+[['idle','Стойка'],['walk','Ходьба'],['run','Бег'],['jump','Прыжок'],['wave','Взмах']].forEach(([k,t])=>{const b=document.createElement('button');b.className='chip';b.textContent=t;b.addEventListener('click',()=>presetClip(k));$('aPresets').appendChild(b);});
+$('pIkRow').querySelectorAll('.chip').forEach(b=>b.addEventListener('click',()=>{const c=AN.sel&&CT.byId[AN.sel];if(c&&c.limb&&ikOn(AN.pose,c.limb)!==(b.dataset.ik==='1'))setIK(c.limb,b.dataset.ik==='1');}));
+let rollSnap=null;$('pRoll').addEventListener('input',e=>{const c=AN.sel&&CT.byId[AN.sel];if(!c||c.kind!=='ik')return;if(!rollSnap)rollSnap=rigSnap();
+  const v=AN.pose[c.id]=Object.assign(defVal(c),AN.pose[c.id]||{});v.r=+e.target.value*Math.PI/180;$('pRollO').textContent=e.target.value+'°';});
+$('pRoll').addEventListener('change',()=>{const c=AN.sel&&CT.byId[AN.sel];if(c&&rollSnap)commitCtrl(c,rollSnap);rollSnap=null;});
+$('pReset').addEventListener('click',()=>resetPose(false));$('pResetAll').addEventListener('click',()=>resetPose(true));
+$('pCopy').addEventListener('click',copyPose);$('pPaste').addEventListener('click',pastePose);$('pMirror').addEventListener('click',flipPose);
+$('pLR').addEventListener('click',()=>copySide('l'));$('pRL').addEventListener('click',()=>copySide('r'));
+$('pKeyAll').addEventListener('click',()=>keyNow(true));$('pDelKey').addEventListener('click',delKeysAt);
+$('pInterp').querySelectorAll('.chip').forEach(b=>b.addEventListener('click',()=>{const C=curClip();if(!C)return;const f=Math.round(AN.frame),ids=selIds();let n=0;rigPush();
+  for(const id in C.ch){if(ids&&!ids.includes(id))continue;const k=C.ch[id].find(q=>q.f===f);if(k&&!/^sw_/.test(id)){k.i=b.dataset.i;n++;}}
+  if(!n){RU.u.pop();toast('На этом кадре нет ключа');return;}goFrame(f);renderPoseUI();}));
+$('aKeyBtn').addEventListener('click',()=>keyNow());$('aMirBtn').addEventListener('click',flipPose);
+$('aIkBtn').addEventListener('click',()=>{const c=AN.sel&&CT.byId[AN.sel];if(c&&c.limb)setIK(c.limb,!ikOn(AN.pose,c.limb));else toast('Выбери контроллер руки или ноги');});
+$('aGoRig').addEventListener('click',()=>setMode('rig'));$('wGoSk').addEventListener('click',()=>setTab('rig'));
+
+/* ---------- export: one skinned mesh with every part, the skeleton and every animation baked per frame ---------- */
+function boneExportNames(){const used=new Set();return RG.bones.map(b=>{let s=[...b.name].map(ch=>{const l=ch.toLowerCase(),r=TRL[l];return r===undefined?ch:r;}).join('').replace(/[^A-Za-z0-9_]/g,'_')||'bone';
+  let n=s,k=1;while(used.has(n))n=s+'_'+(++k);used.add(n);return n;});}
+function rigExport(ue,base){
+  if(!RG.bones.length||!$('rigExp').checked)return null;
+  const hadSkin=!!SK;if(!SK)buildSkin();if(!SK)return null;
+  const names=boneExportNames(),bones=RG.bones.map((b,i)=>{const o=new THREE.Bone();o.name=names[i];o.position.copy(SK.rest[i]);return o;});
+  const grp=new THREE.Group();grp.name=ue?'SK_'+base:(modelName||'model');RG.bones.forEach((b,i)=>{if(b.parent>=0)bones[b.parent].add(bones[i]);else grp.add(bones[i]);});
+  let N=0;meshes.forEach(d=>N+=d.mesh.geometry.attributes.position.count);
+  const hasCol=meshes.every(d=>d.mesh.geometry.attributes.color),pos=new Float32Array(N*3),nrm=new Float32Array(N*3),uv=new Float32Array(N*2),col=hasCol?new Float32Array(N*3):null,si=new Uint16Array(N*4),sw=new Float32Array(N*4);
+  const geo=new THREE.BufferGeometry(),mats=[],v=new THREE.Vector3();let o=0;
+  meshes.forEach((d,mi)=>{const g=d.mesh.geometry,n=g.attributes.position.count,m=d.mesh.matrixWorld,nm=new THREE.Matrix3().getNormalMatrix(m),W=RG.W[mi];
+    for(let i=0;i<n;i++){v.fromBufferAttribute(g.attributes.position,i).applyMatrix4(m).toArray(pos,(o+i)*3);
+      if(g.attributes.normal)v.fromBufferAttribute(g.attributes.normal,i).applyMatrix3(nm).normalize().toArray(nrm,(o+i)*3);
+      if(g.attributes.uv){uv[(o+i)*2]=g.attributes.uv.getX(i);uv[(o+i)*2+1]=g.attributes.uv.getY(i);}
+      if(col){const c=g.attributes.color;col[(o+i)*3]=c.getX(i);col[(o+i)*3+1]=c.getY(i);col[(o+i)*3+2]=c.getZ(i);}}
+    si.set(W.si,o*4);sw.set(W.sw,o*4);geo.addGroup(o,n,mi);mats.push(d.mesh.material);o+=n;});
+  geo.setAttribute('position',new THREE.BufferAttribute(pos,3));geo.setAttribute('normal',new THREE.BufferAttribute(nrm,3));geo.setAttribute('uv',new THREE.BufferAttribute(uv,2));
+  if(col)geo.setAttribute('color',new THREE.BufferAttribute(col,3));geo.setAttribute('skinIndex',new THREE.Uint16BufferAttribute(si,4));geo.setAttribute('skinWeight',new THREE.Float32BufferAttribute(sw,4));
+  const sm=new THREE.SkinnedMesh(geo,mats);sm.name=ue?'SK_'+base:(modelName||'model')+'_mesh';grp.add(sm);grp.updateMatrixWorld(true);sm.bind(new THREE.Skeleton(bones),new THREE.Matrix4());
+  /* every clip is sampled at every frame from the controllers, so the IK and roll end up in plain bone tracks */
+  const clips=AN.clips.map(C=>{const n=C.len+1,times=new Float32Array(n),Q=bones.map(()=>new Float32Array(n*4)),Pp=bones.map(()=>new Float32Array(n*3));
+    for(let f=0;f<n;f++){times[f]=f/C.fps;evalPose(samplePose(C,f));SK.bones.forEach((b,i)=>{b.quaternion.toArray(Q[i],f*4);b.position.toArray(Pp[i],f*3);});}
+    const tr=[];bones.forEach((b,i)=>{tr.push(new THREE.QuaternionKeyframeTrack(names[i]+'.quaternion',times,Q[i]));const r=SK.rest[i];let moved=false;
+      for(let f=0;f<n&&!moved;f++)moved=Math.abs(Pp[i][f*3]-r.x)+Math.abs(Pp[i][f*3+1]-r.y)+Math.abs(Pp[i][f*3+2]-r.z)>1e-6;
+      if(moved||RG.bones[i].parent<0)tr.push(new THREE.VectorKeyframeTrack(names[i]+'.position',times,Pp[i]));});
+    return new THREE.AnimationClip(ue?'A_'+base+'_'+ueName(C.name,'Anim'):C.name,C.len/C.fps,tr);});
+  evalPose(AN.pose);if(!hadSkin&&!skinNeeded())dropSkin();
+  return {grp,clips,sm};
+}
+renderRigUI();renderAnimUI();
+
 /* ---------- autosave: a few seconds after each change the project goes to IndexedDB; on the next start it can be restored ---------- */
 const AS={dirty:false,t:0,hold:false,off:false};
 function idbDo(mode,fn){return new Promise((ok,bad)=>{if(!window.indexedDB)return bad(new Error('IndexedDB недоступна'));
@@ -2484,6 +3431,6 @@ let busy=0;
   processMove();
   if(gradDirty){gradDirty=false;redrawEdit();}
   if(rcDirty&&performance.now()-rcAt>120){rcDirty=false;rcApply();}
-  stepView();controls.update();drawGizmo();drawHilite();drawDecalFrame();drawGradHandles();renderLayers();flushTex();renderer.render(scene,camera);meshes.forEach(d=>{d.mesh.geometry.attributes.color._full=false;});})();
+  stepView();controls.update();drawGizmo();drawHilite();if(mode==='paint'){drawDecalFrame();drawGradHandles();}renderLayers();flushTex();rigFrame();renderer.render(scene,camera);meshes.forEach(d=>{d.mesh.geometry.attributes.color._full=false;});})();
 })();
 </script>
