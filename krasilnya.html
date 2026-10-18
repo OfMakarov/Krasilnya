@@ -1002,18 +1002,11 @@ function paintSample(){
     const a=toOk(hexToRgb(gr[0])),b=toOk(hexToRgb(gr[1]));const col=d.mesh.geometry.attributes.color.array;
     for(let i=0;i<d.n;i++){const t=(d.world[i*3+1]-lo)/Math.max(1e-6,hi-lo);const c=fromOk([a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t]);col[i*3]=c[0];col[i*3+1]=c[1];col[i*3+2]=c[2];}
     d.mesh.geometry.attributes.color.needsUpdate=true;});
-  /* a sticker on the chest and a crack on the head, so the decal layer is visible from the start */
-  const N=new THREE.Vector3(0,0.08,1).normalize();
-  const plate=st.decal.list.find(x=>x.name==='Номер'),crack=st.decal.list.find(x=>x.name==='Трещина');
-  if(plate)stampDecal(new THREE.Vector3(0,0.95,0.47),N,{X:new THREE.Vector3(1,0,0),Y:new THREE.Vector3(0,1,0)},plate,{size:0.2,op:1,flip:false});
-  const N2=new THREE.Vector3(0.45,0.35,0.82).normalize();const X2=new THREE.Vector3(0,1,0).cross(N2).normalize().negate();
-  if(crack)stampDecal(new THREE.Vector3(0,1.68,0).addScaledVector(N2,0.42),N2,{X:X2,Y:new THREE.Vector3().crossVectors(N2,X2)},crack,{size:0.22,op:0.9,flip:false});
 }
 
 /* ---------- boot ---------- */
 builtinDecals().forEach(d=>st.decal.list.push(decalFromCanvas(d.name,d.c)));renderDecals();
 renderGrad();resize();setModel(sampleModel(),'Пример');paintSample();setTool('brush');updUndo();
-st.bake=true;$('bakeChk').checked=true;
 /* desktop app (Electron): open files passed by double-click or "Open with" */
 if(window.krDesktop&&typeof window.krDesktop.onOpenFile==='function'){
   window.krDesktop.onOpenFile((name,bytes)=>{try{loadFile(new File([bytes],name));}catch(e){toast('Не удалось открыть '+name);}});
