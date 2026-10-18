@@ -235,6 +235,7 @@ body{font-size:13px}
     </div>
     <div class="rbar" id="rbar" hidden>
       <div class="chips" id="rPresets"></div>
+      <button class="chip" id="rOl" aria-pressed="false" title="Чёрная обводка, как у персонажей в игре">Обводка</button>
       <button class="chip" id="rSpin" aria-pressed="false" title="Медленно вращать модель">Вращать</button>
       <button class="chip" id="rShot" title="Сохранить кадр с фоном">Снимок</button>
       <button class="chip" id="rClose" title="Выйти из предрендера">Готово</button>
@@ -396,7 +397,13 @@ body{font-size:13px}
         <button class="btn" id="texBtn">Текстура PNG</button>
         <button class="btn" id="shotBtn">Снимок PNG</button>
       </div>
+      <label class="chk"><input type="checkbox" id="olChk"> Обводка как в игре</label>
+      <div class="row">
+        <button class="btn primary" id="ueBtn" title="Архив: SM_Модель.glb с запечённой текстурой и T_…_BC.png. Перетащи GLB в Content Browser Unreal 5.5">Для Unreal</button>
+        <select id="ueSize" class="palsel" aria-label="Размер текстуры для Unreal" title="Размер текстуры для Unreal"><option value="0">Текстура: авто</option><option value="512">512</option><option value="1024">1024</option><option value="2048">2048</option><option value="4096">4096</option></select>
+      </div>
       <p class="hint" id="uvNote">Без наклеек экспорт хранит цвета в вершинах (COLOR_0). С наклейками всё запекается в одну текстуру — её читают Blender и Unreal как обычный Base Color.</p>
+      <p class="hint">«Для Unreal» всегда запекает текстуру и даёт имена по правилам UE: SM_ для меша, M_ для материала, T_…_BC для текстуры. Перетащи GLB в Content Browser, материал с текстурой создастся сам.</p>
     </section>
   </aside>
 </div>
@@ -672,6 +679,7 @@ function setModel(obj,name){
   renderParts();
   undo.length=0;redo.length=0;updUndo();updStats();st.bake=false;$('bakeChk').checked=false;
   if(rend.on){grid.visible=false;rendRig();}
+  updOutlines();
   const gen=meshes.some(d=>d.mesh.userData.kr.uvGen&&!/^Пример/.test(name||''));
   if(gen)toast('У модели не было подходящей UV-развёртки — Красильня построила свою для наклеек');
 }
@@ -1697,6 +1705,7 @@ $('subBtn').addEventListener('click',()=>{
     if(d.wire)d.mesh.remove(d.wire);
     const nd=buildData(d.mesh);for(let t=0;t<tris;t++)if(oldSel[t])nd.sel.fill(1,t*4,t*4+4);
     addWire(nd);meshes[mi]=nd;rebuildSel(nd);});
+  updOutlines();
   renderParts();undo.length=0;redo.length=0;updUndo();updStats();
   /* triangle ids changed: existing decals stay as painted but can no longer be edited */
   bakedBase=meshes.map(d=>d.mesh.userData.kr.MA.slice());decalOps=[];selDec=null;selGrad=null;selLay=null;sess=null;edOp=null;editSnap=null;updGradSel();
@@ -1711,9 +1720,28 @@ function bakeCanvas(d){
     rasterTri(kr.uv,t,W,W,1.5,(o,w0,w1,w2)=>{const o4=o*4;
       buf[o4]=(w0*col[a]+w1*col[a+3]+w2*col[a+6])*255;buf[o4+1]=(w0*col[a+1]+w1*col[a+4]+w2*col[a+7])*255;buf[o4+2]=(w0*col[a+2]+w1*col[a+5]+w2*col[a+8])*255;buf[o4+3]=255;});}
   for(let o4=0;o4<buf.length;o4+=4){if(!buf[o4+3])continue;for(let c=0;c<3;c++)buf[o4+c]=buf[o4+c]*MA[o4+c]/255+MA[N4+o4+c];}
+  padIslands(buf,W,8);
   const [c,x]=mkCanvas(W,W);const img=x.createImageData(W,W);
   for(let y=0;y<W;y++)img.data.set(buf.subarray(y*W*4,(y+1)*W*4),(W-1-y)*W*4); /* row 0 (v=0) goes to the bottom of the image */
   x.putImageData(img,0,0);return c;
+}
+
+/* grow every UV island by a few texels so mipmaps in the game engine don't pull in the empty background at seams */
+function padIslands(buf,W,steps){
+  let cur=[];const N=W*W;
+  for(let i=0;i<N;i++)if(!buf[i*4+3]){const x=i%W,y=(i/W)|0;if((x>0&&buf[(i-1)*4+3])||(x<W-1&&buf[(i+1)*4+3])||(y>0&&buf[(i-W)*4+3])||(y<W-1&&buf[(i+W)*4+3]))cur.push(i);}
+  for(let s=0;s<steps&&cur.length;s++){const fill=[];
+    for(const i of cur){if(buf[i*4+3])continue;const x=i%W,y=(i/W)|0;let r=0,g=0,b=0,n=0;
+      const add=j=>{const j4=j*4;if(buf[j4+3]===255){r+=buf[j4];g+=buf[j4+1];b+=buf[j4+2];n++;}};
+      if(x>0)add(i-1);if(x<W-1)add(i+1);if(y>0)add(i-W);if(y<W-1)add(i+W);if(n)fill.push(i,r/n,g/n,b/n);}
+    /* mark the new ring as filled only after the whole ring is computed, so it grows evenly */
+    const nxt=[];for(let k=0;k<fill.length;k+=4){const i4=fill[k]*4;buf[i4]=fill[k+1];buf[i4+1]=fill[k+2];buf[i4+2]=fill[k+3];buf[i4+3]=254;}
+    for(let k=0;k<fill.length;k+=4){const i=fill[k],x=i%W,y=(i/W)|0;buf[i*4+3]=255;
+      if(x>0&&!buf[(i-1)*4+3])nxt.push(i-1);if(x<W-1&&!buf[(i+1)*4+3])nxt.push(i+1);if(y>0&&!buf[(i-W)*4+3])nxt.push(i-W);if(y<W-1&&!buf[(i+W)*4+3])nxt.push(i+W);}
+    cur=nxt;}
+  /* the rest becomes the average colour, fully opaque: no alpha channel for the engine to pick up */
+  let r=0,g=0,b=0,n=0;for(let i4=0;i4<buf.length;i4+=4)if(buf[i4+3]){r+=buf[i4];g+=buf[i4+1];b+=buf[i4+2];n++;}
+  if(n){r/=n;g/=n;b/=n;}for(let i4=0;i4<buf.length;i4+=4)if(!buf[i4+3]){buf[i4]=r;buf[i4+1]=g;buf[i4+2]=b;buf[i4+3]=255;}
 }
 
 /* ---------- files ---------- */
@@ -1881,33 +1909,53 @@ stage.addEventListener('dragleave',()=>{if(--dragDepth<=0){dragDepth=0;$('drop')
 stage.addEventListener('drop',e=>{e.preventDefault();dragDepth=0;$('drop').hidden=true;[...e.dataTransfer.files].forEach(loadFile);});
 
 let exporting=false;
-$('exportBtn').addEventListener('click',async()=>{
-  if(!meshes.length||exporting)return;exporting=true;
-  const bake=st.bake;
+/* Unreal wants ASCII asset names: SM_ for the mesh, M_ for materials, T_..._BC for base colour textures */
+const TRL={а:'a',б:'b',в:'v',г:'g',д:'d',е:'e',ё:'e',ж:'zh',з:'z',и:'i',й:'y',к:'k',л:'l',м:'m',н:'n',о:'o',п:'p',р:'r',с:'s',т:'t',у:'u',ф:'f',х:'h',ц:'ts',ч:'ch',ш:'sh',щ:'sch',ъ:'',ы:'y',ь:'',э:'e',ю:'yu',я:'ya'};
+function ueName(s,fb){const t=[...String(s||'')].map(ch=>{const l=ch.toLowerCase(),r=TRL[l];return r===undefined?ch:(l!==ch&&r?r[0].toUpperCase()+r.slice(1):r);}).join('');
+  const w=t.split(/[^A-Za-z0-9]+/).filter(Boolean).map(x=>x[0].toUpperCase()+x.slice(1));return w.join('')||fb;}
+function sizedCanvas(c,S){if(!S||S===c.width)return c;const [o,x]=mkCanvas(S,S);x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';x.drawImage(c,0,0,S,S);return o;}
+async function exportGLB(ue){
+  if(!meshes.length||exporting)return;exporting=true;busy++;
+  try{await exportRun(ue);}finally{busy--;exporting=false;}
+}
+/* frames stay paused while the parts carry export materials and the zip is packed */
+async function exportRun(ue){
+  const bake=ue||st.bake,S=ue?+$('ueSize').value||0:0,base=ueName(modelName,'Model'),multi=meshes.length>1;
+  const part=(d,i)=>ueName(names[i],'Part'+(i+1));
   toast(bake?'Запекаю текстуру и собираю GLB…':'Собираю GLB…');
   await new Promise(r=>setTimeout(r,30));
-  const ex=new THREE.GLTFExporter();
-  meshes.forEach(d=>{if(d.selMesh)d.selMesh.visible=false;if(d.wire)d.wire.visible=false;});ring.visible=ringIn.visible=ring2.visible=ringIn2.visible=false;
+  const ex=new THREE.GLTFExporter(),texs=[];
+  meshes.forEach(d=>{if(d.selMesh)d.selMesh.visible=false;if(d.wire)d.wire.visible=false;if(d.mesh.userData.ol)d.mesh.userData.ol.visible=false;});ring.visible=ringIn.visible=ring2.visible=ringIn2.visible=false;
   const prevVis=meshes.map(shown);meshes.forEach(d=>{d.mesh.visible=true;});
   const prevMats=meshes.map(d=>d.mesh.material),savedCols=meshes.map(d=>d.mesh.geometry.attributes.color);
-  meshes.forEach(d=>{const g=d.mesh.geometry;
-    if(bake){const ct=new THREE.CanvasTexture(bakeCanvas(d));ct.encoding=THREE.sRGBEncoding;g.deleteAttribute('color');
-      d.mesh.material=new THREE.MeshStandardMaterial({map:ct,roughness:0.85,metalness:0,name:'Krasilnya'});}
+  const names=meshes.map(d=>d.mesh.name);if(ue)meshes.forEach((d,i)=>{d.mesh.name='SM_'+base+(multi?'_'+part(d,i):'');});
+  meshes.forEach((d,i)=>{const g=d.mesh.geometry,mn=ue?'M_'+base+(multi?'_'+part(d,i):''):'Krasilnya';
+    if(bake){const cv=sizedCanvas(bakeCanvas(d),S),ct=new THREE.CanvasTexture(cv);ct.encoding=THREE.sRGBEncoding;g.deleteAttribute('color');
+      if(ue){ct.name='T_'+base+(multi?'_'+part(d,i):'')+'_BC';texs.push([ct.name,cv]);}
+      d.mesh.material=new THREE.MeshStandardMaterial({map:ct,roughness:0.85,metalness:0,name:mn});}
     else{const a=g.attributes.color,lin=new Float32Array(a.array.length);for(let i=0;i<lin.length;i++)lin[i]=s2l(a.array[i]);g.setAttribute('color',new THREE.BufferAttribute(lin,3));
-      d.mesh.material=new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.85,metalness:0,name:'Krasilnya'});}});
-  const done=()=>{meshes.forEach((d,i)=>{const m=d.mesh.material;if(m.map)m.map.dispose();m.dispose();d.mesh.material=prevMats[i];d.mesh.geometry.setAttribute('color',savedCols[i]);
-    d.mesh.visible=prevVis[i];if(d.selMesh)d.selMesh.visible=true;if(d.wire)d.wire.visible=st.wire;});};
+      d.mesh.material=new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.85,metalness:0,name:mn});}});
+  const done=()=>{ud.forEach(([o,u])=>{o.userData=u;});meshes.forEach((d,i)=>{d.mesh.name=names[i];});meshes.forEach((d,i)=>{const m=d.mesh.material;if(m.map)m.map.dispose();m.dispose();d.mesh.material=prevMats[i];d.mesh.geometry.setAttribute('color',savedCols[i]);
+    d.mesh.visible=prevVis[i];if(d.selMesh)d.selMesh.visible=true;if(d.wire)d.wire.visible=st.wire;if(d.mesh.userData.ol)d.mesh.userData.ol.visible=st.outline;});};
+  /* userData becomes glTF "extras": our paint buffers there made the file hundreds of megabytes */
+  const ud=[];root.traverse(o=>{const u=o.userData;if(u.kr||u.ol||u.src){ud.push([o,u]);const k={...u};delete k.kr;delete k.ol;delete k.src;o.userData=k;}});
   try{
     const res=await new Promise((ok,bad)=>{const opts={binary:true,onlyVisible:true};
       if(ex.parseAsync)ex.parseAsync(root,opts).then(ok,bad);else ex.parse(root,ok,bad,opts);});
     done();
-    const glb=new Blob([res],{type:'model/gltf-binary'});const name=(modelName||'model')+'_painted';
-    if(dlNs||inArtifact){if(typeof JSZip==='undefined'){toast('Не загрузился архиватор для экспорта');exporting=false;return;}
+    const glb=new Blob([res],{type:'model/gltf-binary'});
+    if(ue){if(typeof JSZip==='undefined'){toast('Не загрузился архиватор для экспорта');return;}
+      /* the GLB carries its textures; the PNGs are there for reuse in other materials */
+      const z=new JSZip();z.file('SM_'+base+'.glb',glb);for(const [n,cv] of texs)z.file(n+'.png',await canvasBlob(cv));
+      await saveBlob(base+'_Unreal.zip',await z.generateAsync({type:'blob'}));return;}
+    const name=(modelName||'model')+'_painted';
+    if(dlNs||inArtifact){if(typeof JSZip==='undefined'){toast('Не загрузился архиватор для экспорта');return;}
       const z=new JSZip();z.file(name+'.glb',glb);await saveBlob(name+'.zip',await z.generateAsync({type:'blob'}));}
     else await saveBlob(name+'.glb',glb);
   }catch(e){done();toast('Экспорт не удался: '+(e&&e.message||e));}
-  exporting=false;
-});
+}
+$('exportBtn').addEventListener('click',()=>exportGLB(false));
+$('ueBtn').addEventListener('click',()=>exportGLB(true));
 $('texBtn').addEventListener('click',async()=>{
   if(!meshes.length)return;toast('Запекаю текстуру…');await new Promise(r=>setTimeout(r,30));
   const base=modelName||'model';
@@ -1922,19 +1970,54 @@ $('shotBtn').addEventListener('click',()=>{
 });
 
 /* ---------- prerender: studio light rig, soft shadows on a shadow catcher, a colourful backdrop ---------- */
+/* ---------- game look: a black outline like the FREELANCERS characters ----------
+   An inverted hull: the back faces pushed out along smoothed normals, by a share of the view depth so the line keeps
+   about the same width on screen at any zoom. It is a child of the part, so hiding the part hides its outline. */
+const olMat=new THREE.ShaderMaterial({side:THREE.BackSide,uniforms:{uW:{value:0.006},uC:{value:new THREE.Color(0x0a0a0d)}},
+  vertexShader:'attribute vec3 oN;uniform float uW;void main(){vec4 mv=modelViewMatrix*vec4(position,1.0);vec3 n=normalize(normalMatrix*oN);mv.xyz+=n*uW*max(-mv.z,0.0);gl_Position=projectionMatrix*mv;}',
+  fragmentShader:'uniform vec3 uC;void main(){gl_FragColor=vec4(uC,1.0);}'});
+/* normals averaged over vertices that share a position, so hard edges don't split the hull */
+function smoothNormals(g){
+  const p=g.attributes.position,n=p.count,ix=g.index?g.index.array:null,T=(ix?ix.length:n)/3;
+  if(!g.boundingBox)g.computeBoundingBox();const q=(g.boundingBox.max.distanceTo(g.boundingBox.min)||1)*1e-5;
+  const map=new Map(),id=new Uint32Array(n);
+  for(let i=0;i<n;i++){const k=Math.round(p.getX(i)/q)+'_'+Math.round(p.getY(i)/q)+'_'+Math.round(p.getZ(i)/q);let v=map.get(k);if(v===undefined){v=map.size;map.set(k,v);}id[i]=v;}
+  const A=new Float32Array(map.size*3),a=new THREE.Vector3(),b=new THREE.Vector3(),c=new THREE.Vector3();
+  for(let t=0;t<T;t++){const i0=ix?ix[t*3]:t*3,i1=ix?ix[t*3+1]:t*3+1,i2=ix?ix[t*3+2]:t*3+2;
+    a.fromBufferAttribute(p,i0);b.fromBufferAttribute(p,i1).sub(a);c.fromBufferAttribute(p,i2).sub(a);b.cross(c);
+    for(const i of [i0,i1,i2]){const j=id[i]*3;A[j]+=b.x;A[j+1]+=b.y;A[j+2]+=b.z;}}
+  const out=new Float32Array(n*3);
+  for(let i=0;i<n;i++){const j=id[i]*3,L=Math.hypot(A[j],A[j+1],A[j+2])||1;out[i*3]=A[j]/L;out[i*3+1]=A[j+1]/L;out[i*3+2]=A[j+2]/L;}
+  return new THREE.BufferAttribute(out,3);
+}
+st.outline=false;try{st.outline=localStorage.getItem('kr_ol')==='1';}catch(e){}
+function updOutlines(){
+  meshes.forEach(d=>{const m=d.mesh;let o=m.userData.ol;
+    if(o&&o.userData.src!==m.geometry){m.remove(o);o.geometry.dispose();o=m.userData.ol=null;}
+    if(!o&&st.outline){const g=new THREE.BufferGeometry();g.setAttribute('position',m.geometry.attributes.position);if(m.geometry.index)g.setIndex(m.geometry.index);
+      g.setAttribute('oN',smoothNormals(m.geometry));o=new THREE.Mesh(g,olMat);o.userData.src=m.geometry;o.raycast=()=>{};o.frustumCulled=false;m.add(o);m.userData.ol=o;}
+    if(o)o.visible=st.outline;});
+  $('olChk').checked=st.outline;$('rOl').classList.toggle('on',st.outline);$('rOl').setAttribute('aria-pressed',st.outline);
+}
+function setOutline(on){st.outline=on;try{localStorage.setItem('kr_ol',on?'1':'0');}catch(e){}updOutlines();}
+$('olChk').addEventListener('change',e=>setOutline(e.target.checked));
+$('rOl').addEventListener('click',()=>setOutline(!st.outline));
+
 const RPRESETS={
+  'Как в игре':{bg:['#2f8fe6','#56b0f4','#9fd6ff','#e6f5ff'],blobs:[[0.2,0.22,0.22,'#ffffffcc'],[0.34,0.18,0.16,'#ffffffaa'],[0.78,0.12,0.2,'#ffffffbb'],[0.9,0.2,0.14,'#ffffff99']],
+    key:'#fff1d6',rim:'#cbe8ff',sky:'#d6efff',ground:'#a89276',keyI:1.25,shadow:0.5,vig:0.12,ol:true},
   'Закат':{bg:['#1d0b3a','#7a1f6b','#e2556b','#ffb36b'],blobs:[[0.8,0.15,0.55,'#ffd27a99'],[0.12,0.3,0.5,'#5b2bd699'],[0.5,1.05,0.6,'#ff7a5c88']],key:'#ffd9b0',rim:'#8a7bff',sky:'#ffd6c2',ground:'#4a2350'},
   'Мята':{bg:['#062a33','#0f5f63','#3fc6a0','#c8ffe0'],blobs:[[0.85,0.2,0.5,'#b6fff188'],[0.1,0.75,0.5,'#1fa38e99']],key:'#fff6e6',rim:'#7ff0ff',sky:'#dffff4',ground:'#123c3a'},
   'Неон':{bg:['#05061a','#1b0b4a','#4a0f7a','#0b1a4a'],blobs:[[0.18,0.25,0.45,'#f72585aa'],[0.85,0.35,0.45,'#4cc9f0aa'],[0.5,1,0.55,'#7209b7aa']],key:'#ffe3f6',rim:'#4cc9f0',sky:'#d8c9ff',ground:'#2a0b40'},
   'Персик':{bg:['#fff1e0','#ffd3b6','#ffaaa5','#ff8b94'],blobs:[[0.2,0.2,0.5,'#ffffffaa'],[0.85,0.8,0.5,'#ffb38a99']],key:'#fff4e8',rim:'#ffd1e8',sky:'#fff4ec',ground:'#b86a6a'},
   'Студия':{bg:['#f4f6f9','#dfe3ea','#c3c9d4','#9aa3b2'],blobs:[[0.5,0.2,0.6,'#ffffffaa']],key:'#ffffff',rim:'#dfe8ff',sky:'#ffffff',ground:'#8a909c'}};
-const rend={on:false,preset:'Закат',spin:false,rig:null,bg:null,env:null,ground:null,saved:null};
+const rend={on:false,preset:'Как в игре',spin:false,rig:null,bg:null,env:null,ground:null,saved:null};
 try{const p=localStorage.getItem('kr_rend');if(RPRESETS[p])rend.preset=p;}catch(e){}
 function rendBackdrop(p){
   const S=1024,[c,x]=mkCanvas(S,S),g=x.createLinearGradient(0,0,0,S);p.bg.forEach((col,i)=>g.addColorStop(i/(p.bg.length-1),col));x.fillStyle=g;x.fillRect(0,0,S,S);
   for(const [bx,by,r,col] of p.blobs){const rg=x.createRadialGradient(bx*S,by*S,0,bx*S,by*S,r*S);rg.addColorStop(0,col);rg.addColorStop(1,col.slice(0,7)+'00');x.fillStyle=rg;x.fillRect(0,0,S,S);}
   const fl=x.createRadialGradient(S/2,S*0.78,0,S/2,S*0.78,S*0.42);fl.addColorStop(0,'rgba(255,255,255,0.16)');fl.addColorStop(1,'rgba(255,255,255,0)');x.fillStyle=fl;x.fillRect(0,0,S,S);
-  const v=x.createRadialGradient(S/2,S/2,S*0.3,S/2,S/2,S*0.75);v.addColorStop(0,'rgba(0,0,0,0)');v.addColorStop(1,'rgba(0,0,0,0.42)');x.fillStyle=v;x.fillRect(0,0,S,S);
+  const v=x.createRadialGradient(S/2,S/2,S*0.3,S/2,S/2,S*0.75);v.addColorStop(0,'rgba(0,0,0,0)');v.addColorStop(1,'rgba(0,0,0,'+(p.vig??0.42)+')');x.fillStyle=v;x.fillRect(0,0,S,S);
   const id=x.getImageData(0,0,S,S),r=rnd(5);for(let i=0;i<id.data.length;i+=4){const n=(r()-0.5)*7;id.data[i]+=n;id.data[i+1]+=n;id.data[i+2]+=n;}x.putImageData(id,0,0);
   return new THREE.CanvasTexture(c);
 }
@@ -1951,12 +2034,12 @@ function rendRig(){
   const c=box.getCenter(new THREE.Vector3()),R=box.getBoundingSphere(new THREE.Sphere()).radius||1;
   if(rend.rig){scene.remove(rend.rig);rend.rig.traverse(o=>{if(o.shadow&&o.shadow.map)o.shadow.map.dispose();if(o.geometry)o.geometry.dispose();if(o.material)o.material.dispose();});}
   const g=new THREE.Group();
-  const key=new THREE.DirectionalLight(p.key,1.05);key.position.copy(c).add(new THREE.Vector3(1.2,2.2,1.6).normalize().multiplyScalar(R*4));key.target.position.copy(c);
+  const key=new THREE.DirectionalLight(p.key,p.keyI||1.05);key.position.copy(c).add(new THREE.Vector3(1.2,2.2,1.6).normalize().multiplyScalar(R*4));key.target.position.copy(c);
   key.castShadow=true;key.shadow.mapSize.set(2048,2048);key.shadow.radius=6;key.shadow.bias=-0.0004;key.shadow.normalBias=R*0.004;
   const sc=key.shadow.camera;sc.left=sc.bottom=-R*1.6;sc.right=sc.top=R*1.6;sc.near=R*0.5;sc.far=R*9;sc.updateProjectionMatrix();
   const rim=new THREE.DirectionalLight(p.rim,0.85);rim.position.copy(c).add(new THREE.Vector3(-1.4,1.2,-1.8).normalize().multiplyScalar(R*4));rim.target.position.copy(c);
   const fill=new THREE.HemisphereLight(p.sky,p.ground,0.5);
-  const ground=new THREE.Mesh(new THREE.PlaneGeometry(R*30,R*30),new THREE.ShadowMaterial({opacity:0.4}));ground.rotation.x=-Math.PI/2;ground.position.set(c.x,box.min.y-R*0.002,c.z);ground.receiveShadow=true;ground.raycast=()=>{};
+  const ground=new THREE.Mesh(new THREE.PlaneGeometry(R*30,R*30),new THREE.ShadowMaterial({opacity:p.shadow||0.4}));ground.rotation.x=-Math.PI/2;ground.position.set(c.x,box.min.y-R*0.002,c.z);ground.receiveShadow=true;ground.raycast=()=>{};
   g.add(key,key.target,rim,rim.target,fill,ground);scene.add(g);rend.rig=g;
   if(rend.bg)rend.bg.dispose();rend.bg=rendBackdrop(p);scene.background=rend.bg;
   if(rend.env)rend.env.dispose();rend.env=rendEnv(p);scene.environment=rend.env;
@@ -1973,7 +2056,7 @@ function setRender(on){
 }
 Object.keys(RPRESETS).forEach(k=>{const b=document.createElement('button');b.className='chip';b.dataset.p=k;b.innerHTML='<i></i>'+k;
   b.querySelector('i').style.background='linear-gradient(135deg,'+RPRESETS[k].bg.join(',')+')';
-  b.addEventListener('click',()=>{rend.preset=k;try{localStorage.setItem('kr_rend',k);}catch(e){}rendRig();});$('rPresets').appendChild(b);});
+  b.addEventListener('click',()=>{rend.preset=k;try{localStorage.setItem('kr_rend',k);}catch(e){}rendRig();if(RPRESETS[k].ol&&!st.outline)setOutline(true);});$('rPresets').appendChild(b);});
 $('rendBtn').addEventListener('click',()=>setRender(!rend.on));
 $('rClose').addEventListener('click',()=>setRender(false));
 $('rSpin').addEventListener('click',()=>{rend.spin=!rend.spin;controls.autoRotate=rend.spin;controls.autoRotateSpeed=1.6;$('rSpin').classList.toggle('on',rend.spin);$('rSpin').setAttribute('aria-pressed',rend.spin);});
