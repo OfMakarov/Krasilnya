@@ -82,6 +82,14 @@ header{grid-column:1/-1;display:flex;align-items:center;gap:12px;padding-inline:
   background-color:#2b2e38;background-image:linear-gradient(45deg,#343845 25%,transparent 25%,transparent 75%,#343845 75%),linear-gradient(45deg,#343845 25%,transparent 25%,transparent 75%,#343845 75%);background-size:12px 12px;background-position:0 0,6px 6px;display:grid;place-items:center}
 .dc img{max-width:100%;max-height:100%;display:block}
 .dc.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.parts{display:flex;flex-direction:column;gap:2px;max-height:240px;overflow-y:auto}
+.part{display:flex;align-items:center;gap:8px;min-height:32px;padding:0 4px 0 8px;border-radius:8px}
+.part:hover{background:var(--surface-2)}
+.part input{accent-color:var(--accent);margin:0;flex:0 0 auto}
+.part label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
+.part.off label{color:var(--muted);text-decoration:line-through}
+.part .chip{height:26px;padding:0 8px;font-size:12px}
+.part .chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .dc.add{background:var(--surface-2);color:var(--muted);font-size:22px}
 input[type=file]{display:none}
 @media (max-width:820px){
@@ -203,6 +211,16 @@ input[type=file]{display:none}
         <button class="btn" id="selNone">Снять</button>
       </div>
       <p class="hint">Инструментом «Выделение» нажимай по областям, чтобы добавить или убрать их. Кисть, заливка, градиент и наклейки работают только внутри выделения.</p>
+    </section>
+
+    <section class="sec" id="partsSec">
+      <h3>Детали</h3>
+      <div class="parts" id="parts"></div>
+      <div class="row">
+        <button class="btn" id="partsAll">Показать все</button>
+        <button class="btn" id="partsInv">Инвертировать</button>
+      </div>
+      <p class="hint">Скрытые детали не красятся: кисть, заливка, градиент и наклейки достают только видимые. «Только» оставляет одну деталь, повторное нажатие возвращает все. H — скрыть деталь под курсором.</p>
     </section>
 
     <section class="sec">
@@ -411,12 +429,31 @@ function setModel(obj,name){
   controls.update();
   if(grid)scene.remove(grid);
   grid=new THREE.GridHelper(modelSize*4,16,0x3a3d4a,0x2a2c35);grid.position.set(c.x,box.min.y,c.z);scene.add(grid);
+  renderParts();
   undo.length=0;redo.length=0;updUndo();updStats();st.bake=false;$('bakeChk').checked=false;
   const gen=meshes.some(d=>d.mesh.userData.kr.uvGen&&!/^Пример/.test(name||''));
   if(gen)toast('У модели не было подходящей UV-развёртки — Красильня построила свою для наклеек');
 }
 function updStats(){let t=0;meshes.forEach(d=>{t+=d.tris;});
   $('statPill').innerHTML='<b>'+escapeHtml(modelName)+'</b> · '+t.toLocaleString('ru-RU')+' треуг. · '+meshes.length+' дет.';}
+/* ---------- parts (show / hide separate objects) ---------- */
+const shown=d=>d.mesh.visible;
+function partName(d,i){return (d.mesh.name||'').trim()||('Деталь '+(i+1));}
+function renderParts(){
+  const box=$('parts');box.innerHTML='';$('partsSec').hidden=meshes.length<2;
+  meshes.forEach((d,i)=>{
+    const row=document.createElement('div');row.className='part'+(shown(d)?'':' off');
+    const cb=document.createElement('input');cb.type='checkbox';cb.id='part'+i;cb.checked=shown(d);
+    cb.addEventListener('change',()=>setPartsVis(x=>x===d?cb.checked:shown(x)));
+    const lb=document.createElement('label');lb.htmlFor=cb.id;lb.textContent=partName(d,i);lb.title=lb.textContent;
+    const only=document.createElement('button');only.className='chip';only.textContent='Только';only.title='Оставить только эту деталь';
+    only.addEventListener('click',()=>{const solo=shown(d)&&meshes.every(x=>x===d||!shown(x));setPartsVis(x=>solo||x===d);});
+    row.append(cb,lb,only);box.appendChild(row);});
+}
+function setPartsVis(fn){
+  cancelOps();meshes.forEach(d=>{d.mesh.visible=!!fn(d);});ring.visible=ringIn.visible=false;renderParts();
+  if(meshes.length&&!meshes.some(shown))toast('Все детали скрыты — нажми «Показать все»');
+}
 function escapeHtml(s){return s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 
 /* ---------- undo (vertex colors or touched decal layers) ---------- */
@@ -437,7 +474,7 @@ let texOp=null; /* Map meshIndex -> data before this operation */
 function touchTex(i){if(texOp&&!texOp.has(i))texOp.set(i,meshes[i].mesh.userData.kr.data.slice());}
 
 /* ---------- selection ---------- */
-function hasSel(){return meshes.some(d=>d.sel.some(v=>v));}
+function hasSel(){return meshes.some(d=>shown(d)&&d.sel.some(v=>v));}
 function region(d,tri){
   const mask=new Uint8Array(d.tris);const cosT=Math.cos(st.angle*Math.PI/180);const all=st.angle>=179.5;
   const q=[tri];mask[tri]=1;const tn=d.tn;
@@ -455,12 +492,12 @@ function rebuildSel(d){
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(arr,3));
   const sm=new THREE.Mesh(g,selMat);sm.raycast=()=>{};sm.renderOrder=5;d.mesh.add(sm);d.selMesh=sm;
 }
-function selectAll(v){meshes.forEach(d=>{d.sel.fill(v?1:0);rebuildSel(d);});}
-function selectInv(){meshes.forEach(d=>{for(let t=0;t<d.tris;t++)d.sel[t]=d.sel[t]?0:1;rebuildSel(d);});}
+function selectAll(v){meshes.forEach(d=>{if(!shown(d))return;d.sel.fill(v?1:0);rebuildSel(d);});}
+function selectInv(){meshes.forEach(d=>{if(!shown(d))return;for(let t=0;t<d.tris;t++)d.sel[t]=d.sel[t]?0:1;rebuildSel(d);});}
 function targets(hit){
-  if(hasSel())return meshes.map(d=>({d,mask:d.sel}));
+  if(hasSel())return meshes.filter(shown).map(d=>({d,mask:d.sel}));
   if(hit)return [{d:hit.d,mask:region(hit.d,hit.tri)}];
-  return meshes.map(d=>({d,mask:null}));
+  return meshes.filter(shown).map(d=>({d,mask:null}));
 }
 
 /* ---------- picking ---------- */
@@ -468,7 +505,7 @@ const ray=new THREE.Raycaster(),ndc=new THREE.Vector2();
 function pick(cx,cy){
   const r=canvas.getBoundingClientRect();ndc.set(((cx-r.left)/r.width)*2-1,-((cy-r.top)/r.height)*2+1);
   ray.setFromCamera(ndc,camera);
-  const hits=ray.intersectObjects(meshes.map(d=>d.mesh),false);
+  const hits=ray.intersectObjects(meshes.filter(shown).map(d=>d.mesh),false);
   if(!hits.length)return null;const h=hits[0];const d=meshes.find(x=>x.mesh===h.object);
   return {d,tri:h.faceIndex,point:h.point,normal:new THREE.Vector3(d.tn[h.faceIndex*3],d.tn[h.faceIndex*3+1],d.tn[h.faceIndex*3+2])};
 }
@@ -477,7 +514,7 @@ function pick(cx,cy){
 function brushAt(hit){
   const R=st.radius*modelSize,R2=R*R,h=st.hard,s=st.strength,c=st.color,any=hasSel();
   const P=hit.point,N=hit.normal;
-  meshes.forEach(d=>{
+  meshes.forEach(d=>{if(!shown(d))return;
     const ca=d.mesh.geometry.attributes.color,col=ca.array,w=d.world;let ch=false;
     for(let i=0;i<d.n;i++){
       const dx=w[i*3]-P.x,dy=w[i*3+1]-P.y,dz=w[i*3+2]-P.z,dd=dx*dx+dy*dy+dz*dz;if(dd>R2)continue;
@@ -547,7 +584,7 @@ function stampDecal(P,N,fr,dec,opts){
   opts=opts||{};const size=(opts.size||st.decal.size)*modelSize,op=opts.op!=null?opts.op:st.decal.op,flip=opts.flip!=null?opts.flip:st.decal.flip;
   const asp=dec.h/dec.w,hw=size/2,hh=size*asp/2,R=Math.hypot(hw,hh),depthLim=size*0.6,minDot=st.decal.wrap?0.05:0.55;
   const X=fr.X,Y=fr.Y,any=hasSel(),img=dec.data,iw=dec.w,ih=dec.h;
-  meshes.forEach((d,mi)=>{
+  meshes.forEach((d,mi)=>{if(!shown(d))return;
     const kr=d.mesh.userData.kr,W=kr.W,out=kr.data,uvA=kr.uv,w=d.world,bb=d.bb;let ch=false;
     for(let t=0;t<d.tris;t++){
       if(any&&!d.sel[t])continue;
@@ -569,7 +606,7 @@ function stampDecal(P,N,fr,dec,opts){
 }
 function eraseAt(hit){
   const R=st.radius*modelSize,R2=R*R,h=st.hard,s=st.strength,P=hit.point,any=hasSel();
-  meshes.forEach((d,mi)=>{const kr=d.mesh.userData.kr,W=kr.W,out=kr.data,w=d.world,bb=d.bb;let ch=false;
+  meshes.forEach((d,mi)=>{if(!shown(d))return;const kr=d.mesh.userData.kr,W=kr.W,out=kr.data,w=d.world,bb=d.bb;let ch=false;
     for(let t=0;t<d.tris;t++){
       if(any&&!d.sel[t])continue;
       if(bb[t*6]>P.x+R||bb[t*6+3]<P.x-R||bb[t*6+1]>P.y+R||bb[t*6+4]<P.y-R||bb[t*6+2]>P.z+R||bb[t*6+5]<P.z-R)continue;
@@ -661,8 +698,9 @@ canvas.addEventListener('pointerdown',e=>{
   else if(tool==='gradient'){gradStart(e.clientX,e.clientY);}
   else if(tool==='decal'){if(!curDecal()){activePtr=null;toast('Сначала выбери наклейку');return;}texOp=new Map();ddrag={before:texOp,placed:false};decalPlace(e.clientX,e.clientY);}
 });
+let lastPtr=null;
 canvas.addEventListener('pointermove',e=>{
-  const tool=effTool();
+  lastPtr=[e.clientX,e.clientY];const tool=effTool();
   if(((tool==='brush'||tool==='erase')&&e.pointerType!=='touch')||stroke){const hit=pick(e.clientX,e.clientY);updRing(hit);
     if(stroke&&e.pointerId===activePtr&&hit){if(stroke.cols)brushAt(hit);else eraseAt(hit);}}
   else {ring.visible=ringIn.visible=false;}
@@ -676,7 +714,7 @@ function endPtr(e){ptrs.delete(e.pointerId);if(e.pointerId!==activePtr)return;ac
     if(ddrag.placed&&ddrag.before.size){pushUndo({tex:ddrag.before});if(!st.bake){st.bake=true;$('bakeChk').checked=true;}}else restoreTex(ddrag.before);ddrag=null;texOp=null;}
   if(e.pointerType==='touch')ring.visible=ringIn.visible=false;}
 canvas.addEventListener('pointerup',endPtr);canvas.addEventListener('pointercancel',e=>{ptrs.delete(e.pointerId);if(e.pointerId===activePtr)cancelOps();});
-canvas.addEventListener('pointerleave',()=>{if(!stroke){ring.visible=ringIn.visible=false;}});
+canvas.addEventListener('pointerleave',()=>{lastPtr=null;if(!stroke){ring.visible=ringIn.visible=false;}});
 function updRing(hit){
   const t=effTool();
   if(!hit||(t!=='brush'&&t!=='erase')){ring.visible=ringIn.visible=false;return;}
@@ -759,6 +797,8 @@ $('bakeChk').addEventListener('change',e=>st.bake=e.target.checked);
 $('selAll').addEventListener('click',()=>selectAll(true));
 $('selNone').addEventListener('click',()=>selectAll(false));
 $('selInv').addEventListener('click',selectInv);
+$('partsAll').addEventListener('click',()=>setPartsVis(()=>true));
+$('partsInv').addEventListener('click',()=>setPartsVis(d=>!shown(d)));
 $('undoBtn').addEventListener('click',doUndo);$('redoBtn').addEventListener('click',doRedo);
 
 /* ---------- subdivide ---------- */
@@ -780,7 +820,7 @@ $('subBtn').addEventListener('click',()=>{
     if(d.wire)d.mesh.remove(d.wire);
     const nd=buildData(d.mesh);for(let t=0;t<tris;t++)if(oldSel[t])nd.sel.fill(1,t*4,t*4+4);
     addWire(nd);meshes[mi]=nd;rebuildSel(nd);});
-  undo.length=0;redo.length=0;updUndo();updStats();toast('Готово: треугольников стало в 4 раза больше. История отмен очищена.');
+  renderParts();undo.length=0;redo.length=0;updUndo();updStats();toast('Готово: треугольников стало в 4 раза больше. История отмен очищена.');
 });
 
 /* ---------- bake ---------- */
@@ -829,6 +869,7 @@ $('exportBtn').addEventListener('click',async()=>{
   await new Promise(r=>setTimeout(r,30));
   const ex=new THREE.GLTFExporter();
   meshes.forEach(d=>{if(d.selMesh)d.selMesh.visible=false;if(d.wire)d.wire.visible=false;});ring.visible=ringIn.visible=false;
+  const prevVis=meshes.map(shown);meshes.forEach(d=>{d.mesh.visible=true;});
   const prevMats=meshes.map(d=>d.mesh.material),savedCols=meshes.map(d=>d.mesh.geometry.attributes.color);
   meshes.forEach(d=>{const g=d.mesh.geometry;
     if(bake){const ct=new THREE.CanvasTexture(bakeCanvas(d));ct.encoding=THREE.sRGBEncoding;g.deleteAttribute('color');
@@ -836,7 +877,7 @@ $('exportBtn').addEventListener('click',async()=>{
     else{const a=g.attributes.color,lin=new Float32Array(a.array.length);for(let i=0;i<lin.length;i++)lin[i]=s2l(a.array[i]);g.setAttribute('color',new THREE.BufferAttribute(lin,3));
       d.mesh.material=new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.85,metalness:0,name:'Krasilnya'});}});
   const done=()=>{meshes.forEach((d,i)=>{const m=d.mesh.material;if(m.map)m.map.dispose();m.dispose();d.mesh.material=prevMats[i];d.mesh.geometry.setAttribute('color',savedCols[i]);
-    if(d.selMesh)d.selMesh.visible=true;if(d.wire)d.wire.visible=st.wire;});};
+    d.mesh.visible=prevVis[i];if(d.selMesh)d.selMesh.visible=true;if(d.wire)d.wire.visible=st.wire;});};
   try{
     const res=await new Promise((ok,bad)=>{const opts={binary:true,onlyVisible:true};
       if(ex.parseAsync)ex.parseAsync(root,opts).then(ok,bad);else ex.parse(root,ok,bad,opts);});
@@ -871,6 +912,7 @@ window.addEventListener('keydown',e=>{
   const map={b:'brush',f:'fill',g:'gradient',d:'decal',e:'erase',s:'select',i:'pick',v:'camera'};
   if(map[k]&&!e.ctrlKey&&!e.metaKey){setTool(map[k]);return;}
   if(e.key==='['||e.key===']'){const id=st.tool==='decal'?'dSize':'radius';const el=$(id);el.value=+el.value+(e.key===']'?1:-1);el.dispatchEvent(new Event('input'));}
+  if(k==='h'&&!e.ctrlKey&&!e.metaKey&&lastPtr){const hit=pick(lastPtr[0],lastPtr[1]);if(hit){setPartsVis(d=>d!==hit.d&&shown(d));toast('Скрыта деталь: '+partName(hit.d,meshes.indexOf(hit.d)));}return;}
   if(e.key==='Escape')selectAll(false);
 });
 window.addEventListener('keyup',e=>{if(e.code==='Space'){spaceHeld=false;applyControlMode();}});
