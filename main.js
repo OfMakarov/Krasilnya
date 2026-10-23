@@ -31,6 +31,8 @@ let win = null;
 let pendingFile = null;
 let pageReady = false;
 let lastDir = null;
+let fellBack = false;
+let verifyTimer = null;
 
 const sha = (txt) => crypto.createHash('sha1').update(txt).digest('hex');
 const readMeta = () => { try { return JSON.parse(fs.readFileSync(META, 'utf8')); } catch (e) { return {}; } };
@@ -48,6 +50,7 @@ function pagePath() {
     // новая установка (или первый запуск) приносит свою версию — она главнее старого кэша
     if (!fs.existsSync(PAGE) || meta.bundledSha !== bSha) {
       fs.writeFileSync(PAGE, bundled);
+      try { fs.unlinkSync(PAGE + '.prev'); } catch (e) {}
       writeMeta({ bundledSha: bSha, sha: bSha, source: 'bundled', at: new Date().toISOString() });
     }
     return PAGE;
@@ -71,13 +74,21 @@ async function checkUpdate(manual) {
     const txt = await res.text();
     if (!txt.includes(MARKER) || txt.length < 5000) throw new Error('файл на GitHub не похож на Красильню');
     const cur = fs.existsSync(PAGE) ? fs.readFileSync(PAGE, 'utf8') : '';
-    if (sha(txt) === sha(cur)) {
+    const nSha = sha(txt);
+    if (nSha === sha(cur)) {
       if (manual) dialog.showMessageBox(win, { type: 'info', message: 'У тебя последняя версия Красильни' });
       return;
     }
+    // версия, которая уже однажды не запустилась, второй раз не ставится
+    if (readMeta().badSha === nSha) {
+      if (manual) dialog.showMessageBox(win, { type: 'warning', message: 'Новая версия на GitHub не запускается', detail: 'Красильня осталась на прежней версии. Как только на GitHub появится исправленная, она скачается.' });
+      return;
+    }
+    // старую версию храним рядом: если новая не запустится, вернёмся к ней
+    if (cur) fs.writeFileSync(PAGE + '.prev', cur);
     fs.writeFileSync(PAGE + '.new', txt);
     fs.renameSync(PAGE + '.new', PAGE);
-    writeMeta({ ...readMeta(), sha: sha(txt), source: 'github', at: new Date().toISOString() });
+    writeMeta({ ...readMeta(), sha: nSha, source: 'github', pendingVerify: nSha, at: new Date().toISOString() });
     const { response } = await dialog.showMessageBox(win, {
       type: 'info',
       buttons: ['Перезапустить сейчас', 'Позже'],
@@ -85,12 +96,41 @@ async function checkUpdate(manual) {
       cancelId: 1,
       title: 'Красильня обновилась',
       message: 'Скачана новая версия Красильни',
-      detail: 'Перезапустить сейчас? Несохранённая работа на холсте пропадёт. Если выбрать «Позже», новая версия откроется при следующем запуске.',
+      detail: 'Перезапустить сейчас? Если на холсте есть несохранённая работа, Красильня сначала спросит. Если выбрать «Позже», новая версия откроется при следующем запуске.',
     });
-    if (response === 0 && win) win.loadFile(PAGE);
+    if (response === 0 && win) { fellBack = false; win.loadFile(PAGE).catch(() => {}); }
   } catch (e) {
     if (manual) dialog.showMessageBox(win, { type: 'warning', message: 'Не получилось проверить обновления', detail: String(e && e.message || e) });
   }
+}
+
+// Новая версия считается рабочей, когда страница прислала kr-ready.
+// Если за 15 секунд после загрузки сигнала нет — откатываемся на прежнюю.
+function rollback(why) {
+  const meta = readMeta();
+  if (!meta.pendingVerify) return false;
+  let src = BUNDLED;
+  try { if (fs.existsSync(PAGE + '.prev')) src = PAGE + '.prev'; } catch (e) {}
+  try {
+    const txt = fs.readFileSync(src, 'utf8');
+    fs.writeFileSync(PAGE + '.new', txt);
+    fs.renameSync(PAGE + '.new', PAGE);
+    const { pendingVerify, ...rest } = meta;
+    writeMeta({ ...rest, badSha: pendingVerify, sha: sha(txt), source: src === BUNDLED ? 'bundled' : 'prev', at: new Date().toISOString() });
+  } catch (e) { return false; }
+  if (win) {
+    win.loadFile(PAGE);
+    dialog.showMessageBox(win, { type: 'warning', message: 'Новая версия Красильни не запустилась', detail: 'Вернул прежнюю версию (' + why + '). Её больше не будет предлагать, пока на GitHub не появится другая.' });
+  }
+  return true;
+}
+
+function armVerify() {
+  clearTimeout(verifyTimer);
+  verifyTimer = null;
+  if (DEV || pageReady || !readMeta().pendingVerify) return;
+  if (!win || win.webContents.getURL().indexOf('/page/') === -1) return;
+  verifyTimer = setTimeout(() => { verifyTimer = null; if (!pageReady) rollback('страница не ответила'); }, 15000);
 }
 
 function sendFile(file) {
@@ -129,7 +169,26 @@ function createWindow() {
   win.webContents.on('will-navigate', (e, url) => { if (/^https?:/.test(url)) { e.preventDefault(); shell.openExternal(url); } });
 
   // если скачанная версия вдруг сломана — открываем ту, что пришла с установкой
-  win.webContents.on('did-fail-load', () => { if (win.webContents.getURL().indexOf(BUNDLED) === -1) win.loadFile(BUNDLED); });
+  win.webContents.on('did-fail-load', (e, code, desc, url, isMain) => {
+    if (!isMain || code === -3) return; // -3: загрузку прервали сами (перезапуск), это не поломка
+    if (rollback('файл не открылся')) return;
+    if (!fellBack) { fellBack = true; win.loadFile(BUNDLED); }
+  });
+  win.webContents.on('did-finish-load', armVerify);
+
+  // страница просит подтвердить уход (есть несохранённое) — спрашиваем по-человечески
+  win.webContents.on('will-prevent-unload', (e) => {
+    const r = dialog.showMessageBoxSync(win, {
+      type: 'question',
+      buttons: ['Уйти', 'Остаться'],
+      defaultId: 1,
+      cancelId: 1,
+      title: 'Красильня',
+      message: 'Есть несохранённые изменения',
+      detail: 'Если уйти, изменения после последнего сохранения могут пропасть.',
+    });
+    if (r === 0) e.preventDefault();
+  });
 
   win.webContents.on('before-input-event', (e, input) => {
     if (input.type !== 'keyDown') return;
@@ -154,9 +213,11 @@ function setupDownloads() {
       defaultPath: path.join(lastDir || app.getPath('documents'), name),
       filters,
     });
-    if (!target) { item.cancel(); return; }
+    const done = (ok) => { if (win && !win.isDestroyed()) win.webContents.send('download-done', name, ok); };
+    if (!target) { item.cancel(); done(false); return; }
     lastDir = path.dirname(target);
     item.setSavePath(target);
+    item.once('done', (ev, state) => done(state === 'completed'));
   });
 }
 
@@ -181,6 +242,13 @@ function setupVendor() {
 
 ipcMain.on('kr-ready', () => {
   pageReady = true;
+  clearTimeout(verifyTimer);
+  verifyTimer = null;
+  const meta = readMeta();
+  if (meta.pendingVerify && win && win.webContents.getURL().indexOf('/page/') !== -1) {
+    const { pendingVerify, ...rest } = meta;
+    writeMeta(rest);
+  }
   if (pendingFile) { const f = pendingFile; pendingFile = null; sendFile(f); }
 });
 
