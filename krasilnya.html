@@ -238,6 +238,10 @@ body.qson .qs{display:flex}
 .stage.render #gizmo{opacity:.35}
 .restore{position:absolute;left:50%;top:18px;transform:translateX(-50%);z-index:6;width:min(380px,calc(100% - 32px));background:var(--glass);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:8px;box-shadow:0 10px 30px rgba(0,0,0,.35);backdrop-filter:blur(8px)}
 .restore p{margin:0;font-size:12.5px;color:var(--muted);line-height:1.45}
+#ask{z-index:30}
+#autoPill.err:not([hidden]){display:block;color:#fff;background:#c2410c;border-color:#c2410c}
+.toast .tact{margin-left:6px;background:none;border:0;color:var(--accent);font:inherit;font-weight:700;cursor:pointer;padding:2px 4px}
+body.busy .stage{cursor:progress}
 @media (min-width:761px){.panel[data-tab="paint"] .laydock{display:flex!important}}
 /* work modes: paint, rig, animate */
 .modes{display:flex;gap:2px;padding:2px;border-radius:8px;background:var(--surface-2);border:1px solid var(--line);flex:0 0 auto}
@@ -384,6 +388,7 @@ body[data-mode="anim"] .rbar{bottom:96px}
         <div class="msep"></div>
         <button class="mi" id="texBtn" role="menuitem"><b>Текстура PNG</b><small>Base Color каждой детали</small></button>
         <button class="mi" id="shotBtn" role="menuitem"><b>Снимок PNG</b><small>Кадр как на экране</small></button>
+        <label class="mi misel">Скрытые детали тоже<input type="checkbox" id="expHidden" checked aria-label="Добавлять в экспорт скрытые детали"></label>
         <label class="mi misel" id="rigExpRow" hidden>Скелет и анимации в GLB<input type="checkbox" id="rigExp" checked aria-label="Добавлять скелет и анимации в GLB"></label>
         <div class="msep mthm"></div>
         <button class="mi mthm" id="themeMi" role="menuitem"><b>Светлая или тёмная тема</b></button>
@@ -462,6 +467,7 @@ body[data-mode="anim"] .rbar{bottom:96px}
       <b>Восстановить работу?</b><p id="restoreTxt"></p>
       <div class="row"><button class="btn primary" id="restoreYes">Восстановить</button><button class="btn" id="restoreNo">Не нужно</button></div>
     </div>
+    <div class="restore" id="ask" hidden role="alertdialog" aria-modal="true" aria-labelledby="askT"><b id="askT"></b><p id="askP"></p><div class="row" id="askB"></div></div>
   </main>
 
   <aside class="panel" id="panel" data-tab="paint">
@@ -765,6 +771,7 @@ const st={tool:'brush',color:[1,0.824,0.247],grad:{type:'linear',stops:[{p:0,c:'
   radius:0.08,hard:0.6,brush:'round',sym:-1,pixel:0.012,bp:{pat:'dots',cell:0.025,den:0.45},pr:{size:true,alpha:true},strength:1,angle:30,recent:[],lit:true,wire:false,
   decal:{list:[],cur:0,size:0.22,rot:0,op:1,flip:false,wrap:true},bake:false};
 let LUT=new Float32Array(256*4);
+let busy=0; /* >0 while an export or a save holds the parts: input waits, frames pause */
 
 /* ---------- three setup ---------- */
 const canvas=$('cv'),stage=$('stage');
@@ -831,9 +838,9 @@ function rasterTri(uvA,t,W,H,pad,fn){
       if(w0<-t0||w1<-t1||w2<-t2)continue;fn(py*W+px,w0,w1,w2);}}
 }
 function uvBad(uv,T){
-  const a=uv.array,is=uv.itemSize;for(let i=0;i<uv.count;i++){const u=a[i*is],v=a[i*is+1];if(!(u>=-0.001&&u<=1.001&&v>=-0.001&&v<=1.001))return true;}
+  /* getX/getY honour normalized (quantized) and interleaved UVs */
+  const flat=new Float32Array(uv.count*2);for(let i=0;i<uv.count;i++){const u=uv.getX(i),v=uv.getY(i);if(!(u>=-0.001&&u<=1.001&&v>=-0.001&&v<=1.001))return true;flat[i*2]=u;flat[i*2+1]=v;}
   const N=256,cnt=new Uint8Array(N*N);let cov=0,over=0;
-  const flat=new Float32Array(uv.count*2);for(let i=0;i<uv.count;i++){flat[i*2]=a[i*is];flat[i*2+1]=a[i*is+1];}
   for(let t=0;t<T;t++)rasterTri(flat,t,N,N,0,o=>{if(cnt[o])over++;else cov++;if(cnt[o]<255)cnt[o]++;});
   return cov===0||over>cov*0.06;
 }
@@ -974,15 +981,17 @@ function buildData(m){
 }
 function addWire(d){const w=new THREE.Mesh(d.mesh.geometry,wireMat);w.visible=st.wire;w.raycast=()=>{};d.mesh.add(w);d.wire=w;}
 function setModel(obj,name){
-  while(root.children.length)root.remove(root.children[0]);
+  const list=[];obj.traverse(o=>{if(o.isMesh)list.push(o);});
+  if(!list.length){toast('В файле нет мешей');return false;} /* checked before anything is cleared */
+  cancelOps();while(root.children.length)root.remove(root.children[0]);
   commitRecolor(true);rigReset();meshes=[];decalOps=[];bakedBase=null;selDec=null;selGrad=null;selLay=null;sess=null;edOp=null;editSnap=null;gradNo=0;paintNo=0;modelName=(name||'model').replace(/\.[^.]+$/,'');
   root.add(obj);root.updateMatrixWorld(true);
-  const list=[];obj.traverse(o=>{if(o.isMesh)list.push(o);});
-  if(!list.length){toast('В файле нет мешей');return;}
   list.forEach(prepMesh);
   root.updateMatrixWorld(true);
   const box=new THREE.Box3().setFromObject(obj);const size=box.getSize(new THREE.Vector3());modelSize=Math.max(size.x,size.y,size.z)||1;
   meshes=list.map(buildData);meshes.forEach(addWire);
+  /* a full colour upload stays pending until three actually draws (and so uploads) the mesh; a culled mesh keeps it */
+  meshes.forEach(d=>{d.mesh.onBeforeRender=(r,sc,c,g)=>{const ca=g.attributes.color;if(ca)ca._full=false;};});
   const c=box.getCenter(new THREE.Vector3());
   controls.target.copy(c);modelCenter.copy(c);
   camera.near=modelSize/200;camera.far=modelSize*200;camera.updateProjectionMatrix();
@@ -996,6 +1005,7 @@ function setModel(obj,name){
   updOutlines();
   const gen=meshes.some(d=>d.mesh.userData.kr.uvGen&&!/^Пример/.test(name||''));
   if(gen)toast('У модели не было подходящей UV-развёртки — Красильня построила свою для наклеек');
+  return true;
 }
 function updStats(){let t=0;meshes.forEach(d=>{t+=d.tris;});
   $('statPill').innerHTML='<b>'+escapeHtml(modelName)+'</b> · '+t.toLocaleString('ru-RU')+' треуг. · '+meshes.length+' дет.';}
@@ -1074,15 +1084,34 @@ function escapeHtml(s){return s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>
 const undo=[],redo=[];
 function snapCols(){return meshes.map(d=>d.mesh.geometry.attributes.color.array.slice());}
 function restoreCols(s){meshes.forEach((d,i)=>{const a=d.mesh.geometry.attributes.color;if(s[i]&&s[i].length===a.array.length){a.array.set(s[i]);colFull(a);}});}
-function snapTexLike(map){const m=new Map();map.forEach((_,i)=>{if(meshes[i])m.set(i,meshes[i].mesh.userData.kr.MA.slice());});return m;}
-function restoreTex(map){map.forEach((arr,i)=>{const d=meshes[i];if(!d)return;const kr=d.mesh.userData.kr;if(arr.length===kr.MA.length){kr.MA.set(arr);texFull(kr);}});}
-function entryBytes(e){let b=0;if(e.cols)e.cols.forEach(a=>b+=a.byteLength);if(e.tex)e.tex.forEach(a=>b+=a.byteLength);return b;}
-function pushUndo(e){undo.push(e);redo.length=0;markDirty();
-  let total=undo.reduce((s,x)=>s+entryBytes(x),0);while(undo.length>1&&(undo.length>40||total>220e6)){total-=entryBytes(undo.shift());}updUndo();}
+/* An undo entry keeps the composite only in the 32×32 tiles the operation changed (both halves, M and A, of each),
+   not the whole texture of every part: {pk,W,idx,buf}. A full copy (a plain array) is still understood. */
+const UT=32;
+function texPack(src,W,idx){const R=UT*4,N4=W*W*4,nt=W/UT,buf=new Uint8Array(idx.length*UT*R*2);let o=0;
+  for(const ti of idx){const tx=ti%nt,ty=(ti-tx)/nt;for(const off of [0,N4])for(let y=0;y<UT;y++){const s=off+((ty*UT+y)*W+tx*UT)*4;buf.set(src.subarray(s,s+R),o);o+=R;}}
+  return {pk:true,W,idx,buf};}
+function texDiff(old,cur,W){const R=UT*4,N4=W*W*4,nt=W/UT,idx=[];
+  for(let ty=0;ty<nt;ty++)for(let tx=0;tx<nt;tx++){let diff=false;
+    for(const off of [0,N4]){for(let y=0;y<UT&&!diff;y++){const s=off+((ty*UT+y)*W+tx*UT)*4;for(let k=s;k<s+R;k++)if(old[k]!==cur[k]){diff=true;break;}}if(diff)break;}
+    if(diff)idx.push(ty*nt+tx);}
+  return texPack(old,W,Int32Array.from(idx));}
+function texUnpack(p,dst){const W=p.W,R=UT*4,N4=W*W*4,nt=W/UT;let o=0;
+  for(const ti of p.idx){const tx=ti%nt,ty=(ti-tx)/nt;for(const off of [0,N4])for(let y=0;y<UT;y++){dst.set(p.buf.subarray(o,o+R),off+((ty*UT+y)*W+tx*UT)*4);o+=R;}}}
+function snapTexLike(map){const m=new Map();map.forEach((a,i)=>{if(!meshes[i])return;const kr=meshes[i].mesh.userData.kr;m.set(i,a&&a.pk?texPack(kr.MA,kr.W,a.idx):kr.MA.slice());});return m;}
+function restoreTex(map){map.forEach((arr,i)=>{const d=meshes[i];if(!d||!arr)return;const kr=d.mesh.userData.kr;
+  if(arr.pk){if(arr.W===kr.W){texUnpack(arr,kr.MA);texFull(kr);}}else if(arr.length===kr.MA.length){kr.MA.set(arr);texFull(kr);}});}
+function entryBytes(e){let b=0;if(e.cols)e.cols.forEach(a=>b+=a.byteLength);if(e.tex)e.tex.forEach(a=>b+=a.pk?a.buf.byteLength:a.byteLength);return b;}
+const UNDO_CAP=matchMedia('(pointer:coarse)').matches?90e6:220e6; /* phones close a tab that takes too much memory */
+/* e holds the state before the operation; the composite on screen is already the state after it */
+function pushUndo(e){
+  if(e.tex)e.tex.forEach((a,i)=>{if(!a||a.pk||!meshes[i])return;const kr=meshes[i].mesh.userData.kr;if(a.length!==kr.MA.length)return;
+    const p=texDiff(a,kr.MA,kr.W);if(p.idx.length)e.tex.set(i,p);else e.tex.delete(i);});
+  undo.push(e);redo.length=0;markDirty();
+  let total=undo.reduce((s,x)=>s+entryBytes(x),0);while(undo.length>1&&(undo.length>40||total>UNDO_CAP)){total-=entryBytes(undo.shift());}updUndo();}
 function apply(e){if(e.cols)restoreCols(e.cols);if(e.tex)restoreTex(e.tex);if(e.decals){decalOps=e.decals.slice();selDec=null;selGrad=null;updGradSel();}if('baked' in e)bakedBase=e.baked;}
 function mirror(e){const o={};if(e.cols)o.cols=snapCols();if(e.tex)o.tex=snapTexLike(e.tex);if(e.decals)o.decals=decalOps.slice();if('baked' in e)o.baked=bakedBase;return o;}
-function doUndo(){if(mode!=='paint'){rigUndo();return;}commitEdit();if(!undo.length)return;const e=undo.pop();redo.push(mirror(e));apply(e);updUndo();markDirty();}
-function doRedo(){if(mode!=='paint'){rigRedo();return;}commitEdit();if(!redo.length)return;const e=redo.pop();undo.push(mirror(e));apply(e);updUndo();markDirty();}
+function doUndo(){if(busy)return;if(mode!=='paint'){rigUndo();return;}commitEdit();if(!undo.length)return;const e=undo.pop();redo.push(mirror(e));apply(e);updUndo();markDirty();}
+function doRedo(){if(busy)return;if(mode!=='paint'){rigRedo();return;}commitEdit();if(!redo.length)return;const e=redo.pop();undo.push(mirror(e));apply(e);updUndo();markDirty();}
 function updUndo(){if(mode!=='paint'){$('undoBtn').disabled=!RU.u.length;$('redoBtn').disabled=!RU.r.length;return;}$('undoBtn').disabled=!undo.length;$('redoBtn').disabled=!redo.length;}
 let texOp=null; /* Map meshIndex -> data before this operation */
 function touchTex(i){if(texOp&&!texOp.has(i))texOp.set(i,meshes[i].mesh.userData.kr.MA.slice());}
@@ -1127,9 +1156,10 @@ function pick(cx,cy){
 
 /* ---------- vertex painting ---------- */
 function brushAt(hit){
-  const R=st.radius*modelSize,last=stroke&&stroke.last;stroke&&(stroke.last={P:hit.point.clone(),N:hit.normal.clone()});
-  if(last&&fillGap(last,hit.point,hit.normal,R*0.3,R*8,(P,N)=>brushAt1(P,N)))return;
-  if(!last||last.P.distanceTo(hit.point)>=R*0.3||!stroke)brushAt1(hit.point,hit.normal);}
+  /* the spacing anchor only moves when a dab is painted, so slow drags still paint */
+  const R=st.radius*modelSize,last=stroke&&stroke.last,mark=()=>{if(stroke)stroke.last={P:hit.point.clone(),N:hit.normal.clone()};};
+  if(last){if(fillGap(last,hit.point,hit.normal,R*0.3,R*8,(P,N)=>brushAt1(P,N)))mark();return;}
+  brushAt1(hit.point,hit.normal);mark();}
 function brushAt1(P0,N0){const hit={point:P0,normal:N0};brushDab(hit.point,hit.normal);if(st.sym>=0){const m={sym:st.sym,mc:modelCenter.toArray()};brushDab(mirrorV(hit.point,m),mirrorN(hit.normal,m));}}
 function brushDab(P,N){
   const pw=stroke&&stroke.pen?stroke.pw:null,pr={prS:st.pr.size,prA:st.pr.alpha};
@@ -1241,7 +1271,7 @@ function gradStart(cx,cy,hit){
   const V=camDir(),P0=hit?hit.point.clone():controls.target.clone(),A=planeHit(cx,cy,P0,V)||P0,ts=targets(hit);
   const lim={shown:meshes.map(d=>ts.some(x=>x.d===d)),sel:meshes.map(d=>{const x=ts.find(y=>y.d===d);return x&&x.mask?x.mask.slice():null;})};
   const g=st.grad,o={k:'grad',A,B:A.clone(),V,stops:cloneStops(g.stops),type:g.type,space:g.space,mode:g.mode,steps:g.steps,pat:g.pat,scale:g.scale,alpha:st.strength,lim,name:'Градиент '+(gradNo+1)};
-  editSnap={tex:snapAllTex(),decals:decalOps.slice(),baked:bakedBase};
+  editSnap={tex:new Map(),decals:decalOps.slice(),baked:bakedBase};
   const idx=newLayerIdx();edOp=o;setEditBase(idx);decalOps.splice(idx,0,o);
   gdrag={h:'B',P:A.clone(),N:V,fresh:true,prev:selGrad,hit,sx:cx,sy:cy};
 }
@@ -1326,7 +1356,9 @@ function eraseDab(P,o){
         const dist=Math.sqrt(dd)/R;let f=dist<=h?1:1-(dist-h)/Math.max(1e-4,1-h);f=f*f*(3-2*f)*s;if(f<=0||!out[o*4+3])return;out[o*4+3]*=(1-f);if(touchList)touchList[mi].push(o);});}
     });
 }
-function eraseAt(hit){if(!stroke||!stroke.op)return;const o=stroke.op,last=stroke.last;stroke.last={P:hit.point.clone(),N:hit.normal.clone()};
+function eraseAt(hit){if(!stroke||!stroke.op)return;const o=stroke.op,last=stroke.last;
+  if(last&&hit.point.distanceTo(last.P)<o.R*0.3)return;
+  stroke.last={P:hit.point.clone(),N:hit.normal.clone()};
   const dab=P=>{P=P.clone();o.pts.push(P);eraseDab(P,o);if(o.sym>=0)eraseDab(mirrorV(P,o),o);};
   liveStamp(()=>{if(!last)dab(hit.point);else fillGap(last,hit.point,hit.normal,o.R*0.3,o.R*8,P=>dab(P));});}
 /* ---------- textured brushes: each stroke is a layer op painted into the decal texture ---------- */
@@ -1451,6 +1483,8 @@ const layOpacity=L=>(L.vis===false?0:1)*(L.k==='layer'?(L.opacity==null?1:L.opac
 function layName(L){return L.name||(L.k==='decal'?L.dec.name:L.k==='grad'?'Градиент':'Краска');}
 function cloneLayer(L){const c=Object.assign({},L);if(L.ops)c.ops=L.ops.slice();if(L.k!=='layer')c.er=(L.er||[]).slice();return c;} /* the pixel cache _c is shared: it is never changed in place */
 function swapSel(a,b){if(selDec===a)selDec=b;if(selGrad===a)selGrad=b;if(selLay===a)selLay=b;}
+/* the stack was replaced by a same-length copy (recolor, cancel): keep the selections on the same rows */
+function keepSel(prev,next){const f=x=>{const i=x?prev.indexOf(x):-1;return i>=0?next[i]:x&&!next.includes(x)?null:x;};selDec=f(selDec);selGrad=f(selGrad);selLay=f(selLay);}
 function newLayerIdx(){const i=decalOps.indexOf(selLay);return i>=0?i+1:decalOps.length;}
 function stampOp(o){
   if(o.k==='decal'){if(o.P)stampDecal(o);}else if(o.k==='grad')stampGrad(o);else if(o.k==='paint')paintDabs(o,strokeState(),0);
@@ -1558,9 +1592,10 @@ function liveStamp(fn){
     kr.er=unionRect(kr.er,r);});
 }
 function beginEdit(sel){
-  sel=sel||selDec;if(editSnap&&edOp!==sel)commitEdit();
+  sel=sel||selDec;commitRecolor(); /* an open recolor would replace decalOps under the edit */
+  if(editSnap&&edOp!==sel)commitEdit();
   if(editSnap||!sel)return;
-  editSnap={tex:snapAllTex(),decals:decalOps.slice(),baked:bakedBase};
+  editSnap={tex:new Map(),decals:decalOps.slice(),baked:bakedBase};
   const i=decalOps.indexOf(sel);const c=cloneLayer(sel);delete sel._px;
   if(i>=0)decalOps[i]=c;else decalOps.push(c);swapSel(sel,c);edOp=c;
   setEditBase(decalOps.indexOf(c));
@@ -1576,13 +1611,13 @@ function moveLayer(dir){
   const ops=decalOps.slice(),i=ops.indexOf(sel);
   const j=dir==='up'?Math.min(ops.length-1,i+1):dir==='down'?Math.max(0,i-1):dir==='top'?ops.length-1:0;
   if(j===i)return;
-  pushUndo({tex:snapAllTex(),decals:decalOps.slice(),baked:bakedBase});
-  ops.splice(i,1);ops.splice(j,0,sel);decalOps=ops;replay(decalOps);
+  const before={tex:snapAllTex(),decals:decalOps.slice(),baked:bakedBase};
+  ops.splice(i,1);ops.splice(j,0,sel);decalOps=ops;replay(decalOps);pushUndo(before);
 }
 function deleteLayer(L){
   commitEdit();const i=decalOps.indexOf(L);if(i<0)return;
-  pushUndo({tex:snapAllTex(),decals:decalOps.slice(),baked:bakedBase});decalOps=decalOps.filter(o=>o!==L);
-  if(selDec===L)selDec=null;if(selGrad===L){selGrad=null;updGradSel();}selLay=decalOps[Math.min(i,decalOps.length-1)]||null;replay(decalOps);
+  const before={tex:snapAllTex(),decals:decalOps.slice(),baked:bakedBase};decalOps=decalOps.filter(o=>o!==L);
+  if(selDec===L)selDec=null;if(selGrad===L){selGrad=null;updGradSel();}selLay=decalOps[Math.min(i,decalOps.length-1)]||null;replay(decalOps);pushUndo(before);
   toast('Слой «'+layName(L)+'» удалён');
 }
 /* live change of the selected layer's opacity, mode or visibility; committed once changes pause */
@@ -1644,7 +1679,10 @@ function layProps(sel){
   if(on){$('layMode').value=sel.blend||'normal';const v=Math.round((sel.k==='layer'?(sel.opacity==null?1:sel.opacity):sel.alpha)*100);$('layOp').value=v;$('layOpO').textContent=v;}
   else{$('layMode').value='normal';$('layOp').value=100;$('layOpO').textContent='—';}
 }
-function commitEdit(){commitRecolor();if(!editSnap)return;clearTimeout(layT);if(edOp){delete edOp._px;if(sess)captureLayer(edOp,sess.base);}edOp=null;pushUndo(editSnap);editSnap=null;sess=null;layKey='';if(!st.bake){st.bake=true;$('bakeChk').checked=true;}}
+function commitEdit(){commitRecolor();if(!editSnap)return;clearTimeout(layT);
+  /* a gradient change waiting for the next frame is drawn now, so the cached pixels match the layer */
+  if(gradDirty){gradDirty=false;if(sess)redrawEdit();}
+  if(edOp){delete edOp._px;if(sess)captureLayer(edOp,sess.base);}edOp=null;pushUndo(editSnap);editSnap=null;sess=null;layKey='';if(!st.bake){st.bake=true;$('bakeChk').checked=true;}}
 function decalHitTest(hit){ /* topmost decal whose opaque pixels are under the hit point */
   if(!hit)return null;
   for(let i=decalOps.length-1;i>=0;i--){const o=decalOps[i];if(o.k!=='decal')continue;
@@ -1727,41 +1765,45 @@ function loadDecalFile(f){
 }
 
 /* ---------- pointer handling ---------- */
-let spaceHeld=false,activePtr=null,stroke=null;const ptrs=new Set();
+let spaceHeld=false,activePtr=null,stroke=null,tapPending=null,pendStart=null;const ptrs=new Set();
 function effTool(){return spaceHeld?'camera':st.tool;}
 function applyControlMode(){
   const cam=effTool()==='camera'||mode!=='paint';
   controls.mouseButtons={LEFT:cam?THREE.MOUSE.ROTATE:-1,MIDDLE:THREE.MOUSE.PAN,RIGHT:THREE.MOUSE.ROTATE};
-  controls.touches={ONE:cam?THREE.TOUCH.ROTATE:-1,TWO:THREE.TOUCH.DOLLY_PAN};
+  controls.touches={ONE:cam?THREE.TOUCH.ROTATE:-1,TWO:cam?THREE.TOUCH.DOLLY_PAN:THREE.TOUCH.DOLLY_ROTATE};
   canvas.style.cursor=mode!=='paint'?'default':cam?'grab':(st.tool==='dedit'?'default':st.tool==='gradient'||st.tool==='decal'?'crosshair':(st.tool==='pick'?'copy':'default'));
 }
+/* a stroke on an existing layer gives the selection back to that layer; a stroke that made a new layer drops it */
+function abortStroke(){const prev=decalOps;abortEdit();if(prev.length===decalOps.length)keepSel(prev,decalOps);else if(!decalOps.includes(selLay))selLay=null;}
 function cancelOps(){
-  if(stroke){if(stroke.cols)restoreCols(stroke.cols);else{abortEdit();if(!decalOps.includes(selLay))selLay=null;}stroke=null;}
+  if(stroke){if(stroke.cols)restoreCols(stroke.cols);else abortStroke();stroke=null;}
   if(gdrag){if(editSnap){abortEdit();if(gdrag.fresh)selGrad=gdrag.prev;else selGrad=decalOps.find(o=>o===gdrag.orig)||null;}gdrag=null;updGradSel();}
   if(ddrag){if(editSnap){abortEdit();selDec=null;}ddrag=null;}
-  activePtr=null;
+  activePtr=null;tapPending=null;pendStart=null;
 }
-canvas.addEventListener('contextmenu',e=>e.preventDefault());
-canvas.addEventListener('pointerdown',e=>{
-  ptrs.add(e.pointerId);
-  if(ptrs.size>1){cancelOps();return;}
-  if(mode!=='paint'||e.button!==0||effTool()==='camera')return;
-  activePtr=e.pointerId;try{canvas.setPointerCapture(e.pointerId);}catch(_){}
-  const tool=st.tool,hit=pick(e.clientX,e.clientY),pen=e.pointerType==='pen';
-  if(tool==='brush'){if(!hit){activePtr=null;return;}commitEdit();
+/* tools that act once per click; on touch they wait for the finger to lift, so a two-finger turn doesn't fire them */
+const TAP={fill:1,select:1,pick:1,recolor:1};
+function tapTool(tool,hit,shift){
+  if(tool==='fill'){if(hit){pushUndo({cols:snapCols()});fillAt(hit);addRecent();}}
+  else if(tool==='select'){if(hit){const m=region(hit.d,hit.tri);const add=!hit.d.sel[hit.tri];for(let t=0;t<hit.d.tris;t++)if(m[t])hit.d.sel[t]=add?1:0;rebuildSel(hit.d);}else if(!shift){selectAll(false);}}
+  else if(tool==='pick'){if(hit){setColor(shownColor(hit));toast('Цвет взят: '+rgbToHex(st.color));}}
+  else if(tool==='recolor'){if(hit)recolorPick(hit);}
+}
+function beginPaint(tool,hit,pen,pw){
+  if(tool==='brush'){commitEdit();
     let L=decalOps.includes(selLay)?selLay:null;
-    if(!L&&st.brush==='round'){stroke={cols:snapCols(),pen,pw:e.pressure};brushAt(hit);return;} /* «Основа»: the round brush paints the model's own colours */
+    if(!L&&st.brush==='round'){stroke={cols:snapCols(),pen,pw};brushAt(hit);return;} /* «Основа»: the round brush paints the model's own colours */
     if(L&&L.vis===false&&L.k==='layer'){toast('Слой «'+layName(L)+'» скрыт: включи глаз, чтобы рисовать на нём');activePtr=null;return;}
     const decs=decalOps.slice();let idx;
     if(L&&L.k==='layer')idx=decalOps.indexOf(L);
     else{idx=newLayerIdx();L={k:'layer',name:'Краска '+(++paintNo),vis:true,opacity:1,blend:'normal',ops:[]};decalOps.splice(idx,0,L);toast('Новый слой «'+L.name+'»');}
     const o={k:'paint',shape:st.brush,px:st.pixel*modelSize,c:st.color.slice(),R:st.radius*modelSize,s:st.strength,h:st.hard,seed:(Math.random()*1e9)|0,sym:st.sym,mc:modelCenter.toArray(),pts:[],lim:curLim()};
     if(o.shape==='pattern')Object.assign(o,{pat:st.bp.pat,cell:st.bp.cell*modelSize,den:st.bp.den});
-    if(e.pointerType==='pen')Object.assign(o,{prS:st.pr.size,prA:st.pr.alpha});
+    if(pen)Object.assign(o,{prS:st.pr.size,prA:st.pr.alpha});
     const c=cloneLayer(L);c.ops.push(o);decalOps[idx]=c;selDec=null;selLay=c;
     editSnap={tex:new Map(),decals:decs,baked:bakedBase};edOp=c;setEditBase(idx);
-    stroke={layer:true,op:o,ss:strokeState(),pen,pw:e.pressure};paintAt(hit);}
-  else if(tool==='erase'){if(!hit){activePtr=null;return;}commitEdit();
+    stroke={layer:true,op:o,ss:strokeState(),pen,pw};paintAt(hit);}
+  else{commitEdit();
     const L=decalOps.includes(selLay)?selLay:null;
     if(!L){toast('Ластик стирает выбранный слой: выбери его в списке «Слои»');activePtr=null;return;}
     if(L.vis===false){toast('Слой «'+layName(L)+'» скрыт');activePtr=null;return;}
@@ -1769,23 +1811,33 @@ canvas.addEventListener('pointerdown',e=>{
     (c.k==='layer'?c.ops:c.er).push(o);decalOps[idx]=c;swapSel(L,c);delete L._px;
     editSnap={tex:new Map(),decals:decs,baked:bakedBase};edOp=c;setEditBase(idx);
     stroke={layer:true,op:o};eraseAt(hit);}
-  else if(tool==='fill'){if(hit){pushUndo({cols:snapCols()});fillAt(hit);addRecent();}activePtr=null;}
-  else if(tool==='select'){if(hit){const m=region(hit.d,hit.tri);const add=!hit.d.sel[hit.tri];for(let t=0;t<hit.d.tris;t++)if(m[t])hit.d.sel[t]=add?1:0;rebuildSel(hit.d);}else if(!e.shiftKey){selectAll(false);}activePtr=null;}
-  else if(tool==='pick'){if(hit){setColor(shownColor(hit));toast('Цвет взят: '+rgbToHex(st.color));}activePtr=null;}
-  else if(tool==='recolor'){if(hit)recolorPick(hit);activePtr=null;}
+}
+canvas.addEventListener('contextmenu',e=>e.preventDefault());
+canvas.addEventListener('pointerdown',e=>{
+  ptrs.add(e.pointerId);
+  if(ptrs.size>1){cancelOps();return;}
+  if(busy||mode!=='paint'||e.button!==0||effTool()==='camera')return;
+  activePtr=e.pointerId;try{canvas.setPointerCapture(e.pointerId);}catch(_){}
+  const tool=st.tool,hit=pick(e.clientX,e.clientY),pen=e.pointerType==='pen';
+  if(tool==='brush'||tool==='erase'){if(!hit){pendStart={pen};return;}beginPaint(tool,hit,pen,e.pressure);}
+  else if(TAP[tool]){if(e.pointerType==='touch'){tapPending={x:e.clientX,y:e.clientY,hit,tool,shift:e.shiftKey};return;}tapTool(tool,hit,e.shiftKey);activePtr=null;}
   else if(tool==='gradient'){gradStart(e.clientX,e.clientY,hit);}
   else if(tool==='decal'||tool==='dedit'){
     commitEdit();const o=decalHitTest(hit);
     if(o&&(tool==='dedit'||o===selDec)){selectDecal(o);ddrag={move:true,off:o.P.clone().sub(hit.point)};canvas.style.cursor='grabbing';return;}
     if(tool==='dedit'){selDec=null;activePtr=null;return;}
     const dec=curDecal();if(!dec){activePtr=null;toast('Сначала выбери наклейку');return;}
-    editSnap={tex:snapAllTex(),decals:decalOps.slice(),baked:bakedBase};
+    editSnap={tex:new Map(),decals:decalOps.slice(),baked:bakedBase};
     selDec={k:'decal',P:null,N:null,base:null,rot:st.decal.rot,dec,size:st.decal.size,alpha:st.decal.op,flip:st.decal.flip,wrap:st.decal.wrap,lim:curLim(),er:[]};edOp=selDec;setEditBase(newLayerIdx());
     ddrag={};decalPlace(e.clientX,e.clientY);}
 });
 let lastPtr=null;
 canvas.addEventListener('pointermove',e=>{
   lastPtr=[e.clientX,e.clientY];if(mode!=='paint')return;const tool=effTool();
+  if(e.pointerId===activePtr){
+    if(tapPending&&Math.hypot(e.clientX-tapPending.x,e.clientY-tapPending.y)>10){tapPending=null;activePtr=null;}
+    /* the press began off the model: the stroke starts where the pointer first reaches it */
+    if(pendStart){const h=pick(e.clientX,e.clientY);if(h){const p=pendStart;pendStart=null;if(st.tool==='brush'||st.tool==='erase')beginPaint(st.tool,h,p.pen,e.pressure);else activePtr=null;}}}
   if(e.pointerType==='mouse'&&meshes.length>1&&$('panel').dataset.tab==='parts')rowPend=[e.clientX,e.clientY];
   if(((tool==='brush'||tool==='erase')&&e.pointerType!=='touch')||stroke){movePend=[e.clientX,e.clientY,!!(stroke&&e.pointerId===activePtr)];if(stroke&&stroke.pen&&e.pointerId===activePtr)stroke.pw=e.pressure;}
   else {ring.visible=ringIn.visible=ring2.visible=ringIn2.visible=false;}
@@ -1800,9 +1852,11 @@ function processMove(){
   if(!movePend)return;const [x,y,paint]=movePend;movePend=null;const hit=pick(x,y);updRing(hit);
   if(paint&&stroke&&hit){if(stroke.cols)brushAt(hit);else if(stroke.op.k==='paint')paintAt(hit);else eraseAt(hit);}
 }
-function endPtr(e){ptrs.delete(e.pointerId);if(e.pointerId!==activePtr)return;if(movePend)processMove();activePtr=null;
+function endPtr(e){ptrs.delete(e.pointerId);if(e.pointerId!==activePtr)return;pendStart=null;
+  if(tapPending){const t=tapPending;tapPending=null;activePtr=null;tapTool(t.tool,t.hit,t.shift);return;}
+  if(movePend)processMove();activePtr=null;
   if(stroke){if(stroke.cols){pushUndo({cols:stroke.cols});addRecent();}
-    else if(stroke.op.pts.length){commitEdit();if(stroke.op.k==='paint')addRecent();}else{abortEdit();if(!decalOps.includes(selLay))selLay=null;}stroke=null;}
+    else if(stroke.op.pts.length){commitEdit();if(stroke.op.k==='paint')addRecent();}else abortStroke();stroke=null;}
   if(gdrag)gradEnd(e.clientX,e.clientY);
   if(ddrag){if(pendingMove){decalPlace(pendingMove[0],pendingMove[1]);pendingMove=null;}
     if(ddrag.placed)commitEdit();else if(!ddrag.move){editSnap=null;sess=null;edOp=null;selDec=null;}
@@ -2009,9 +2063,10 @@ function dragStop(ev,i){
   const box=$('stops').getBoundingClientRect();const startY=ev.clientY;
   const mv=e=>{const s=st.grad.stops[i];if(!s)return;s.p=clamp01((e.clientX-box.left)/box.width);
     const el=$('stops').children[i];if(el){el.style.left=(s.p*100)+'%';el.style.opacity=(e.clientY-startY>40&&st.grad.stops.length>2)?.3:1;}buildLUT();redrawBar();gradLive();};
-  const up=e=>{window.removeEventListener('pointermove',mv);window.removeEventListener('pointerup',up);
-    if(e.clientY-startY>40&&st.grad.stops.length>2){st.grad.stops.splice(i,1);st.grad.sel=0;}renderGrad();};
-  window.addEventListener('pointermove',mv);window.addEventListener('pointerup',up);
+  const up=e=>{window.removeEventListener('pointermove',mv);window.removeEventListener('pointerup',up);window.removeEventListener('pointercancel',up);
+    if(e.type==='pointerup'&&e.clientY-startY>40&&st.grad.stops.length>2){st.grad.stops.splice(i,1);st.grad.sel=0;}renderGrad();};
+  try{ev.target.setPointerCapture(ev.pointerId);}catch(_){}
+  window.addEventListener('pointermove',mv);window.addEventListener('pointerup',up);window.addEventListener('pointercancel',up);
 }
 $('gbar').addEventListener('pointerdown',e=>{const r=$('gbar').getBoundingClientRect();const p=clamp01((e.clientX-r.left)/r.width);const li=Math.round(p*255)*4;
   st.grad.stops.push({p,c:rgbToHex([LUT[li],LUT[li+1],LUT[li+2]]),a:LUT[li+3]});st.grad.sel=st.grad.stops.length-1;renderGrad();});
@@ -2031,7 +2086,7 @@ function quickGrad(space,stops){
   const lim={shown:meshes.map(d=>ts.some(x=>x.d===d)),sel:meshes.map(d=>{const x=ts.find(y=>y.d===d);return x&&x.mask?x.mask.slice():null;})};
   if(stops){st.grad.stops=stops;st.grad.sel=0;}st.grad.space=space;if(st.grad.type==='radial')st.grad.type='linear';renderGrad(true);
   const g=st.grad,o={k:'grad',A,B,V,stops:cloneStops(g.stops),type:g.type,space,mode:g.mode,steps:g.steps,pat:g.pat,scale:g.scale,alpha:st.strength,lim,name:'Градиент '+(++gradNo)};
-  editSnap={tex:snapAllTex(),decals:decalOps.slice(),baked:bakedBase};
+  editSnap={tex:new Map(),decals:decalOps.slice(),baked:bakedBase};
   const idx=newLayerIdx();edOp=o;setEditBase(idx);decalOps.splice(idx,0,o);redrawEdit();commitEdit();selectGrad(o);applyControlMode();
 }
 /* shading that keeps the paint underneath: darker towards the bottom of every part, a warm light towards the top */
@@ -2075,8 +2130,10 @@ $('layOp').addEventListener('input',e=>{const L=curLayer(),v=+e.target.value/100
 [['layTop','top'],['layUp','up'],['layDown','down'],['layBottom','bottom']].forEach(([id,d])=>$(id).addEventListener('click',()=>moveLayer(d)));
 $('dDel').addEventListener('click',()=>{if(selDec)deleteDecal();else toast('Сначала выбери наклейку на модели');});
 $('decalIn').addEventListener('change',e=>{[...e.target.files].forEach(loadDecalFile);e.target.value='';});
-$('dClear').addEventListener('click',()=>{commitEdit();if(!bakedBase&&!decalOps.some(o=>o.k==='decal')){toast('Наклеек пока нет');return;}
-  pushUndo({tex:snapAllTex(),decals:decalOps.slice(),baked:bakedBase});decalOps=decalOps.filter(o=>o.k!=='decal');bakedBase=null;selDec=null;replay(decalOps);
+$('dClear').addEventListener('click',()=>{commitEdit();
+  /* after «Подразбить» the base holds every layer flattened, not just stickers: it stays */
+  if(!decalOps.some(o=>o.k==='decal')){toast(bakedBase?'Отдельных наклеек нет: после «Подразбить» они слиты с основой':'Наклеек пока нет');return;}
+  const before={tex:snapAllTex(),decals:decalOps.slice(),baked:bakedBase};decalOps=decalOps.filter(o=>o.k!=='decal');selDec=null;replay(decalOps);pushUndo(before);
   toast(decalOps.length?'Наклейки убраны, градиенты и мазки остались':'Наклейки убраны');});
 $('litChk').addEventListener('change',e=>{st.lit=e.target.checked;if(rend.on)return;meshes.forEach(d=>{const kr=d.mesh.userData.kr;d.mesh.material=st.lit?kr.mLit:kr.mFlat;});});
 $('wireChk').addEventListener('change',e=>{st.wire=e.target.checked;meshes.forEach(d=>{if(d.wire)d.wire.visible=st.wire;});});
@@ -2090,9 +2147,13 @@ $('partsInv').addEventListener('click',()=>setPartsVis(d=>!shown(d)));
 $('undoBtn').addEventListener('click',doUndo);$('redoBtn').addEventListener('click',doRedo);
 
 /* ---------- subdivide ---------- */
-$('subBtn').addEventListener('click',()=>{
-  let total=0;meshes.forEach(d=>total+=d.tris*4);
+$('subBtn').addEventListener('click',async()=>{
+  if(!meshes.length||busy)return;let total=0;meshes.forEach(d=>total+=d.tris*4);
   if(total>600000){toast('Модель станет слишком тяжёлой (больше 600 тыс. треугольников)');return;}
+  /* it can't be undone: every layer is flattened into the base and the undo history goes */
+  const n=decalOps.length;
+  if(await ask('Подразбить модель?',(n?'Все слои ('+n+') сольются в основу, их больше нельзя будет править по отдельности. ':'')+'Отменить это нельзя: история отмен очистится. Сначала можно сохранить проект.',[{label:'Подразбить',primary:true},{label:'Отмена'}])!==0)return;
+  commitEdit();cancelOps();
   meshes.forEach((d,mi)=>{
     const g=d.mesh.geometry,tris=d.tris,ng=new THREE.BufferGeometry();
     for(const name in g.attributes){const a=g.attributes[name],is=a.itemSize,src=a.array;const out=new (src.constructor)(tris*12*is);
@@ -2112,7 +2173,7 @@ $('subBtn').addEventListener('click',()=>{
   renderParts();undo.length=0;redo.length=0;updUndo();updStats();
   /* triangle ids changed: existing decals stay as painted but can no longer be edited */
   bakedBase=meshes.map(d=>d.mesh.userData.kr.MA.slice());decalOps=[];selDec=null;selGrad=null;selLay=null;sess=null;edOp=null;editSnap=null;updGradSel();
-  toast('Готово: треугольников стало в 4 раза больше. История отмен очищена.');
+  toast('Готово: треугольников стало в 4 раза больше. История отмен очищена.');markDirty();
 });
 
 /* ---------- bake ---------- */
@@ -2151,10 +2212,17 @@ function padIslands(buf,W,steps){
 let dlNs=null;
 if(window.claude&&typeof window.claude.use==='function'){window.claude.use('downloads').then(x=>{dlNs=x;}).catch(()=>{});}
 const inArtifact=!!(window.claude&&window.claude.use);
+/* the desktop app reports how each download ended (saved, or the save dialog was cancelled) */
+const dlWait=new Map();
+if(window.krDesktop&&typeof window.krDesktop.onDownloadDone==='function')window.krDesktop.onDownloadDone((name,ok)=>{const l=dlWait.get(name);if(l&&l.length){l.shift()(!!ok);if(!l.length)dlWait.delete(name);}});
+/* true = saved, false = cancelled or failed, null = handed to the browser, which does not tell */
 async function saveBlob(name,blob){
-  if(dlNs){try{await dlNs.save({filename:name,data:blob});toast('Сохранено: '+name);}catch(err){if(err&&err.code==='declined')return;toast('Не получилось сохранить: '+(err&&err.message||'ошибка'));}return;}
-  if(inArtifact){toast('Сохранение недоступно в этом окне. Открой страницу в claude.ai или скачай HTML-версию.');return;}
+  if(dlNs){try{await dlNs.save({filename:name,data:blob});toast('Сохранено: '+name);return true;}catch(err){if(err&&err.code==='declined')return false;toast('Не получилось сохранить: '+(err&&err.message||'ошибка'));return false;}}
+  if(inArtifact){toast('Сохранение недоступно в этом окне. Открой страницу в claude.ai или скачай HTML-версию.');return false;}
+  const desk=!!(window.krDesktop&&window.krDesktop.onDownloadDone);
+  const res=desk?new Promise(ok=>{const l=dlWait.get(name)||[];l.push(ok);dlWait.set(name,l);setTimeout(()=>ok(null),600000);}):Promise.resolve(null);
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},120000);
+  return res;
 }
 function canvasBlob(c){return new Promise(r=>c.toBlob(r,'image/png'));}
 /* ---------- project file .kras ----------
@@ -2178,7 +2246,7 @@ function pngChunk(buf,type){
 }
 async function renderPreview(S){flushTex();
   const prevSize=renderer.getSize(new THREE.Vector2()),prevPR=renderer.getPixelRatio(),prevAsp=camera.aspect;
-  const hidden=[grid,ring,ringIn].filter(x=>x&&x.visible);hidden.forEach(x=>x.visible=false);
+  const hidden=[grid,ring,ringIn,ring2,ringIn2,ovG,tc].filter(x=>x&&x.visible);hidden.forEach(x=>x.visible=false);
   const extra=meshes.flatMap(d=>[d.selMesh,d.wire]).filter(x=>x&&x.visible);extra.forEach(x=>x.visible=false);
   /* frame the visible model from the current view direction */
   const box=new THREE.Box3();meshes.forEach(d=>{if(shown(d))box.expandByObject(d.mesh);});if(box.isEmpty())box.setFromObject(root);
@@ -2233,12 +2301,17 @@ async function buildProjectZip(level){
   busy++; /* the zip is packed in small steps between tasks: drawing frames in between would stretch it out a lot */
   try{return await z.generateAsync({type:'uint8array',compression:'DEFLATE',compressionOptions:{level:level||6}});}finally{busy--;}
 }
+let saving=false;
 async function saveProject(){
-  if(!meshes.length)return;if(typeof JSZip==='undefined'){toast('Не загрузился архиватор');return;}
-  commitEdit();toast('Сохраняю проект…');await new Promise(r=>setTimeout(r,30));
-  const data=await buildProjectZip(3),png=await renderPreview(512);
-  await saveBlob((modelName||'model')+'.kras',new Blob([pngWithChunk(png,'krAs',data)],{type:'image/png'}));
-  autoClean();
+  if(!meshes.length||saving||busy)return;if(typeof JSZip==='undefined'){toast('Не загрузился архиватор');return;}
+  commitEdit();cancelOps();toast('Сохраняю проект…');saving=true;const rev=AS.rev;let ok;
+  try{await new Promise(r=>setTimeout(r,30));busy++;let data,png;
+    try{data=await buildProjectZip(3);png=await renderPreview(512);}finally{busy--;}
+    ok=await saveBlob((modelName||'model')+'.kras',new Blob([pngWithChunk(png,'krAs',data)],{type:'image/png'}));}
+  catch(e){toast('Не получилось сохранить: '+(e&&e.message||e));ok=false;}
+  finally{saving=false;}
+  /* the backup goes only once the file is surely on disk; when the browser doesn't say, it stays until the next change */
+  if(ok&&AS.rev===rev){AS.savedRev=rev;autoClean();}else if(ok===null&&AS.rev===rev){AS.savedRev=rev;}
 }
 async function loadProject(buf,fname){
   const chunk=pngChunk(buf,'krAs');if(!chunk){toast('Это не проект Красильни');return;}
@@ -2248,33 +2321,55 @@ async function loadProject(buf,fname){
 }
 /* old composite (straight RGBA over the vertex colours) -> multiplier and addend */
 function straightToMA(src,N4){const T=new Uint8ClampedArray(N4*2);for(let p=0;p<N4;p+=4){const a=src[p+3]/255;for(let c=0;c<3;c++){T[p+c]=255*(1-a);T[N4+p+c]=src[p+c]*a;}T[p+3]=255;}return T;}
-/* get(path,type) reads one project file as 'string', 'base64', 'arraybuffer' or 'uint8array', or gives null */
+/* a composite saved at another texture size, resized (nearest texel) to this one */
+function resampleMA(src,oW,nW){const o4=oW*oW*4,N4=nW*nW*4,T=new Uint8ClampedArray(N4*2);
+  for(let y=0;y<nW;y++){const sy=Math.min(oW-1,Math.floor((y+0.5)*oW/nW));for(let x=0;x<nW;x++){const sx=Math.min(oW-1,Math.floor((x+0.5)*oW/nW)),s=(sy*oW+sx)*4,d=(y*nW+x)*4;
+    for(let c=0;c<4;c++){T[d+c]=src[s+c];T[N4+d+c]=src[o4+s+c];}}}
+  return T;}
+/* get(path,type) reads one project file as 'string', 'base64', 'arraybuffer' or 'uint8array', or gives null.
+   Everything is read and checked first; the current model is replaced only when the file is whole, so a broken
+   file leaves the work as it was. If something still fails after that, autosave stays paused (AS.loading) so the
+   half-open project can't overwrite the backup. */
 async function loadProjectFiles(get,fname){
-  const P=JSON.parse(await get('project.json','string')),v2=P.v>=2;
-  const glb=await get('model.glb','arraybuffer');
-  const scene_=await new Promise((ok,bad)=>new THREE.GLTFLoader().parse(glb,'',g=>ok(g.scene),bad));
-  setModel(scene_,P.name||fname);if(meshes.length!==P.parts.length)throw new Error('части модели не совпали');
+  AS.loading=true;let P,v2,scene_,stickers=[],newDecs=[],parts=[],sels=new Map(),rig=null;
   const bin=async(path,Ctor)=>{const u=await get(path,'uint8array');return u?new Ctor(u.slice().buffer):null;};
-  const stickers=[];for(let i=0;i<P.stickers.length;i++){
-    const b64=await get('stickers/'+i+'.png','base64'),url='data:image/png;base64,'+b64;
-    let dec=st.decal.list.find(d=>d.url===url);
-    if(!dec){const im=new Image();await new Promise((ok,bad)=>{im.onload=ok;im.onerror=bad;im.src=url;});
-      const [c,x]=mkCanvas(im.width,im.height);x.drawImage(im,0,0);dec=decalFromCanvas(P.stickers[i].name,c);dec.url=url;if(P.stickers[i].lib!==false)st.decal.list.push(dec);}
-    stickers.push(dec);}
-  renderDecals();
-  for(let i=0;i<meshes.length;i++){const d=meshes[i],kr=d.mesh.userData.kr,pp=P.parts[i],N4=kr.W*kr.W*4;
-    const col=await bin('parts/'+i+'/colors.bin',Float32Array),ca=d.mesh.geometry.attributes.color;
-    if(col&&col.length===ca.array.length){ca.array.set(col);colFull(ca);}
-    const ma=await bin('parts/'+i+'/ma.bin',Uint8ClampedArray);if(ma&&ma.length===kr.MA.length){kr.MA.set(ma);kr.has=true;texFull(kr);}
+  try{
+    P=JSON.parse(await get('project.json','string'));v2=P.v>=2;
+    if(!P||!Array.isArray(P.parts)||!Array.isArray(P.ops))throw new Error('файл проекта повреждён');
+    const glb=await get('model.glb','arraybuffer');if(!glb)throw new Error('в проекте нет модели');
+    scene_=await new Promise((ok,bad)=>new THREE.GLTFLoader().parse(glb,'',g=>ok(g.scene),bad));
+    let nm=0;scene_.traverse(o=>{if(o.isMesh)nm++;});if(nm!==P.parts.length)throw new Error('части модели не совпали');
+    for(let i=0;i<(P.stickers||[]).length;i++){
+      const b64=await get('stickers/'+i+'.png','base64');if(b64==null)throw new Error('нет картинки наклейки '+(i+1));const url='data:image/png;base64,'+b64;
+      let dec=st.decal.list.find(d=>d.url===url)||newDecs.find(d=>d.url===url);
+      if(!dec){const im=new Image();await new Promise((ok,bad)=>{im.onload=ok;im.onerror=()=>bad(new Error('картинка наклейки не читается'));im.src=url;});
+        const [c,x]=mkCanvas(im.width,im.height);x.drawImage(im,0,0);dec=decalFromCanvas(P.stickers[i].name,c);dec.url=url;if(P.stickers[i].lib!==false)newDecs.push(dec);}
+      stickers.push(dec);}
+    for(let i=0;i<P.parts.length;i++)parts.push({col:await bin('parts/'+i+'/colors.bin',Float32Array),ma:await bin('parts/'+i+'/ma.bin',Uint8ClampedArray),
+      baked:P.baked?await bin('parts/'+i+'/baked.bin',v2?Uint8ClampedArray:Uint8Array):null});
+    const walk=async(o,oi)=>{if(o.k==='layer'){for(const x of o.ops)await walk(x);return;}
+      const key=o.lim&&o.lim.id!=null?o.lim.id:oi;if(o.lim&&o.lim.sel)for(let mi=0;mi<P.parts.length;mi++){const p='sel/'+key+'_'+mi+'.bin';sels.set(p,await bin(p,Uint8Array));}
+      if(o.er)for(const x of o.er)await walk(x);};
+    for(let oi=0;oi<P.ops.length;oi++)await walk(P.ops[oi],oi);
+    const rj=await get('rig.json','string');if(rj)rig=JSON.parse(rj);
+  }catch(e){AS.loading=false;throw e;}
+  /* ---- the file is whole: replace the current work ---- */
+  newDecs.forEach(d=>st.decal.list.push(d));renderDecals();
+  setModel(scene_,P.name||fname);if(meshes.length!==P.parts.length)throw new Error('части модели не совпали');
+  let resized=false;
+  const fit=(a,mi,pp)=>{const kr=meshes[mi].mesh.userData.kr;if(!a)return null;if(a.length===kr.MA.length)return a;
+    const oW=+pp.W||Math.round(Math.sqrt(a.length/8));if(oW*oW*8!==a.length)return null;resized=true;return resampleMA(a,oW,kr.W);};
+  for(let i=0;i<meshes.length;i++){const d=meshes[i],kr=d.mesh.userData.kr,pp=P.parts[i],F=parts[i],ca=d.mesh.geometry.attributes.color;
+    if(F.col&&F.col.length===ca.array.length){ca.array.set(F.col);colFull(ca);}
+    const ma=fit(F.ma,i,pp);if(ma){kr.MA.set(ma);kr.has=true;texFull(kr);}
     d.mesh.visible=pp.visible!==false;}
-  if(P.baked){bakedBase=[];for(let i=0;i<meshes.length;i++){const N4=meshes[i].mesh.userData.kr.W**2*4;
-    if(v2){const b=await bin('parts/'+i+'/baked.bin',Uint8ClampedArray);bakedBase[i]=b&&b.length===N4*2?b:null;}
-    else{const b=await bin('parts/'+i+'/baked.bin',Uint8Array);bakedBase[i]=b&&b.length===N4?straightToMA(b,N4):null;}}}
-  async function one(o,oi){
-    if(o.k==='layer'){const ops=[];for(const x of o.ops)ops.push(await one(x));return {k:'layer',name:o.name,vis:o.vis!==false,opacity:o.opacity==null?1:o.opacity,blend:o.blend||'normal',ops};}
+  if(P.baked){bakedBase=[];for(let i=0;i<meshes.length;i++){const N4=meshes[i].mesh.userData.kr.W**2*4,b=parts[i].baked;
+    if(v2)bakedBase[i]=fit(b,i,P.parts[i]);else bakedBase[i]=b&&b.length===N4?straightToMA(b,N4):null;}}
+  function one(o,oi){
+    if(o.k==='layer')return {k:'layer',name:o.name,vis:o.vis!==false,opacity:o.opacity==null?1:o.opacity,blend:o.blend||'normal',ops:o.ops.map(x=>one(x))};
     const key=o.lim.id!=null?o.lim.id:oi,lim={shown:o.lim.shown,sel:null};
-    if(o.lim.sel){lim.sel=[];for(let mi=0;mi<meshes.length;mi++){const m=await bin('sel/'+key+'_'+mi+'.bin',Uint8Array);lim.sel[mi]=m||(o.k==='grad'?null:new Uint8Array(meshes[mi].tris));}}
-    const er=[];if(o.er)for(const x of o.er)er.push(await one(x));
+    if(o.lim.sel){lim.sel=[];for(let mi=0;mi<meshes.length;mi++){const m=sels.get('sel/'+key+'_'+mi+'.bin');lim.sel[mi]=m||(o.k==='grad'?null:new Uint8Array(meshes[mi].tris));}}
+    const er=(o.er||[]).map(x=>one(x));
     const lay={name:o.name,vis:o.vis!==false,blend:o.blend||'normal',er};
     if(o.k==='grad'){gradNo=Math.max(gradNo,+(/\d+$/.exec(o.name||'')||[0])[0]);
       return Object.assign({k:'grad',A:a3v(o.A),B:a3v(o.B),V:a3v(o.V),stops:o.stops,type:o.type,space:o.space||'scene',mode:o.mode,steps:o.steps,pat:o.pat,scale:o.scale,alpha:o.alpha,lim},lay);}
@@ -2282,12 +2377,15 @@ async function loadProjectFiles(get,fname){
     if(o.k==='paint'){const r={k:'paint',shape:o.shape,px:o.px,c:o.c,R:o.R,s:o.s,h:o.h,seed:o.seed,sym:o.sym,mc:o.mc,pts:o.pts.map(a=>({P:a3v(a.slice(0,3)),N:a3v(a.slice(3,6)),X:a3v(a.slice(6,9)),w:a.length>9?a[9]:undefined})),lim};
       ['pat','cell','den','prS','prA'].forEach(k=>{if(o[k]!=null)r[k]=o[k];});return r;}
     return {k:'erase',pts:o.pts.map(a3v),R:o.R,h:o.h,s:o.s,sym:o.sym==null?-1:o.sym,mc:o.mc,lim};}
-  const ops=[];for(let oi=0;oi<P.ops.length;oi++)ops.push(await one(P.ops[oi],oi));
+  const ops=P.ops.map((o,oi)=>one(o,oi));
   decalOps=v2?ops:toLayers(ops);gradNo=Math.max(gradNo,P.gradNo||0);paintNo=Math.max(paintNo,P.paintNo||0);
-  if(!v2)replay(decalOps); /* v2 keeps the composite; layer pixels are drawn again only when a layer is edited */
+  /* v2 keeps the composite; layer pixels are drawn again only when a layer is edited, or when the texture size changed */
+  if(!v2||(resized&&decalOps.length))replay(decalOps);
   st.bake=!!P.bake;$('bakeChk').checked=st.bake;
   renderParts();layKey='';
-  const rj=await get('rig.json','string');if(rj)rigLoad(JSON.parse(rj));
+  if(rig)rigLoad(rig);
+  AS.loading=false;AS.dirty=false;AS.savedRev=AS.rev;
+  if(resized)setTimeout(()=>toast('Проект сохранён в другой версии: текстуры пересчитаны под новый размер'),3500);
 }
 /* projects saved before layers: strokes in a row become one paint layer, an eraser stroke joins the layer under it */
 function toLayers(flat){const out=[];
@@ -2296,22 +2394,34 @@ function toLayers(flat){const out=[];
     else if(o.k==='erase'){const L=out[out.length-1];if(L)(L.k==='layer'?L.ops:(L.er=L.er||[])).push(o);}
     else out.push(o);}
   return out;}
-function loadFile(f){
+let opening=false;
+async function loadFile(f){
   if(!f)return;const ext=f.name.split('.').pop().toLowerCase();
   if(/^(png|webp|gif|jpe?g|svg)$/.test(ext)){loadDecalFile(f);return;}
-  const rd=new FileReader();rd.onerror=()=>toast('Не удалось прочитать файл');
-  if(ext==='kras'){rd.onload=()=>loadProject(rd.result,f.name);rd.readAsArrayBuffer(f);return;}
-  if(ext==='obj'){rd.onload=()=>{try{setModel(new THREE.OBJLoader().parse(rd.result),f.name);toast('Открыто: '+f.name);}catch(e){toast('OBJ не прочитался: '+e.message);}};rd.readAsText(f);}
-  else if(ext==='glb'||ext==='gltf'){rd.onload=()=>{new THREE.GLTFLoader().parse(rd.result,'',g=>{setModel(g.scene,f.name);},()=>toast('Файл не открылся. Если это .gltf с отдельными файлами — сохрани модель как .glb.'));};rd.readAsArrayBuffer(f);}
-  else toast('Поддерживаются проекты .kras, модели .glb, .gltf, .obj и картинки для наклеек');
+  if(!/^(kras|obj|glb|gltf)$/.test(ext)){toast('Поддерживаются проекты .kras, модели .glb, .gltf, .obj и картинки для наклеек');return;}
+  if(busy||saving||exporting){toast('Подожди: идёт сохранение или экспорт');return;}
+  if(opening)return;opening=true;
+  try{
+    /* a new model replaces the work on screen, and its autosave would replace the old backup: ask first */
+    commitEdit();if(unsaved()&&!await askSave('Открыть «'+f.name+'»? Текущий проект закроется.'))return;
+    const read=(how)=>new Promise((ok,bad)=>{const rd=new FileReader();rd.onerror=()=>bad(new Error('не удалось прочитать файл'));rd.onload=()=>ok(rd.result);rd[how](f);});
+    const opened=()=>{AS.loading=false;AS.dirty=false;AS.savedRev=AS.rev;};
+    if(ext==='kras'){await loadProject(await read('readAsArrayBuffer'),f.name);return;}
+    if(ext==='obj'){let obj;try{obj=new THREE.OBJLoader().parse(await read('readAsText'));}catch(e){toast('OBJ не прочитался: '+e.message);return;}
+      if(setModel(obj,f.name)){opened();toast('Открыто: '+f.name);}return;}
+    const buf=await read('readAsArrayBuffer');
+    await new Promise(ok=>new THREE.GLTFLoader().parse(buf,'',g=>{if(setModel(g.scene,f.name))opened();ok();},()=>{toast('Файл не открылся. Если это .gltf с отдельными файлами — сохрани модель как .glb.');ok();}));
+  }catch(e){toast('Не удалось открыть: '+(e&&e.message||e));}
+  finally{opening=false;}
 }
-$('fileIn').addEventListener('change',e=>{loadFile(e.target.files[0]);e.target.value='';});
+$('fileIn').addEventListener('change',e=>{const f=e.target.files[0];e.target.value='';loadFile(f);});
 $('saveBtn').addEventListener('click',saveProject);
 let dragDepth=0;
 stage.addEventListener('dragenter',e=>{e.preventDefault();dragDepth++;$('drop').hidden=false;});
 stage.addEventListener('dragover',e=>e.preventDefault());
 stage.addEventListener('dragleave',()=>{if(--dragDepth<=0){dragDepth=0;$('drop').hidden=true;}});
-stage.addEventListener('drop',e=>{e.preventDefault();dragDepth=0;$('drop').hidden=true;[...e.dataTransfer.files].forEach(loadFile);});
+stage.addEventListener('drop',e=>{e.preventDefault();dragDepth=0;$('drop').hidden=true;const fs=[...e.dataTransfer.files],img=f=>/\.(png|webp|gif|jpe?g|svg)$/i.test(f.name);
+  fs.filter(img).forEach(loadFile);const m=fs.find(f=>!img(f));if(m)loadFile(m); /* one model at a time */});
 
 let exporting=false;
 /* Unreal wants ASCII asset names: SM_ for the mesh, M_ for materials, T_..._BC for base colour textures */
@@ -2326,28 +2436,34 @@ async function exportGLB(ue){
 /* frames stay paused while the parts carry export materials and the zip is packed */
 async function exportRun(ue){
   const bake=ue||st.bake,S=ue?+$('ueSize').value||0:0,base=ueName(modelName,'Model'),multi=meshes.length>1;
+  const prevVis=meshes.map(shown),keep=$('expHidden').checked?meshes.map(()=>true):prevVis.slice();
+  if(!keep.some(Boolean)){toast('Все детали скрыты: экспортировать нечего');return;}
   /* the skinned copy is made before the parts get export materials and colours, so it keeps the real ones */
-  const rigOn=RG.bones.length&&$('rigExp').checked;if(rigOn&&(!SK||RG.wkey!==weightsKey()||SK.bones.length!==RG.bones.length))buildSkin();
+  const rigOn=RG.bones.length&&$('rigExp').checked;if(rigOn&&(!SK||RG.wkey!==weightsKey()||SK.bones.length!==RG.bones.length||!CT.list.length))buildSkin();
   const part=(d,i)=>ueName(names[i],'Part'+(i+1));
   toast(bake?'Запекаю текстуру и собираю GLB…':'Собираю GLB…');
   await new Promise(r=>setTimeout(r,30));
-  const ex=new THREE.GLTFExporter(),texs=[];
-  meshes.forEach(d=>{if(d.selMesh)d.selMesh.visible=false;if(d.wire)d.wire.visible=false;if(d.mesh.userData.ol)d.mesh.userData.ol.visible=false;});ring.visible=ringIn.visible=ring2.visible=ringIn2.visible=false;
-  const prevVis=meshes.map(shown);meshes.forEach(d=>{d.mesh.visible=true;});
-  const prevMats=meshes.map(d=>d.mesh.material),savedCols=meshes.map(d=>d.mesh.geometry.attributes.color);
-  const names=meshes.map(d=>d.mesh.name);if(ue)meshes.forEach((d,i)=>{d.mesh.name='SM_'+base+(multi?'_'+part(d,i):'');});
-  meshes.forEach((d,i)=>{const g=d.mesh.geometry,mn=ue?'M_'+base+(multi?'_'+part(d,i):''):'Krasilnya';
-    if(bake){const cv=sizedCanvas(bakeCanvas(d),S),ct=new THREE.CanvasTexture(cv);ct.encoding=THREE.sRGBEncoding;g.deleteAttribute('color');
-      if(ue){ct.name='T_'+base+(multi?'_'+part(d,i):'')+'_BC';texs.push([ct.name,cv]);}
-      d.mesh.material=new THREE.MeshStandardMaterial({map:ct,roughness:0.85,metalness:0,name:mn});}
-    else{const a=g.attributes.color,lin=new Float32Array(a.array.length);for(let i=0;i<lin.length;i++)lin[i]=s2l(a.array[i]);g.setAttribute('color',new THREE.BufferAttribute(lin,3));
-      d.mesh.material=new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.85,metalness:0,name:mn});}});
-  const done=()=>{ud.forEach(([o,u])=>{o.userData=u;});meshes.forEach((d,i)=>{d.mesh.name=names[i];});meshes.forEach((d,i)=>{const m=d.mesh.material;if(m.map)m.map.dispose();m.dispose();d.mesh.material=prevMats[i];d.mesh.geometry.setAttribute('color',savedCols[i]);
-    d.mesh.visible=prevVis[i];if(d.selMesh)d.selMesh.visible=true;if(d.wire)d.wire.visible=st.wire;if(d.mesh.userData.ol)d.mesh.userData.ol.visible=st.outline;});};
-  /* userData becomes glTF "extras": our paint buffers there made the file hundreds of megabytes */
-  const ud=[];root.traverse(o=>{const u=o.userData;if(u.kr||u.ol||u.src){ud.push([o,u]);const k={...u};delete k.kr;delete k.ol;delete k.src;o.userData=k;}});
+  const ex=new THREE.GLTFExporter(),texs=[],ud=[];
+  const prevMats=meshes.map(d=>d.mesh.material),savedCols=meshes.map(d=>d.mesh.geometry.attributes.color),names=meshes.map(d=>d.mesh.name);
+  /* puts every part back as it was; safe to call twice and after a failure half way through the swap */
+  let restored=false;
+  const done=()=>{if(restored)return;restored=true;ud.forEach(([o,u])=>{o.userData=u;});
+    meshes.forEach((d,i)=>{d.mesh.name=names[i];const m=d.mesh.material;if(m&&m!==prevMats[i]){if(m.map)m.map.dispose();m.dispose();}d.mesh.material=prevMats[i];
+      if(savedCols[i])d.mesh.geometry.setAttribute('color',savedCols[i]);else d.mesh.geometry.deleteAttribute('color');
+      d.mesh.visible=prevVis[i];if(d.selMesh)d.selMesh.visible=true;if(d.wire)d.wire.visible=st.wire;if(d.mesh.userData.ol)d.mesh.userData.ol.visible=st.outline;});};
   try{
-    const rig=rigOn?rigExport(ue,base):null,input=rig?rig.grp:root;
+    meshes.forEach(d=>{if(d.selMesh)d.selMesh.visible=false;if(d.wire)d.wire.visible=false;if(d.mesh.userData.ol)d.mesh.userData.ol.visible=false;});ring.visible=ringIn.visible=ring2.visible=ringIn2.visible=false;
+    meshes.forEach((d,i)=>{d.mesh.visible=keep[i];});
+    if(ue)meshes.forEach((d,i)=>{d.mesh.name='SM_'+base+(multi?'_'+part(d,i):'');});
+    meshes.forEach((d,i)=>{if(!keep[i])return;const g=d.mesh.geometry,mn=ue?'M_'+base+(multi?'_'+part(d,i):''):'Krasilnya';
+      if(bake){const cv=sizedCanvas(bakeCanvas(d),S),ct=new THREE.CanvasTexture(cv);ct.encoding=THREE.sRGBEncoding;g.deleteAttribute('color');
+        if(ue){ct.name='T_'+base+(multi?'_'+part(d,i):'')+'_BC';texs.push([ct.name,cv]);}
+        d.mesh.material=new THREE.MeshStandardMaterial({map:ct,roughness:0.85,metalness:0,name:mn});}
+      else{const a=g.attributes.color,lin=new Float32Array(a.array.length);for(let i=0;i<lin.length;i++)lin[i]=s2l(a.array[i]);g.setAttribute('color',new THREE.BufferAttribute(lin,3));
+        d.mesh.material=new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.85,metalness:0,name:mn});}});
+    /* userData becomes glTF "extras": our paint buffers there made the file hundreds of megabytes */
+    root.traverse(o=>{const u=o.userData;if(u.kr||u.ol||u.src){ud.push([o,u]);const k={...u};delete k.kr;delete k.ol;delete k.src;o.userData=k;}});
+    const rig=rigOn?rigExport(ue,base,keep):null,input=rig?rig.grp:root;
     const res=await new Promise((ok,bad)=>{const opts={binary:true,onlyVisible:true};if(rig)opts.animations=rig.clips;
       if(ex.parseAsync)ex.parseAsync(input,opts).then(ok,bad);else ex.parse(input,ok,bad,opts);});
     done();
@@ -2361,16 +2477,19 @@ async function exportRun(ue){
       const z=new JSZip();z.file(name+'.glb',glb);await saveBlob(name+'.zip',await z.generateAsync({type:'blob'}));}
     else await saveBlob(name+'.glb',glb);
   }catch(e){done();toast('Экспорт не удался: '+(e&&e.message||e));}
+  finally{done();}
 }
 $('exportBtn').addEventListener('click',()=>exportGLB(false));
 $('ueBtn').addEventListener('click',()=>exportGLB(true));
 $('texBtn').addEventListener('click',async()=>{
-  if(!meshes.length)return;toast('Запекаю текстуру…');await new Promise(r=>setTimeout(r,30));
-  const base=modelName||'model';
-  if(meshes.length===1){await saveBlob(base+'_basecolor.png',await canvasBlob(bakeCanvas(meshes[0])));return;}
-  if(typeof JSZip==='undefined'){toast('Не загрузился архиватор');return;}
-  const z=new JSZip();for(let i=0;i<meshes.length;i++){const nm=(meshes[i].mesh.name||('part'+(i+1))).replace(/[\\/:*?"<>|]/g,'_');z.file(base+'_'+nm+'_basecolor.png',await canvasBlob(bakeCanvas(meshes[i])));}
-  await saveBlob(base+'_textures.zip',await z.generateAsync({type:'blob'}));
+  if(!meshes.length||exporting||busy)return;exporting=true;busy++;
+  try{toast('Запекаю текстуру…');await new Promise(r=>setTimeout(r,30));
+    const base=modelName||'model';
+    if(meshes.length===1){await saveBlob(base+'_basecolor.png',await canvasBlob(bakeCanvas(meshes[0])));return;}
+    if(typeof JSZip==='undefined'){toast('Не загрузился архиватор');return;}
+    const z=new JSZip();for(let i=0;i<meshes.length;i++){const nm=(meshes[i].mesh.name||('part'+(i+1))).replace(/[\\/:*?"<>|]/g,'_');z.file(base+'_'+nm+'_basecolor.png',await canvasBlob(bakeCanvas(meshes[i])));}
+    await saveBlob(base+'_textures.zip',await z.generateAsync({type:'blob'}));
+  }catch(e){toast('Текстура не сохранилась: '+(e&&e.message||e));}finally{busy--;exporting=false;}
 });
 $('shotBtn').addEventListener('click',()=>{
   meshes.forEach(d=>{if(d.selMesh)d.selMesh.visible=false;});ring.visible=ringIn.visible=ring2.visible=ringIn2.visible=false;if(grid)grid.visible=false;const ov=ovG.visible,tv=tc.visible;ovG.visible=tc.visible=false;
@@ -2517,9 +2636,13 @@ $('themeBtn').addEventListener('click',()=>{const t=isLight()?'dark':'light';doc
   try{localStorage.setItem('kr_theme',t);}catch(e){}makeGrid();});
 
 /* ---------- keyboard ---------- */
+/* letter keys by their place on the keyboard, so shortcuts also work on the Russian layout */
+const keyOf=e=>/^Key[A-Z]$/.test(e.code||'')?e.code.slice(3).toLowerCase():(e.key||'').toLowerCase();
 window.addEventListener('keydown',e=>{
-  if(e.target.matches('input,select,textarea'))return;
-  const k=e.key.toLowerCase();
+  /* only fields that take typing keep the keys; sliders, ticks and colour swatches don't */
+  if(e.target.matches('textarea,select,[contenteditable],input:not([type=range]):not([type=checkbox]):not([type=radio]):not([type=color]):not([type=button])'))return;
+  const k=keyOf(e);
+  if(busy){if((e.ctrlKey||e.metaKey)&&'zyso'.includes(k))e.preventDefault();return;}
   if((e.ctrlKey||e.metaKey)&&k==='z'){e.preventDefault();e.shiftKey?doRedo():doUndo();return;}
   if((e.ctrlKey||e.metaKey)&&k==='y'){e.preventDefault();doRedo();return;}
   if((e.ctrlKey||e.metaKey)&&k==='s'){e.preventDefault();saveProject();return;}
@@ -2529,20 +2652,39 @@ window.addEventListener('keydown',e=>{
   if(np){e.preventDefault();viewFrom(e.ctrlKey||e.metaKey?np.map(x=>-x):np);return;}
   if(mode!=='paint'&&rigKey(e))return;
   if(e.code==='Space'&&!spaceHeld){e.preventDefault();spaceHeld=true;applyControlMode();return;}
+  /* the rest are painting keys: in rigging and animation they would change the paint layers unseen */
+  if(mode!=='paint'){if(e.key==='Escape'){setMenu(false);setSheet(false);}
+    else if(e.key==='Tab'&&!e.ctrlKey&&!e.altKey&&!e.shiftKey&&e.target===document.body){e.preventDefault();setPanelShown(document.body.classList.contains('nopanel'));}return;}
   if((e.key==='Delete'||e.key==='Backspace')&&selDec&&(st.tool==='dedit'||st.tool==='decal')){e.preventDefault();deleteDecal();return;}
   if((e.key==='Delete'||e.key==='Backspace')&&selGrad&&st.tool==='gradient'){e.preventDefault();deleteGrad();return;}
-  if((e.key==='Delete'||e.key==='Backspace')&&curLayer()&&(st.tool==='brush'||st.tool==='erase'||st.tool==='fill')){e.preventDefault();deleteLayer(curLayer());return;}
+  if((e.key==='Delete'||(e.key==='Backspace'&&e.target.closest&&e.target.closest('#layers')))&&curLayer()&&(st.tool==='brush'||st.tool==='erase'||st.tool==='fill')){e.preventDefault();deleteLayer(curLayer());return;}
   const map={b:'brush',f:'fill',r:'recolor',g:'gradient',d:'decal',t:'dedit',e:'erase',s:'select',i:'pick',v:'camera'};
   if(map[k]&&!e.ctrlKey&&!e.metaKey){setTool(map[k]);return;}
   if(e.key==='Tab'&&!e.ctrlKey&&!e.altKey&&!e.shiftKey&&e.target===document.body){e.preventDefault();setPanelShown(document.body.classList.contains('nopanel'));return;}
-  if(e.key==='['||e.key===']'){const id=st.tool==='decal'?'dSize':'radius';const el=$(id);el.value=+el.value+(e.key===']'?1:-1);el.dispatchEvent(new Event('input'));el.dispatchEvent(new Event('change'));}
+  if((e.code==='BracketLeft'||e.code==='BracketRight')&&!e.ctrlKey&&!e.metaKey){const id=st.tool==='decal'?'dSize':'radius';const el=$(id);el.value=+el.value+(e.code==='BracketRight'?1:-1);el.dispatchEvent(new Event('input'));el.dispatchEvent(new Event('change'));}
   if(k==='h'&&!e.ctrlKey&&!e.metaKey&&lastPtr){const hit=pick(lastPtr[0],lastPtr[1]);if(hit){setPartsVis(d=>d!==hit.d&&shown(d));toast('Скрыта деталь: '+partName(hit.d,meshes.indexOf(hit.d)));}return;}
   if(e.key==='Escape'&&(!expMenu.hidden||document.body.classList.contains('sheet'))){setMenu(false);setSheet(false);return;}
   if(e.key==='Escape'){if(selDec&&(st.tool==='dedit'||st.tool==='decal')){commitEdit();selDec=null;return;}if(selGrad&&st.tool==='gradient'){commitEdit();selGrad=null;updGradSel();return;}selectAll(false);}
 });
 window.addEventListener('keyup',e=>{if(e.code==='Space'){spaceHeld=false;applyControlMode();}});
+/* Alt+Tab with Space held never sends its keyup */
+window.addEventListener('blur',()=>{if(spaceHeld){spaceHeld=false;applyControlMode();}});
 
-let toastT=null;function toast(t){const el=$('toast');el.textContent=t;el.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>el.hidden=true,3400);}
+let toastT=null;
+/* act: {label,fn} adds a button to the message (e.g. «Вернуть»); ms: how long it stays */
+function toast(t,act,ms){const el=$('toast');el.textContent=t;
+  if(act){const b=document.createElement('button');b.className='tact';b.textContent=act.label;b.onclick=()=>{el.hidden=true;act.fn();};el.append(' ',b);}
+  /* below the restore and question boxes, which sit in the same spot */
+  let top=0;['restore','ask'].forEach(id=>{const r=$(id);if(r&&!r.hidden)top=Math.max(top,r.offsetTop+r.offsetHeight+8);});el.style.top=top?top+'px':'';
+  el.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>el.hidden=true,ms||3400);}
+/* a question with buttons; resolves with the index of the button pressed, -1 for Esc */
+function ask(title,text,btns){return new Promise(res=>{const box=$('ask'),row=$('askB');$('askT').textContent=title;$('askP').textContent=text||'';$('askP').hidden=!text;row.innerHTML='';
+  const kd=e=>{if(e.key==='Escape'){e.preventDefault();e.stopPropagation();done(-1);}},done=i=>{box.hidden=true;document.removeEventListener('keydown',kd,true);res(i);};
+  btns.forEach((b,i)=>{const el=document.createElement('button');el.className='btn'+(b.primary?' primary':'');el.textContent=b.label;el.onclick=()=>done(i);row.appendChild(el);});
+  document.addEventListener('keydown',kd,true);box.hidden=false;(row.querySelector('.primary')||row.firstChild).focus();});}
+/* before something replaces the current work: true = go on (saved or not wanted), false = stay */
+async function askSave(q){const i=await ask(q,'В текущем проекте есть несохранённые изменения.',[{label:'Сохранить',primary:true},{label:'Не сохранять'},{label:'Отмена'}]);
+  if(i===0){await saveProject();return !unsaved();}return i===1;}
 
 /* ---------- sample model ---------- */
 function sampleModel(){
@@ -2614,16 +2756,15 @@ function rcApply(){
   if(!rc)return;const map=rcMapper(),O=rc.orig;rc.k=rgbToHex(st.color)+rc.tol;rcAt=performance.now();
   meshes.forEach((d,i)=>{const ca=d.mesh.geometry.attributes.color,src=O.cols[i];if(!src||src.length!==ca.array.length)return;
     ca.array.set(src);if($('rcBase').checked)for(let k=0;k<src.length;k+=3){const r=map([src[k],src[k+1],src[k+2]]);if(r){ca.array[k]=r[0];ca.array[k+1]=r[1];ca.array[k+2]=r[2];}}colFull(ca);});
-  if(!$('rcLay').checked){if(decalOps!==O.decals){decalOps=O.decals.slice();restoreTex(O.tex);}layKey='';return;}
+  if(!$('rcLay').checked){if(decalOps!==O.decals){const prev=decalOps;decalOps=O.decals.slice();keepSel(prev,decalOps);restoreTex(O.tex);}layKey='';return;}
   const hex=h=>{const r=map(hexToRgb(h));return r?rgbToHex(r):h;};
-  decalOps=O.decals.map(L=>{
+  const prev=decalOps;decalOps=O.decals.map(L=>{
     if(L.k==='grad'){const stops=L.stops.map(s=>({p:s.p,c:hex(s.c),a:s.a}));if(stops.every((s,j)=>s.c===L.stops[j].c))return L;const c=cloneLayer(L);c.stops=stops;delete c._c;return c;}
     if(L.k==='decal'){const dec=recolorDecal(L.dec,map);if(dec===L.dec)return L;const c=cloneLayer(L);c.dec=dec;delete c._c;return c;}
     let ch=false;const ops=L.ops.map(o=>{if(o.k!=='paint')return o;const r=map(o.c);if(!r)return o;ch=true;return Object.assign({},o,{c:r});});
     if(!ch)return L;const c=cloneLayer(L);c.ops=ops;delete c._c;return c;});
   if(decalOps.some((L,i)=>L!==O.decals[i]))replay(decalOps);else restoreTex(O.tex);
-  if(selGrad&&!decalOps.includes(selGrad))selGrad=null;if(selDec&&!decalOps.includes(selDec))selDec=null;
-  const li=O.decals.indexOf(selLay);if(li>=0)selLay=decalOps[li];layKey='';
+  keepSel(prev.length===decalOps.length?prev:O.decals,decalOps);layKey='';
 }
 function commitRecolor(discard){
   if(!rc)return;const O=rc.orig;rc=null;rcDirty=false;
@@ -2631,7 +2772,7 @@ function commitRecolor(discard){
     pushUndo({cols:O.cols,tex:O.tex,decals:O.decals,baked:O.baked});
   $('rcInfo').textContent='Нажми на модель';$('rcFrom').style.background=$('rcTo').style.background='';$('rcOk').disabled=$('rcCancel').disabled=true;
 }
-function cancelRecolor(){if(!rc)return;const O=rc.orig;restoreCols(O.cols);decalOps=O.decals.slice();restoreTex(O.tex);layKey='';commitRecolor(true);}
+function cancelRecolor(){if(!rc)return;const O=rc.orig;restoreCols(O.cols);const prev=decalOps;decalOps=O.decals.slice();keepSel(prev.length===decalOps.length?prev:O.decals,decalOps);restoreTex(O.tex);layKey='';commitRecolor(true);}
 $('rcOk').addEventListener('click',()=>{commitRecolor();toast('Перекраска готова');});
 $('rcCancel').addEventListener('click',cancelRecolor);
 bindSlider('rcTol',v=>{if(rc){rc.tol=v;rcDirty=true;}},v=>v+'°');
@@ -2746,7 +2887,8 @@ function segs(){const B=RG.bones;return B.map((b,i)=>{const a=va(b.p),ks=kidsOf(
     for(const k of ks){const dv=va(B[k].p).sub(a),s=bp&&dv.lengthSq()>0?dv.normalize().dot(bp):0;if(s>best){best=s;e=va(B[k].p);}}}
   else{const dir=b.parent>=0?a.clone().sub(va(B[b.parent].p)):new THREE.Vector3(0,1,0),L=Math.max(dir.length()*0.6,modelSize*0.08);e=a.clone().addScaledVector(dir.normalize(),L);}
   return {a,e};});}
-const deforms=i=>!(RG.bones[i].parent<0&&RG.bones.length>1);
+/* a root bone carries no weight when it has a chain under it; a set of loose roots all deform */
+const deforms=i=>!(RG.bones[i].parent<0&&RG.bones.some(b=>b.parent>=0));
 function weightsKey(){return JSON.stringify([RG.bones.map(b=>[b.p,b.parent,b.soft]),RG.soft,RG.bind,meshes.map(d=>d.mesh.geometry.uuid)]);}
 function ensureWeights(){const k=weightsKey();if(RG.W&&RG.wkey===k)return;RG.W=computeWeights();RG.wkey=k;}
 function computeWeights(){
@@ -2779,13 +2921,18 @@ function computeWeights(){
       for(const [j,p] of tp){const rs=[...boxes].filter(([r,bx])=>bx.containsPoint(p)).map(([r])=>r);if(!rs.length)continue;
         const cnt=new Map(rs.map(r=>[r,[0,0,0]]));
         for(let t=0;t<d.tris;t++){const c=cnt.get(find(vid[t*3]));if(!c)continue;for(let k=0;k<3;k++)if(hitT(w,t,p,RD[k]))c[k]++;}
-        cnt.forEach((c,r)=>{if((c[0]&1)+(c[1]&1)+(c[2]&1)>=2){own.get(r).add(j);inBone.add(j);}});}
-      own.forEach((s,r)=>{if(!s.size)m.acc.set(r,[]);});}
-    m.own=own;
-    for(let u=0;u<nu;u++){const l=m.acc.get(find(u));if(l)l.push(u);}
-    m.nbr=nbr;return m;});
+        cnt.forEach((c,r)=>{if((c[0]&1)+(c[1]&1)+(c[2]&1)>=2){own.get(r).add(j);inBone.add(j);}});}}
+    m.own=own;m.boxes=boxes;m.nbr=nbr;return m;});
   /* a bone that runs inside no piece at all (placed outside the model) may weigh on any piece, as before */
   const loose=defs.filter(j=>!inBone.has(j));
+  /* a piece with no bone inside is stuck on, unless a loose bone runs close to it (a tail bone just outside a thin tail).
+     When no bone is inside any piece (an open mesh fails the inside test) nothing is stuck on and every piece takes any bone. */
+  if(inBone.size)M.forEach(m=>{if(m.forced>=0)return;
+    m.own.forEach((s,r)=>{if(s.size)return;const bx=m.boxes.get(r);
+      for(const j of loose){const L=S[j].a.distanceTo(S[j].e),tol=Math.max(L*0.15,modelSize*0.02);
+        for(let k=0;k<=8;k++)if(bx.distanceToPoint(v.copy(S[j].a).lerp(S[j].e,k/8))<=tol){s.add(j);break;}}
+      if(!s.size)m.acc.set(r,[]);});
+    for(let u=0;u<m.nu;u++){const l=m.acc.get(m.find(u));if(l)l.push(u);}});
   M.forEach(m=>{if(m.forced>=0)return;const {d,U,nu,Wt,find,nbr}=m;
     const b0=new Int32Array(nu),dd=new Float32Array(nb).fill(Infinity),okC=new Map();
     m.own.forEach((s,r)=>{if(!m.acc.has(r))okC.set(r,s.size?[...s,...loose]:defs);});
@@ -2869,7 +3016,15 @@ function skinOutlines(){if(!SK)return;SK.parts.forEach(p=>{
     const s=new THREE.SkinnedMesh(e.ol,olSkMat);s.matrixAutoUpdate=false;s.matrix.copy(p.sm.matrix);s.frustumCulled=false;rigG.add(s);s.updateMatrixWorld(true);s.bind(SK.skel,p.sm.bindMatrix.clone());p.ol=s;}
   if(p.ol)p.ol.visible=st.outline&&p.sm.visible;});}
 function skinNeeded(){return RG.bones.length&&meshes.length&&(mode==='anim'||(mode==='rig'&&(RG.test||RG.wview)));}
-function ensureSkin(){if(!skinNeeded())return SK;if(SK&&(jdrag||softSnap)&&SK.bones.length===RG.bones.length)return SK;if(!SK||RG.wkey!==weightsKey()||SK.bones.length!==RG.bones.length)buildSkin();return SK;}
+/* weights take a moment on a big model: they are counted after a frame with a note on screen, and the old skin stays until then */
+let skinPending=false;
+function ensureSkin(){if(!skinNeeded())return SK;if(SK&&(jdrag||softSnap)&&SK.bones.length===RG.bones.length)return SK;
+  const key=weightsKey();if(SK&&RG.wkey===key&&SK.bones.length===RG.bones.length)return SK;
+  if(RG.W&&RG.wkey===key){buildSkin();return SK;}
+  if(!skinPending){skinPending=true;toast('Считаю веса…');
+    setTimeout(()=>{skinPending=false;if(!skinNeeded())return;if(SK&&RG.wkey===weightsKey()&&SK.bones.length===RG.bones.length)return;
+      try{buildSkin();}catch(err){console.error(err);toast('Не получилось посчитать веса: '+(err&&err.message||err));}},40);}
+  return SK&&SK.bones.length===RG.bones.length?SK:null;}
 const boneCol=i=>new THREE.Color().setHSL((i*0.618034+0.05)%1,0.72,0.55);
 function updWColors(){if(!SK)return;const sel=RG.sel,BC=RG.bones.map((b,i)=>boneCol(i)),c=new THREE.Color();
   SK.parts.forEach((p,mi)=>{const W=RG.W[mi],a=p.e.gw.attributes.color,col=a.array,n=W.si.length/4;
@@ -2991,8 +3146,11 @@ const arrOf=x=>Array.isArray(x)?x:[x];
 /* a channel at frame f: smooth keys are a Hermite curve through their neighbours (wrapping in a looped clip), linear
    keys go straight, step keys hold */
 function sampleCh(K,f,C){
-  const n=K.length,cl=k=>JSON.parse(JSON.stringify(k));if(n===1)return cl(K[0]);
-  const L=C.len,loop=C.loop;let i=-1;for(let j=0;j<n;j++)if(K[j].f<=f)i=j;
+  const L=C.len,loop=C.loop;
+  /* keys past the end (the clip was shortened) don't count; in a loop a key at the last frame is the same moment as
+     frame 0, so with a key at 0 it is left out and the curve runs through the seam without a kink */
+  const hasZero=K.some(k=>k.f===0),Kc=K.filter(k=>k.f<L||k.f===L&&!(loop&&hasZero));if(Kc.length)K=Kc;
+  const n=K.length,cl=k=>JSON.parse(JSON.stringify(k));if(n===1)return cl(K[0]);let i=-1;for(let j=0;j<n;j++)if(K[j].f<=f)i=j;
   if(!loop&&(i<0||i===n-1))return cl(K[Math.max(0,i)]);
   /* keys by a running index, so a looped clip wraps around with its times shifted by the clip length */
   const kv=v=>{const j=((v%n)+n)%n;return {k:K[j],t:K[j].f+Math.floor(v/n)*L};};
@@ -3028,9 +3186,10 @@ const ICON_PLAY='<svg width="16" height="16" viewBox="0 0 24 24" fill="currentCo
 const ICON_PAUSE='<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4.5" width="4" height="15" rx="1"/><rect x="14" y="4.5" width="4" height="15" rx="1"/></svg>';
 function stepKey(dir){const C=curClip();if(!C)return;const fs=keyFrames(C,selIds());const f=Math.round(AN.frame);
   const t=dir>0?fs.find(x=>x>f):[...fs].reverse().find(x=>x<f);if(t!=null)goFrame(t);else if(dir>0)goFrame(C.len);else goFrame(0);}
-function delKeysAt(){const C=curClip();if(!C)return;const f=Math.round(AN.frame),ids=selIds();let n=0;rigPush();
+/* the undo step is pushed only when a key changed, so a miss keeps the redo history */
+function delKeysAt(){const C=curClip();if(!C)return;const f=Math.round(AN.frame),ids=selIds();let n=0;const snap=rigSnap();
   for(const id in C.ch){if(ids&&!ids.includes(id))continue;const K=C.ch[id],i=K.findIndex(k=>k.f===f);if(i>=0){K.splice(i,1);n++;}if(!K.length)delete C.ch[id];}
-  if(!n){RU.u.pop();toast('На этом кадре нет ключа');return;}goFrame(f);renderPoseUI();toast(ids?'Ключ удалён':'Ключи на кадре удалены');}
+  if(!n){toast('На этом кадре нет ключа');return;}rigPush(snap);goFrame(f);renderPoseUI();toast(ids?'Ключ удалён':'Ключи на кадре удалены');}
 function moveKeys(from,to,ids){const C=curClip();if(!C||from===to)return;
   for(const id in C.ch){if(ids&&!ids.includes(id))continue;const K=C.ch[id],k=K.find(x=>x.f===from);if(!k)continue;const i=K.findIndex(x=>x.f===to);if(i>=0)K.splice(i,1);k.f=to;K.sort((a,b)=>a.f-b.f);}AN.tlDirty=true;}
 function newClip(name,len,fps,loop){AN.clips.push({name,len:len||48,fps:fps||30,loop:loop!==false,ch:{}});AN.cur=AN.clips.length-1;goFrame(0);renderAnimUI();}
@@ -3144,7 +3303,7 @@ function jointMove(x,y){const b=RG.bones[jdrag.i],r=screenRay(x,y);let np=RG.ins
   if(np){setJoint(jdrag.i,np);jdrag.moved=true;RG.wkey='';}}
 function addBone(){const B=RG.bones,i=RG.sel;if(!B.length){toast('Сначала сделай скелет');return;}rigPush();
   const one=(pi,side)=>{const pb=B[pi],dir=pb&&pb.parent>=0?va(pb.p).sub(va(B[pb.parent].p)):new THREE.Vector3(0,1,0),L=Math.max(dir.length()*0.5,modelSize*0.06);
-    let k=1,base='bone';while(B.some(b=>b.name===base+'_'+k||b.name===base+'_'+k+'_l'))k++;const nm=base+'_'+k+(side?'_'+side:'');
+    let k=1,base='bone';while(B.some(b=>b.name===base+'_'+k||b.name===base+'_'+k+'_l'||b.name===base+'_'+k+'_r'))k++;const nm=base+'_'+k+(side?'_'+side:'');
     const p=pb?va(pb.p).addScaledVector(dir.normalize(),L):modelCenter.clone();B.push({name:nm,parent:pi,p:[p.x,p.y,p.z].map(v=>+v.toFixed(5)),soft:1});return nm;};
   const pi=i>=0?i:0,pn=B[pi].name,sd=sideOf(pn),mate=RG.symm&&mateOf(pn)?boneIdx(mateOf(pn)):-1;
   const nm=one(pi,sd>0?'l':sd<0?'r':'');if(mate>=0){const k=boneIdx(nm),p=B[k].p,m2=one(mate,sd>0?'r':'l');const j=boneIdx(m2);B[j].name=nm.slice(0,-2)+(sd>0?'_r':'_l');B[j].p=[+(2*modelCenter.x-p[0]).toFixed(5),p[1],p[2]];}
@@ -3192,7 +3351,7 @@ function moveCdrag(x,y){const d=cdrag,c=d.c;if(!d.moved&&Math.hypot(x-d.x0,y-d.y
     const w=new THREE.Quaternion().setFromAxisAngle(d.cd,a-d.a0).multiply(d.wq);v.q=d.fqi.clone().multiply(w).toArray();}
   AN.tlDirty=true;}
 canvas.addEventListener('pointerdown',e=>{
-  if(mode==='paint'||e.button!==0||spaceHeld)return;
+  if(mode==='paint'||e.button!==0||spaceHeld||busy)return;
   if(ptrs.size>1){if(cdrag){const s=cdrag.snap;cdrag=null;if(s!==rigSnap())rigRestore(s);}if(jdrag){jdrag=null;}controls.enabled=true;return;}
   downAt=[e.clientX,e.clientY,tc.dragging||tc.axis!==null];
   if(mode==='rig'){if(RG.test)return;const i=pickJoint(e.clientX,e.clientY);if(i<0)return;RG.sel=i;jdrag={i,moved:false,snap:rigSnap(),pid:e.pointerId};controls.enabled=false;renderRigUI();updWColors();return;}
@@ -3258,11 +3417,12 @@ function drawTL(){
 tlCv.addEventListener('pointerdown',e=>{const C=curClip();if(!C)return;e.preventDefault();tlCv.setPointerCapture(e.pointerId);if(AN.playing)setPlay(false);
   const r=tlCv.getBoundingClientRect(),G=tlGeom(),px=e.clientX-r.left,py=e.clientY-r.top,sel=selIds();
   const fs=keyFrames(C,sel||undefined),near=fs.find(f=>Math.abs(G.x(f)-px)<(coarse()?11:7));
-  if(near!=null&&py>G.h*0.4){tlDrag={key:near,from:near,snap:rigSnap(),ids:sel};goFrame(near);return;}
+  if(near!=null&&py>G.h*0.4){tlDrag={key:near,from:near,snap:rigSnap(),ids:sel,ch:JSON.stringify(curClip().ch)};goFrame(near);return;}
   tlDrag={scrub:true};goFrame(G.f(px));});
 tlCv.addEventListener('pointermove',e=>{if(!tlDrag)return;const r=tlCv.getBoundingClientRect(),G=tlGeom(),f=Math.max(0,Math.min(G.len,G.f(e.clientX-r.left)));
   if(tlDrag.scrub){if(f!==Math.round(AN.frame))goFrame(f);return;}
-  if(f!==tlDrag.key){moveKeys(tlDrag.key,f,tlDrag.ids);tlDrag.key=f;goFrame(f);}});
+  /* each move starts again from the keys as they were, so keys the drag passes over stay */
+  if(f!==tlDrag.key){const C=curClip();if(C)C.ch=JSON.parse(tlDrag.ch);moveKeys(tlDrag.from,f,tlDrag.ids);tlDrag.key=f;goFrame(f);}});
 const tlEnd=()=>{if(tlDrag&&tlDrag.snap&&tlDrag.key!==tlDrag.from){rigPush(tlDrag.snap);markDirty();}tlDrag=null;};
 tlCv.addEventListener('pointerup',tlEnd);tlCv.addEventListener('pointercancel',tlEnd);
 new ResizeObserver(()=>{AN.tlDirty=true;}).observe(tlCv);
@@ -3338,23 +3498,23 @@ document.querySelectorAll('[data-atool]').forEach(b=>b.addEventListener('click',
 function setWView(on){RG.wview=on;if(on)ensureSkin();renderRigUI();}
 function setTest(on){RG.test=on;if(on){RG.sel=RG.sel;ensureSkin();}renderRigUI();}
 /* keys in rigging and animation; letters that paint uses are swallowed so they don't switch paint tools */
-function rigKey(e){const k=e.key.toLowerCase(),mod=e.ctrlKey||e.metaKey;
+function rigKey(e){const k=keyOf(e),mod=e.ctrlKey||e.metaKey;
   if(mode==='anim'){
     if(e.code==='Space'){e.preventDefault();$('tlPlay').click();return true;}
     if(mod&&k==='c'){copyPose();return true;}if(mod&&k==='v'){e.preventDefault();pastePose();return true;}if(mod)return false;
     if(k==='w'){setGz('translate');return true;}if(k==='e'){setGz('rotate');return true;}if(k==='k'){keyNow(e.shiftKey);return true;}
     if(k==='i'){const c=AN.sel&&CT.byId[AN.sel];if(c&&c.limb)setIK(c.limb,!ikOn(AN.pose,c.limb));return true;}if(k==='m'){flipPose();return true;}
-    if(e.key==='ArrowLeft'||e.key===','){setPlay(false);goFrame(Math.round(AN.frame)-1);return true;}if(e.key==='ArrowRight'||e.key==='.'){setPlay(false);goFrame(Math.round(AN.frame)+1);return true;}
+    if(e.key==='ArrowLeft'||e.code==='Comma'){setPlay(false);goFrame(Math.round(AN.frame)-1);return true;}if(e.key==='ArrowRight'||e.code==='Period'){setPlay(false);goFrame(Math.round(AN.frame)+1);return true;}
     if(e.key==='ArrowUp'){e.preventDefault();setPlay(false);stepKey(1);return true;}if(e.key==='ArrowDown'){e.preventDefault();setPlay(false);stepKey(-1);return true;}
     if(e.key==='Home'){goFrame(0);return true;}if(e.key==='End'){const C=curClip();if(C)goFrame(C.len);return true;}
     if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();delKeysAt();return true;}
     if(e.key==='Escape'){selectCtrl(null);return true;}
-    return k.length===1&&/[a-zа-я]/.test(k);}
+    return /^Key[A-Z]$/.test(e.code||'')||/^[a-zа-яё]$/.test(e.key.toLowerCase());}
   if(mode==='rig'){if(mod)return false;
     if(k==='n'){addBone();return true;}if(k==='w'){setWView(!RG.wview);return true;}if(k==='p'){setTest(!RG.test);return true;}
     if((e.key==='Delete'||e.key==='Backspace')&&RG.sel>=0){e.preventDefault();delBone();return true;}
     if(e.key==='Escape'){RG.sel=-1;renderRigUI();updWColors();return true;}
-    return k.length===1&&/[a-zа-я]/.test(k);}
+    return /^Key[A-Z]$/.test(e.code||'')||/^[a-zа-яё]$/.test(e.key.toLowerCase());}
   return false;}
 
 /* ---------- panel controls ---------- */
@@ -3392,9 +3552,9 @@ $('pReset').addEventListener('click',()=>resetPose(false));$('pResetAll').addEve
 $('pCopy').addEventListener('click',copyPose);$('pPaste').addEventListener('click',pastePose);$('pMirror').addEventListener('click',flipPose);
 $('pLR').addEventListener('click',()=>copySide('l'));$('pRL').addEventListener('click',()=>copySide('r'));
 $('pKeyAll').addEventListener('click',()=>keyNow(true));$('pDelKey').addEventListener('click',delKeysAt);
-$('pInterp').querySelectorAll('.chip').forEach(b=>b.addEventListener('click',()=>{const C=curClip();if(!C)return;const f=Math.round(AN.frame),ids=selIds();let n=0;rigPush();
+$('pInterp').querySelectorAll('.chip').forEach(b=>b.addEventListener('click',()=>{const C=curClip();if(!C)return;const f=Math.round(AN.frame),ids=selIds();let n=0;const snap=rigSnap();
   for(const id in C.ch){if(ids&&!ids.includes(id))continue;const k=C.ch[id].find(q=>q.f===f);if(k&&!/^sw_/.test(id)){k.i=b.dataset.i;n++;}}
-  if(!n){RU.u.pop();toast('На этом кадре нет ключа');return;}goFrame(f);renderPoseUI();}));
+  if(!n){toast('На этом кадре нет ключа');return;}rigPush(snap);goFrame(f);renderPoseUI();}));
 $('aKeyBtn').addEventListener('click',()=>keyNow());$('aMirBtn').addEventListener('click',flipPose);
 $('aIkBtn').addEventListener('click',()=>{const c=AN.sel&&CT.byId[AN.sel];if(c&&c.limb)setIK(c.limb,!ikOn(AN.pose,c.limb));else toast('Выбери контроллер руки или ноги');});
 $('aGoRig').addEventListener('click',()=>setMode('rig'));$('wGoSk').addEventListener('click',()=>setTab('rig'));
@@ -3402,20 +3562,22 @@ $('aGoRig').addEventListener('click',()=>setMode('rig'));$('wGoSk').addEventList
 /* ---------- export: one skinned mesh with every part, the skeleton and every animation baked per frame ---------- */
 function boneExportNames(){const used=new Set();return RG.bones.map(b=>{let s=[...b.name].map(ch=>{const l=ch.toLowerCase(),r=TRL[l];return r===undefined?ch:r;}).join('').replace(/[^A-Za-z0-9_]/g,'_')||'bone';
   let n=s,k=1;while(used.has(n))n=s+'_'+(++k);used.add(n);return n;});}
-function rigExport(ue,base){
+function rigExport(ue,base,keep){
   if(!RG.bones.length||!$('rigExp').checked)return null;
-  const hadSkin=!!SK;if(!SK)buildSkin();if(!SK)return null;
+  /* a skin left from before a joint or binding change has stale bones, weights and no controllers: build it again */
+  const hadSkin=!!SK,stale=s=>!s||RG.wkey!==weightsKey()||s.bones.length!==RG.bones.length||!CT.list.length;if(stale(SK))buildSkin();if(!SK)return null;
   const names=boneExportNames(),bones=RG.bones.map((b,i)=>{const o=new THREE.Bone();o.name=names[i];o.position.copy(SK.rest[i]);return o;});
   const grp=new THREE.Group();grp.name=ue?'SK_'+base:(modelName||'model');RG.bones.forEach((b,i)=>{if(b.parent>=0)bones[b.parent].add(bones[i]);else grp.add(bones[i]);});
-  let N=0;meshes.forEach(d=>N+=d.mesh.geometry.attributes.position.count);
-  const hasCol=meshes.every(d=>d.mesh.geometry.attributes.color),pos=new Float32Array(N*3),nrm=new Float32Array(N*3),uv=new Float32Array(N*2),col=hasCol?new Float32Array(N*3):null,si=new Uint16Array(N*4),sw=new Float32Array(N*4);
+  const use=meshes.map((d,mi)=>[d,mi]).filter(([d,mi])=>!keep||keep[mi]);
+  let N=0;use.forEach(([d])=>N+=d.mesh.geometry.attributes.position.count);
+  const hasCol=use.every(([d])=>d.mesh.geometry.attributes.color),pos=new Float32Array(N*3),nrm=new Float32Array(N*3),uv=new Float32Array(N*2),col=hasCol?new Float32Array(N*3):null,si=new Uint16Array(N*4),sw=new Float32Array(N*4);
   const geo=new THREE.BufferGeometry(),mats=[],v=new THREE.Vector3();let o=0;
-  meshes.forEach((d,mi)=>{const g=d.mesh.geometry,n=g.attributes.position.count,m=d.mesh.matrixWorld,nm=new THREE.Matrix3().getNormalMatrix(m),W=RG.W[mi];
+  use.forEach(([d,mi])=>{const g=d.mesh.geometry,n=g.attributes.position.count,m=d.mesh.matrixWorld,nm=new THREE.Matrix3().getNormalMatrix(m),W=RG.W[mi];
     for(let i=0;i<n;i++){v.fromBufferAttribute(g.attributes.position,i).applyMatrix4(m).toArray(pos,(o+i)*3);
       if(g.attributes.normal)v.fromBufferAttribute(g.attributes.normal,i).applyMatrix3(nm).normalize().toArray(nrm,(o+i)*3);
       if(g.attributes.uv){uv[(o+i)*2]=g.attributes.uv.getX(i);uv[(o+i)*2+1]=g.attributes.uv.getY(i);}
       if(col){const c=g.attributes.color;col[(o+i)*3]=c.getX(i);col[(o+i)*3+1]=c.getY(i);col[(o+i)*3+2]=c.getZ(i);}}
-    si.set(W.si,o*4);sw.set(W.sw,o*4);geo.addGroup(o,n,mi);mats.push(d.mesh.material);o+=n;});
+    si.set(W.si,o*4);sw.set(W.sw,o*4);geo.addGroup(o,n,mats.length);mats.push(d.mesh.material);o+=n;});
   geo.setAttribute('position',new THREE.BufferAttribute(pos,3));geo.setAttribute('normal',new THREE.BufferAttribute(nrm,3));geo.setAttribute('uv',new THREE.BufferAttribute(uv,2));
   if(col)geo.setAttribute('color',new THREE.BufferAttribute(col,3));geo.setAttribute('skinIndex',new THREE.Uint16BufferAttribute(si,4));geo.setAttribute('skinWeight',new THREE.Float32BufferAttribute(sw,4));
   const sm=new THREE.SkinnedMesh(geo,mats);sm.name=ue?'SK_'+base:(modelName||'model')+'_mesh';grp.add(sm);grp.updateMatrixWorld(true);sm.bind(new THREE.Skeleton(bones),new THREE.Matrix4());
@@ -3431,32 +3593,58 @@ function rigExport(ue,base){
 }
 renderRigUI();renderAnimUI();
 
-/* ---------- autosave: a few seconds after each change the project goes to IndexedDB; on the next start it can be restored ---------- */
-const AS={dirty:false,t:0,hold:false,off:false};
+/* ---------- autosave: a few seconds after each change the project goes to IndexedDB; on the next start it can be restored ----------
+   'last' is the newest backup. While the restore question waits, the old backup sits in 'prev', so new work is saved at once. */
+const AS={dirty:false,t:0,off:false,fail:0,rev:0,savedRev:0,loading:false};
 function idbDo(mode,fn){return new Promise((ok,bad)=>{if(!window.indexedDB)return bad(new Error('IndexedDB недоступна'));
   const r=indexedDB.open('krasilnya',1);r.onupgradeneeded=()=>r.result.createObjectStore('auto');r.onerror=()=>bad(r.error);
   r.onsuccess=()=>{const db=r.result,tx=db.transaction('auto',mode),q=fn(tx.objectStore('auto'));tx.oncomplete=()=>{db.close();ok(q&&q.result);};tx.onerror=tx.onabort=()=>{db.close();bad(tx.error);};};});}
-function markDirty(){if(!meshes.length||AS.off)return;AS.dirty=true;clearTimeout(AS.t);AS.t=setTimeout(autoSave,4000);}
+/* rev counts changes; savedRev is the change the last project file holds */
+function markDirty(){if(!meshes.length)return;AS.rev++;if(AS.off)return;AS.dirty=true;clearTimeout(AS.t);AS.t=setTimeout(autoSave,4000);}
+const unsaved=()=>meshes.length>0&&AS.rev!==AS.savedRev;
+function autoPill(t,err){const p=$('autoPill');p.hidden=false;p.textContent=t;p.classList.toggle('err',!!err);}
+const idle=()=>new Promise(r=>window.requestIdleCallback?requestIdleCallback(()=>r(),{timeout:1500}):setTimeout(r,0));
+const autoBusy=()=>AS.loading||busy||stroke||gdrag||ddrag||editSnap||rc||activePtr!=null;
 async function autoSave(){
   if(!AS.dirty||!meshes.length||AS.off)return;
-  if(AS.hold||stroke||gdrag||ddrag||editSnap||rc){clearTimeout(AS.t);AS.t=setTimeout(autoSave,2500);return;}
+  if(autoBusy()){clearTimeout(AS.t);AS.t=setTimeout(autoSave,2500);return;}
   AS.dirty=false;
-  try{const files=await projectFiles();await idbDo('readwrite',s=>s.put({time:Date.now(),name:modelName,files},'last'));$('autoPill').hidden=false;$('autoPill').textContent='Автосохранено '+new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});}
-  catch(e){AS.off=true;console.warn('autosave',e);}
+  try{await idle(); /* copying the textures takes a moment: wait for a pause in drawing */
+    if(autoBusy()){AS.dirty=true;clearTimeout(AS.t);AS.t=setTimeout(autoSave,2500);return;}
+    const files=await projectFiles();await idbDo('readwrite',s=>s.put({time:Date.now(),name:modelName,files},'last'));
+    AS.fail=0;autoPill('Автосохранено '+new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}));}
+  catch(e){console.warn('autosave',e);AS.dirty=true;AS.fail++;
+    /* no IndexedDB at all (some private windows): say it once and stop; any other error is retried with a growing pause */
+    if(!window.indexedDB){AS.off=true;autoPill('Автосохранение недоступно в этом окне — сохраняй проект (Ctrl+S)',true);return;}
+    autoPill('Автосохранение не работает — сохрани проект (Ctrl+S)',true);clearTimeout(AS.t);AS.t=setTimeout(autoSave,Math.min(120000,15000*AS.fail));}
 }
 function autoClean(){AS.dirty=false;clearTimeout(AS.t);idbDo('readwrite',s=>s.delete('last')).catch(()=>{});$('autoPill').hidden=true;}
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&AS.dirty){clearTimeout(AS.t);autoSave();}});
+/* leaving with changes the autosave hasn't written yet: start it and ask to stay a moment.
+   The desktop app shows its own question for this from version 2 of its bridge; older versions would block silently. */
+window.addEventListener('beforeunload',e=>{if(!AS.dirty||AS.off||!meshes.length)return;clearTimeout(AS.t);autoSave();
+  if(!window.krDesktop||(window.krDesktop.v|0)>=2){e.preventDefault();e.returnValue='';}});
 async function offerRestore(){
-  let rec=null;try{rec=await idbDo('readonly',s=>s.get('last'));}catch(e){return;}
+  let rec=null,key='last';
+  try{rec=await idbDo('readonly',s=>s.get('last'));if(!rec){rec=await idbDo('readonly',s=>s.get('prev'));key='prev';}}catch(e){return;}
   if(!rec||!rec.files||!rec.files['project.json'])return;
-  AS.hold=true;const box=$('restore'),when=new Date(rec.time);
+  if(key==='last'){try{await idbDo('readwrite',s=>{s.put(rec,'prev');return s.delete('last');});}catch(e){}}
+  showRestore(rec);
+}
+function showRestore(rec){
+  const box=$('restore'),when=new Date(rec.time);
   $('restoreTxt').textContent='Есть несохранённая работа «'+(rec.name||'модель')+'» от '+when.toLocaleDateString('ru-RU',{day:'numeric',month:'long'})+', '+when.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})+'.';
   box.hidden=false;
-  $('restoreYes').onclick=async()=>{box.hidden=true;toast('Восстанавливаю…');
+  $('restoreYes').onclick=async()=>{box.hidden=true;
+    if(unsaved()&&!await askSave('Восстановить старую работу? Текущая заменится.'))return showRestore(rec);
+    toast('Восстанавливаю…');
     const F=rec.files,get=(p,t)=>{const v=F[p];if(v==null)return null;if(t==='string'||t==='base64')return v;const u=v instanceof ArrayBuffer?new Uint8Array(v):new Uint8Array(v.buffer,v.byteOffset,v.byteLength);return t==='arraybuffer'?u.slice().buffer:u;};
-    try{await loadProjectFiles(get,rec.name);toast('Работа восстановлена');}catch(e){toast('Не удалось восстановить: '+(e&&e.message||e));}
-    AS.hold=false;};
-  $('restoreNo').onclick=()=>{box.hidden=true;AS.hold=false;autoClean();if(undo.length)markDirty();};
+    try{await loadProjectFiles(get,rec.name);toast('Работа восстановлена');markDirty();idbDo('readwrite',s=>s.delete('prev')).catch(()=>{});}
+    catch(e){toast('Не удалось восстановить: '+(e&&e.message||e)+'. Резервная копия сохранена.');}};
+  /* «no» keeps the backup for a few seconds, with a way back */
+  $('restoreNo').onclick=()=>{box.hidden=true;let back=false;
+    const t=setTimeout(()=>{if(!back)idbDo('readwrite',s=>s.delete('prev')).catch(()=>{});},10000);
+    toast('Резервная копия будет удалена',{label:'Вернуть',fn:()=>{back=true;clearTimeout(t);showRestore(rec);}},10000);};
 }
 /* ---------- boot ---------- */
 builtinDecals().forEach(d=>st.decal.list.push(decalFromCanvas(d.name,d.c)));renderDecals();
@@ -3466,12 +3654,15 @@ if(window.krDesktop&&typeof window.krDesktop.onOpenFile==='function'){
   window.krDesktop.onOpenFile((name,bytes)=>{try{loadFile(new File([bytes],name));}catch(e){toast('Не удалось открыть '+name);}});
   window.krDesktop.ready&&window.krDesktop.ready();
 }
-let busy=0;
-(function loop(){requestAnimationFrame(loop);if(busy)return;
+let rigErr=false;
+(function loop(){requestAnimationFrame(loop);document.body.classList.toggle('busy',!!busy);if(busy)return;
   if(pendingMove&&ddrag){const p=pendingMove;pendingMove=null;decalPlace(p[0],p[1]);}
   processMove();
   if(gradDirty){gradDirty=false;redrawEdit();}
   if(rcDirty&&performance.now()-rcAt>120){rcDirty=false;rcApply();}
-  stepView();controls.update();drawGizmo();drawHilite();if(mode==='paint'){drawDecalFrame();drawGradHandles();}renderLayers();flushTex();rigFrame();renderer.render(scene,camera);meshes.forEach(d=>{d.mesh.geometry.attributes.color._full=false;});})();
+  stepView();controls.update();drawGizmo();drawHilite();if(mode==='paint'){drawDecalFrame();drawGradHandles();}renderLayers();flushTex();
+  /* a broken rig must not stop the picture: the error is shown once and the frame is still drawn */
+  try{rigFrame();rigErr=false;}catch(err){if(!rigErr){rigErr=true;console.error(err);toast('Ошибка в скелете: '+(err&&err.message||err));}}
+  renderer.render(scene,camera);})();
 })();
 </script>
